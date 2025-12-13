@@ -1,25 +1,27 @@
 import 'dotenv/config';
-import express from 'express';
+import express, { type Request, type Response } from 'express';
 import http from 'http';
-import { instrument } from '@socket.io/admin-ui';
-import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { createAdapter } from 'socket.io-redis';
 import Redis from 'ioredis';
 import pino from 'pino';
 import { createRoom, joinRoom, startGame, getRoom, handleIntent, listRooms } from './game/roomManager';
-import { v4 as uuid } from 'uuid';
+import cors from 'cors';
 
 const logger = pino();
 
 const app = express();
+app.use(cors({
+  origin: 'http://localhost:5173',
+}));
 const server = http.createServer(app);
 
 const PORT = process.env.BACKEND_PORT || 4000;
 
 // Simple health endpoint
-app.get('/health', (_, res) => res.json({ ok: true }));
-app.get('/rooms', (_, res) => res.json(listRooms()));
+app.get('/health', (_req: Request, res: Response) => res.status(200).json({ ok: true }));
+app.get('/rooms', (_req: Request, res: Response) => res.json(listRooms()));
+
 
 (async function bootstrap() {
   server.listen(PORT, () => {

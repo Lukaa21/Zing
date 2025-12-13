@@ -8,7 +8,7 @@
   "scripts": {
     "infra:up": "docker compose -f infra/docker-compose.yml up -d",
     "infra:down": "docker compose -f infra/docker-compose.yml down --volumes",
-    "dev": "pnpm --parallel --filter @zing/backend dev --filter @zing/frontend dev",
+    "dev": "pnpm -r --parallel --stream --filter ./apps/backend --filter ./apps/frontend dev",
     "lint": "pnpm -s -r lint",
     "test": "pnpm -s -r test"
   },

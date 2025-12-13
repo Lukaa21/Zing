@@ -1,5 +1,4 @@
 import { GameState, Card, Intent, Event } from './types';
-import { v4 as uuid } from 'uuid';
 
 export function createDeck(seed?: string): string[] {
   const suits = ['hearts', 'diamonds', 'clubs', 'spades'] as const;

@@ -1,6 +1,6 @@
 import { GameState, PlayerState, Event, Intent } from './types';
 import { createDeck, initialDeal, applyIntent } from './engine';
-import { v4 as uuid } from 'uuid';
+import { randomUUID } from 'crypto';
 import prisma from '../db';
 import { appendGameEvent } from '../events/logger';
 
@@ -21,7 +21,7 @@ export function createRoom() {
 }
 
 export async function startGame(room: Room) {
-  const gameId = uuid();
+  const gameId = randomUUID();
   const deck = createDeck();
   const players = room.players.map((p, idx) => ({ ...p, hand: [], taken: [] }));
   const state: GameState = {

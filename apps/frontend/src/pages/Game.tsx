@@ -17,7 +17,10 @@ const Game: React.FC<{ roomId: string; playerName: string; onLeave: () => void }
     // announce auth for this client
     s.emit('auth', { name: playerName, role: 'player' });
     setSocket(s);
-    return () => s.disconnect();
+    return () => {
+  s.disconnect();
+};
+
   }, []);
 
   const handlePlay = (cardId: string) => {
