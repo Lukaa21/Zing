@@ -1,0 +1,16 @@
+{
+  "name": "zing",
+  "version": "0.0.1",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "infra:up": "docker compose -f infra/docker-compose.yml up -d",
+    "infra:down": "docker compose -f infra/docker-compose.yml down --volumes",
+    "dev": "pnpm --parallel --filter @zing/backend dev --filter @zing/frontend dev",
+    "lint": "pnpm -s -r lint",
+    "test": "pnpm -s -r test"
+  },
+  "devDependencies": {}
+}
