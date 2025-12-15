@@ -50,3 +50,11 @@ model GameSnapshot {
   snapshot   Json
   createdAt  DateTime @default(now())
 }
+
+model RoundScore {
+  id        String   @id @default(uuid())
+  gameId    String
+  team      Int
+  points    Int
+  createdAt DateTime @default(now())
+}

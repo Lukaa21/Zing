@@ -14,12 +14,7 @@ pnpm install
 # start dev apps (backend + frontend)
 pnpm run dev
 ```
-Dev bots:
 
-```powershell
-# Start n bots (default 2):
-pnpm --filter @zing/backend run dev:runBots -- 3
-```
 
 This repo contains:
 - apps/backend: server and game engine

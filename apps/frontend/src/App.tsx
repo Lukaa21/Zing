@@ -8,6 +8,17 @@ const App: React.FC = () => {
   const [roomId, setRoomId] = useState<string | null>(null);
   const [name, setName] = useState<string>('');
 
+  React.useEffect(() => {
+    const qp = new URLSearchParams(window.location.search);
+    const r = qp.get('room');
+    const n = qp.get('name');
+    if (r && n) {
+      setRoomId(r);
+      setName(n);
+      setView('game');
+    }
+  }, []);
+
   return (
     <div>
       {view === 'lobby' && <Lobby onJoin={(id, playerName) => { setRoomId(id); setName(playerName); setView('game'); }} />}

@@ -12,6 +12,7 @@ export type PlayerState = {
   name: string;
   seat: number;
   role: 'player' | 'spectator';
+  team: number; // 0 or 1
   hand: string[]; // card ids
   taken: string[]; // captured cards
 };
@@ -21,17 +22,17 @@ export type Talon = string[]; // top of talon is last item
 export type GameState = {
   id: string;
   players: PlayerState[];
-  talons: Talon[]; // four cards as initial talons
+  talon: Talon; // pile, top is last
   deck: string[]; // remaining deck top = last
   currentTurnPlayerId?: string;
   dealerId?: string;
+  handNumber?: number; // 1-based index of the current mini-hand
   scores: Record<string, number>;
 };
 
 export type Intent =
   | { type: 'play_card'; playerId: string; cardId: string }
-  | { type: 'take_talon'; playerId: string }
-  | { type: 'pass'; playerId: string };
+  ;
 
 export type Event = {
   type: string;

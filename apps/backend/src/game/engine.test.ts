@@ -11,10 +11,10 @@ describe('game engine', () => {
 
   it('deals four cards to each player', () => {
     const players = [{ id: 'p1', name: 'p1', seat: 0, role: 'player', hand: [], taken: [] }, { id: 'p2', name: 'p2', seat: 1, role: 'player', hand: [], taken: [] }];
-    const state: GameState = { id: 'g1', players: players as any, talons: [[], [], [], []], deck: createDeck(), currentTurnPlayerId: 'p1', dealerId: 'p1', scores: {} };
+    const state: GameState = { id: 'g1', players: players as any, talon: [], deck: createDeck(), currentTurnPlayerId: 'p1', dealerId: 'p1', scores: {} };
     initialDeal(state);
     expect(state.players[0].hand.length).toBe(4);
     expect(state.players[1].hand.length).toBe(4);
-    expect(state.talons.flat().length).toBe(4);
+    expect(state.talon.flat().length).toBe(4);
   });
 });

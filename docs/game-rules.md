@@ -16,4 +16,4 @@ This file contains a concise description of the Zing rules used by the server-si
   - Team with more captured cards gains +3 bonus (tie-breaker: who captured 2 of clubs)
 - Game continues until a team reaches 101 points (or higher thresholds if tied in same round).
 
-This is the initial, high-level spec for the engine. The engine will implement validation for every intent (play, take, pass) and produce server-side events stored in Postgres as `game_events`.
+This is the initial, high-level spec for the engine. The engine will validate play intents and produce server-side events stored in Postgres as `game_events`.

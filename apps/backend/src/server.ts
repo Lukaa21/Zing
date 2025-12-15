@@ -5,7 +5,7 @@ import { Server } from 'socket.io';
 import { createAdapter } from 'socket.io-redis';
 import Redis from 'ioredis';
 import pino from 'pino';
-import { createRoom, joinRoom, startGame, getRoom, handleIntent, listRooms } from './game/roomManager';
+import { createRoom, joinRoom, startGame, getRoom, handleIntent, listRooms, leaveRoom, removePlayerFromAllRooms } from './game/roomManager';
 import cors from 'cors';
 
 const logger = pino();
@@ -65,7 +65,7 @@ app.get('/rooms', (_req: Request, res: Response) => res.json(listRooms()));
 
     socket.on('create_room', (payload) => {
       const room = createRoom();
-      joinRoom(room, { id: socket.id, name: socket.data.user?.name ?? 'guest', seat: 0, role: socket.data.user?.role ?? 'player', hand: [], taken: [] });
+      joinRoom(room, { id: socket.id, name: socket.data.user?.name ?? 'guest', seat: 0, role: socket.data.user?.role ?? 'player', team: 0, hand: [], taken: [] });
       socket.join(room.id);
       socket.emit('room_created', { roomId: room.id });
       io.emit('rooms_list', listRooms());
@@ -75,34 +75,75 @@ app.get('/rooms', (_req: Request, res: Response) => res.json(listRooms()));
       socket.join(roomId);
       const room = getRoom(roomId);
       if (room) {
-        joinRoom(room, { id: socket.id, name: socket.data.user?.name ?? 'guest', seat: room.players.length, role: socket.data.user?.role ?? 'player', hand: [], taken: [] });
-        io.to(roomId).emit('room_update', { roomId, players: room.players.map((p) => ({ id: p.id, name: p.name, role: p.role })) });
+        joinRoom(room, { id: socket.id, name: socket.data.user?.name ?? 'guest', seat: room.players.length, role: socket.data.user?.role ?? 'player', team: 0, hand: [], taken: [] });
+        io.to(roomId).emit('room_update', { roomId, players: room.players.map((p) => ({ id: p.id, name: p.name, role: p.role, taken: p.taken })) });
       }
     });
 
     socket.on('start_game', async ({ roomId }) => {
       const room = getRoom(roomId);
       if (!room) return;
-      const state = await startGame(room);
-      io.to(roomId).emit('game_state', { state });
+      try {
+        const state = await startGame(room);
+        // emit initial hands_dealt event so clients show initial deal in logs
+        const dealt: Record<string, string[]> = {};
+        for (const p of state.players) dealt[p.id] = [...p.hand];
+        io.to(roomId).emit('game_event', { type: 'hands_dealt', actor: undefined, payload: { dealt, handNumber: state.handNumber } });
+        io.to(roomId).emit('game_state', state);
+      } catch (err: any) {
+        socket.emit('start_rejected', { reason: err.message });
+      }
+    });
+
+    socket.on('leave_room', ({ roomId }) => {
+      const room = getRoom(roomId);
+      if (!room) return;
+      leaveRoom(room, socket.id);
+      socket.leave(roomId);
+      io.to(roomId).emit('room_update', { roomId, players: room.players.map((p) => ({ id: p.id, name: p.name, role: p.role, taken: p.taken })) });
     });
 
     socket.on('intent_play_card', async ({ roomId, cardId }) => {
       const room = getRoom(roomId);
       if (!room) return;
       const ev = await handleIntent(room, { type: 'play_card', playerId: socket.id, cardId });
-      if (ev) io.to(roomId).emit('game_event', ev);
+      if (Array.isArray(ev)) {
+        for (const e of ev) io.to(roomId).emit('game_event', e);
+      } else if (ev) {
+        io.to(roomId).emit('game_event', ev);
+      }
+      // emit updated full state so clients have current view
+      if (room.state) io.to(roomId).emit('game_state', room.state);
     });
 
-    socket.on('intent_take_talon', async ({ roomId }) => {
+    // Dev-only: allow playing a card as another player (for manual multi-player testing)
+    const DEV_TEST = process.env.DEV_TEST_MODE === 'true' || process.env.NODE_ENV !== 'production';
+    socket.on('intent_play_card_as', async ({ roomId, cardId, asPlayerId }) => {
+      if (!DEV_TEST) {
+        socket.emit('error', { reason: 'dev_mode_disabled' });
+        return;
+      }
       const room = getRoom(roomId);
       if (!room) return;
-      const ev = await handleIntent(room, { type: 'take_talon', playerId: socket.id });
-      if (ev) io.to(roomId).emit('game_event', ev);
+      const ev = await handleIntent(room, { type: 'play_card', playerId: asPlayerId, cardId });
+      if (Array.isArray(ev)) {
+        for (const e of ev) io.to(roomId).emit('game_event', e);
+      } else if (ev) {
+        io.to(roomId).emit('game_event', ev);
+      }
+      if (room.state) io.to(roomId).emit('game_state', room.state);
     });
+    
 
     socket.on('disconnect', () => {
       logger.info({ clientId: id }, 'Client disconnected');
+      // Remove player from any rooms they may have been part of and notify rooms
+      const changed = removePlayerFromAllRooms(id);
+      for (const rid of changed) {
+        const room = getRoom(rid);
+        if (!room) continue;
+        io.to(rid).emit('room_update', { roomId: rid, players: room.players.map((p) => ({ id: p.id, name: p.name, role: p.role, taken: p.taken })) });
+      }
     });
   });
 })();

@@ -6,14 +6,12 @@ WebSocket Events (client -> server):
 - `join_room` { roomId } -> server joins and replies `room_update`.
 - `start_game` { roomId } -> server starts game and emits `game_state`.
 - `intent_play_card` { roomId, cardId } -> server validates and either emits `game_event` or `intent_rejected`.
-- `intent_take_talon` { roomId } -> server validates and emits `game_event`.
-- `intent_pass` { roomId } -> server validates and emits `game_event`.
 
 Server Events (server -> clients):
 - `auth_ok`, `auth_error` — authentication.
 - `room_created`, `room_update`, `rooms_list`.
-- `game_state` { state } — authoritative state snapshot or delta.
-- `game_event` { seq, eventType, payload } — single event that occurred.
+- `game_state` — authoritative state snapshot (server emits the raw `GameState` object).
+- `game_event` — a single event that occurred (server emits event objects).
 - `intent_rejected` { reason } — reason for rejection.
 - `game_over` — final summary.
 

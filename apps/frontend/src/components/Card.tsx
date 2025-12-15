@@ -14,7 +14,7 @@ const suitToColor: Record<string, string> = {
   spades: 'black'
 };
 
-const Card: React.FC<{ id: string; onClick?: (id: string) => void; faceDown?: boolean }> = ({ id, onClick, faceDown }) => {
+const Card: React.FC<{ id: string; onClick?: (id: string) => void; faceDown?: boolean; disabled?: boolean }> = ({ id, onClick, faceDown, disabled }) => {
   if (faceDown) {
     return <div className="card card-back">🂠</div>;
   }
@@ -22,7 +22,11 @@ const Card: React.FC<{ id: string; onClick?: (id: string) => void; faceDown?: bo
   const symbol = suitToSymbol[suit] || '?';
   const color = suitToColor[suit] || 'black';
   return (
-    <div className="card card-front" onClick={() => onClick?.(id)} style={{ color }}>
+    <div
+      className="card card-front"
+      onClick={() => !disabled && onClick?.(id)}
+      style={{ color, opacity: disabled ? 0.45 : 1, pointerEvents: disabled ? 'none' : 'auto' }}
+    >
       <div className="rank top-left">{rank}</div>
       <div className="suit center">{symbol}</div>
       <div className="rank bottom-right">{rank}</div>

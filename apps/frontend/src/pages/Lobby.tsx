@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { Socket } from 'socket.io-client';
+import { connect } from '../services/socket';
 
 const LOBBY_URL =
   import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
@@ -19,12 +20,10 @@ const Lobby: React.FC<LobbyProps> = ({ onJoin }) => {
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
 
   useEffect(() => {
-    const s = io(LOBBY_URL, { transports: ['websocket'] });
+    const s = connect('guest');
 
-    s.on('connect', () => {
-      console.log('connected to backend');
-    });
-
+    s.off('rooms_list');
+    s.off('room_created');
     s.on('rooms_list', (r: RoomInfo[]) => {
       setRooms(r);
     });
@@ -41,10 +40,8 @@ const Lobby: React.FC<LobbyProps> = ({ onJoin }) => {
       .then((list: RoomInfo[]) => setRooms(list))
       .catch(console.error);
 
-    return () => {
-      s.disconnect();
-    };
-  }, [name, onJoin]);
+    // Do not disconnect here; keep the shared socket alive across views
+  }, []);
 
   const handleCreate = () => {
     if (!socket || !name) return;
