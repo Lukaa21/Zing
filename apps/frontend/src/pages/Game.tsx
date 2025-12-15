@@ -67,7 +67,10 @@ const Game: React.FC<{ roomId: string; playerName: string; onLeave: () => void }
     s.emit('join_room', { roomId });
     setSocket(s);
     // Do not disconnect here; socket is shared across views
-    return () => {};
+    return () => {
+      s.disconnect();
+    };
+
 
   }, []);
 
