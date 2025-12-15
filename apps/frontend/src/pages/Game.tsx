@@ -47,7 +47,7 @@ const Game: React.FC<{ roomId: string; playerName: string; onLeave: () => void }
 
   useEffect(() => {
     const s = connect(playerName);
-    s.on('connect', () => { console.log('connected to backend'); setMyId(s.id); });
+    s.on('connect', () => { console.log('connected to backend'); s.id && setMyId(s.id); });
     s.off('game_state');
     s.off('game_event');
     s.off('room_update');
