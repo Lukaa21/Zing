@@ -27,7 +27,12 @@ export type GameState = {
   currentTurnPlayerId?: string;
   dealerId?: string;
   handNumber?: number; // 1-based index of the current mini-hand
+  // cumulative match scores (team0/team1)
   scores: Record<string, number>;
+  // target score to win the match (default 101)
+  targetScore?: number;
+  // mark if match is finished
+  matchOver?: boolean;
 };
 
 export type Intent =

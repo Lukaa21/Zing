@@ -36,19 +36,30 @@ export async function startGame(room: Room) {
     deck: [],
     currentTurnPlayerId: players[0]?.id,
     dealerId: players[dealerSeat]?.id,
-    scores: {}
+    scores: { team0: 0, team1: 0 },
+    targetScore: process.env.TARGET_SCORE ? Number(process.env.TARGET_SCORE) : 101,
+    matchOver: false
   };
   initialDeal(state, seed, dealerSeat);
   room.seq++;
-  // persist game
-  await prisma.game.create({
-    data: {
-      id: gameId,
-      status: 'started',
-      deckSeed: seed,
-      dealerId: state.dealerId
+  // persist game (best-effort)
+  if (process.env.DATABASE_URL) {
+    try {
+      await prisma.game.create({
+        data: {
+          id: gameId,
+          status: 'started',
+          deckSeed: seed,
+          dealerId: state.dealerId
+        }
+      });
+    } catch (err) {
+      console.warn('prisma.game.create failed (continuing without DB):', err);
     }
-  });
+  } else {
+    console.warn('DATABASE_URL not set — skipping prisma.game.create');
+  }
+
   const ev = { type: 'game_started', actor: undefined, payload: state };
   await appendGameEvent(gameId, room.seq, ev.type, ev.actor, ev.payload);
   // persist initial hands_dealt event (capture current hands state)
@@ -59,6 +70,87 @@ export async function startGame(room: Room) {
   await appendGameEvent(gameId, room.seq, handsEv.type, handsEv.actor, handsEv.payload);
   room.state = state;
   return state;
+}
+
+// Finalize a round: compute round scores, update cumulative match scores,
+// emit round_end and match_update, check for match end and either emit match_end
+// or start the next round (rotate dealer and deal new hands). Returns emitted events.
+export async function finalizeRound(room: Room) {
+  if (!room.state) return [] as Event[];
+  const emitted: Event[] = [];
+  const state = room.state;
+
+  const result = computeRoundScores(state);
+  const roundEv = { type: 'round_end', actor: undefined, payload: result } as Event;
+  room.seq++;
+  await appendGameEvent(state.id, room.seq, roundEv.type, roundEv.actor, roundEv.payload);
+  emitted.push(roundEv);
+
+  // persist round scores for both teams (best-effort)
+  const pts0 = result.scores.team0 || 0;
+  const pts1 = result.scores.team1 || 0;
+  if (process.env.DATABASE_URL) {
+    try {
+      await prisma.roundScore.createMany({
+        data: [
+          { gameId: state.id, team: 0, points: pts0 },
+          { gameId: state.id, team: 1, points: pts1 }
+        ]
+      });
+    } catch (err) {
+      console.warn('prisma.roundScore.createMany failed (continuing without DB):', err);
+    }
+  }
+
+  // update cumulative match scores
+  state.scores = state.scores || { team0: 0, team1: 0 };
+  state.scores.team0 = (state.scores.team0 || 0) + pts0;
+  state.scores.team1 = (state.scores.team1 || 0) + pts1;
+
+  const matchUpdate = { type: 'match_update', actor: undefined, payload: { cumulative: { ...state.scores }, lastRound: result.scores, targetScore: state.targetScore } } as Event;
+  room.seq++;
+  await appendGameEvent(state.id, room.seq, matchUpdate.type, matchUpdate.actor, matchUpdate.payload);
+  emitted.push(matchUpdate);
+
+  // check match end: one team reached target while the other did not
+  const target = state.targetScore || 101;
+  const t0 = state.scores.team0 || 0;
+  const t1 = state.scores.team1 || 0;
+  if ((t0 >= target && t1 < target) || (t1 >= target && t0 < target)) {
+    state.matchOver = true;
+    const winner = t0 > t1 ? 0 : 1;
+    const matchEnd = { type: 'match_end', actor: undefined, payload: { winnerTeam: winner, finalScores: { team0: t0, team1: t1 } } } as Event;
+    room.seq++;
+    await appendGameEvent(state.id, room.seq, matchEnd.type, matchEnd.actor, matchEnd.payload);
+    emitted.push(matchEnd);
+
+    // best-effort DB update
+    if (process.env.DATABASE_URL) {
+      try {
+        await prisma.game.update({ where: { id: state.id }, data: { status: 'completed' } });
+      } catch (err) {
+        console.warn('prisma.game.update failed (continuing without DB):', err);
+      }
+    }
+
+    return emitted;
+  }
+
+  // otherwise, start a new round: rotate dealer and deal new hands
+  const dealerIdx = state.players.findIndex((p) => p.id === state.dealerId);
+  const nextDealerSeat = (dealerIdx === -1 ? 0 : (dealerIdx + 1) % state.players.length);
+  const seed = randomUUID();
+  initialDeal(state, seed, nextDealerSeat);
+
+  // persist round start / hands_dealt event similar to startGame
+  const dealt: Record<string, string[]> = {};
+  for (const p of state.players) dealt[p.id] = [...p.hand];
+  const handsEv = { type: 'hands_dealt', actor: undefined, payload: { dealt, handNumber: state.handNumber } } as Event;
+  room.seq++;
+  await appendGameEvent(state.id, room.seq, handsEv.type, handsEv.actor, handsEv.payload);
+  emitted.push(handsEv);
+
+  return emitted;
 }
 
 export async function handleIntent(room: Room, intent: Intent) {
@@ -83,29 +175,40 @@ export async function handleIntent(room: Room, intent: Intent) {
 
   // If all hands empty and deck has cards, deal next mini-hands
   const handsEmpty = room.state.players.every((p) => p.hand.length === 0);
+
   if (handsEmpty && room.state.deck.length > 0) {
     const handsEv = dealNextHands(room.state);
     room.seq++;
     await appendGameEvent(room.state.id, room.seq, handsEv.type, handsEv.actor, handsEv.payload);
     emitted.push(handsEv as Event);
+
+    // KLJUČ: upravo smo podijelili nove karte -> ne smijemo raditi “end of round” logiku sad
+    return emitted;
   }
 
-  // If the round is over, compute scores and persist them
+  // If all hands empty and deck is empty but talon still has cards,
+  // award remaining talon to the last taker (or fallback to dealer / first player)
+  if (handsEmpty && room.state.deck.length === 0 && room.state.talon.length > 0) {
+    const lastTaker = (room.state as any)._lastTaker as string | undefined;
+    const awardTo = lastTaker ?? room.state.dealerId ?? room.state.players[0]?.id;
+    if (awardTo) {
+      const taken = [...room.state.talon];
+      const p = room.state.players.find((pl) => pl.id === awardTo);
+      if (p) p.taken.push(...taken);
+      const awardEv = { type: 'talon_awarded', actor: awardTo, payload: { playerId: awardTo, taken } } as Event;
+      room.seq++;
+      await appendGameEvent(room.state.id, room.seq, awardEv.type, awardEv.actor, awardEv.payload);
+      emitted.push(awardEv);
+    }
+    // clear talon so round end condition can be reached
+    room.state.talon = [];
+  }
+
+// If the round is over, finalize it (compute scores, update cumulative match score,
+  // possibly end match or start a new round)
   if (isRoundOver(room.state)) {
-    const result = computeRoundScores(room.state);
-    const roundEv = { type: 'round_end', actor: undefined, payload: result } as Event;
-    room.seq++;
-    await appendGameEvent(room.state.id, room.seq, roundEv.type, roundEv.actor, roundEv.payload);
-    emitted.push(roundEv);
-    // persist round scores for both teams
-    const pts0 = result.scores.team0 || 0;
-    const pts1 = result.scores.team1 || 0;
-    await prisma.roundScore.createMany({
-      data: [
-        { gameId: room.state.id, team: 0, points: pts0 },
-        { gameId: room.state.id, team: 1, points: pts1 }
-      ]
-    });
+    const extra = await finalizeRound(room);
+    if (extra && extra.length) emitted.push(...extra);
   }
 
   return emitted;

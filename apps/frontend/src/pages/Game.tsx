@@ -25,8 +25,28 @@ function formatEvent(ev: any, actorName?: string) {
       return `Game started`;
     case 'hands_dealt':
       return `New hands dealt${ev.payload?.handNumber ? ` (hand ${ev.payload.handNumber})` : ''}`;
+    case 'talon_awarded':
+      return `${actor} awarded remaining talon: ${ev.payload?.taken?.map((c: string) => shortCardName(c)).join(', ')}`;
     case 'round_end':
-      return `Round ended — scores: ${JSON.stringify(ev.payload.scores)}`;
+      if (ev.payload) {
+        const s = ev.payload.scores || {};
+        const teams = ev.payload.teams || {};
+        const bonus = ev.payload.bonus || null;
+        const teamLines: string[] = [];
+        ['team0', 'team1'].forEach((tk, idx) => {
+          const t = teams[tk] || { scoringCards: [], zings: 0, totalTaken: 0, totalPoints: s[tk] || 0, players: [] };
+          const cards = (t.scoringCards || []).map((c: any) => `${shortCardName(c.card)} (${c.pts})`).join(', ') || 'none';
+          const zings = (t.zings || 0) || 0;
+          const players = (t.players || []).join(', ') || `team ${idx}`;
+          teamLines.push(`${players}: ${t.totalPoints || s[tk] || 0} pts — scoring: ${cards}; zings: ${zings}; taken: ${t.totalTaken || 0}`);
+        });
+        if (bonus) {
+          if (bonus.reason === 'most_cards') teamLines.push(`Bonus: +3 to team ${bonus.awardedToTeam} for most cards`);
+          else if (bonus.reason === 'tie_two_clubs') teamLines.push(`Bonus: +3 to team ${bonus.awardedToTeam} (2♣ tiebreaker)`);
+        }
+        return `Round ended — ${teamLines.join(' | ')}`;
+      }
+      return `Round ended — scores: ${JSON.stringify(ev.payload?.scores)}`;
     default:
       return `${ev.type}`;
   }
@@ -62,12 +82,14 @@ const Game: React.FC<{ roomId: string; playerName: string; onLeave: () => void }
       console.log('update', u);
       setPlayers(u.players || []);
     });
+
     // announce auth for this client and join the room
     s.emit('auth', { name: playerName, role: 'player' });
     s.emit('join_room', { roomId });
     setSocket(s);
     // Do not disconnect here; socket is shared across views
     return () => {
+      // keep socket alive (do not disconnect singleton)
       s.disconnect();
     };
 
@@ -89,6 +111,13 @@ const Game: React.FC<{ roomId: string; playerName: string; onLeave: () => void }
     }
     socket.emit('intent_play_card', { roomId, cardId });
   };
+
+  const handleStart = () => {
+    if (!socket) return;
+    setLogs((l) => [`Starting game...`, ...l].slice(0, 200));
+    socket.emit('start_game', { roomId });
+  };
+
 
   return (
     <div className="game container">
@@ -198,8 +227,10 @@ const Game: React.FC<{ roomId: string; playerName: string; onLeave: () => void }
           </div>
       </div>
       <div className="controls">
-        <button onClick={() => socket?.emit('start_game', { roomId })} disabled={!(players.length === 2 || players.length === 4)}>Start Game</button>
+        <button onClick={() => handleStart()} disabled={!(players.length === 2 || players.length === 4)}>Start Game</button>
       </div>
+
+      
     </div>
   );
 };

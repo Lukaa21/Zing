@@ -54,6 +54,7 @@ export function initialDeal(state: GameState, seed?: string, dealerSeat = 0): Ga
   state.currentTurnPlayerId = state.players[(dealerSeat + 1) % state.players.length]?.id;
   (state as any)._zingPending = null;
   (state as any)._roundZings = { team0: 0, team1: 0 };
+  (state as any)._lastTaker = undefined;
   return state;
 }
 
@@ -138,6 +139,8 @@ export function applyIntent(state: GameState, intent: Intent): Event | null {
     }
     let ev: any;
     if (captured.length > 0) {
+      // mark last taker for end-of-round talon award
+      (state as any)._lastTaker = player.id;
       ev = {
         type: 'talon_taken',
         actor: player.id,
@@ -166,24 +169,55 @@ export function isRoundOver(state: GameState) {
 export function computeRoundScores(state: GameState) {
   const teamPoints: any = { team0: 0, team1: 0 };
   const teamTakenCounts: any = { team0: 0, team1: 0 };
+
+  const teams: any = {
+    team0: { scoringCards: [] as Array<{ card: string; pts: number }>, zings: 0, totalTaken: 0, totalPoints: 0, players: [] as string[] },
+    team1: { scoringCards: [] as Array<{ card: string; pts: number }>, zings: 0, totalTaken: 0, totalPoints: 0, players: [] as string[] }
+  };
+
   let ownerOfTwoClubs: number | null = null;
+
   for (const p of state.players) {
-    const team = p.team;
+    const teamKey = `team${p.team}` as 'team0' | 'team1';
+    teams[teamKey].players.push(p.name);
     for (const c of p.taken) {
       const pts = cardBasePoints(c);
-      teamPoints[`team${team}` as 'team0' | 'team1'] += pts;
-      teamTakenCounts[`team${team}` as 'team0' | 'team1'] += 1;
+      if (pts > 0) teams[teamKey].scoringCards.push({ card: c, pts });
+      teams[teamKey].totalTaken += 1;
+      teams[teamKey].totalPoints += pts;
+      teamPoints[teamKey] += pts;
+      teamTakenCounts[teamKey] += 1;
       const [suit, rank] = c.split('-');
-      if (suit === 'clubs' && rank === '2') ownerOfTwoClubs = team;
+      if (suit === 'clubs' && rank === '2') ownerOfTwoClubs = p.team;
     }
   }
+
   const z = (state as any)._roundZings || { team0: 0, team1: 0 };
-  teamPoints.team0 += z.team0;
-  teamPoints.team1 += z.team1;
-  if (teamTakenCounts.team0 > teamTakenCounts.team1) teamPoints.team0 += 3;
-  else if (teamTakenCounts.team1 > teamTakenCounts.team0) teamPoints.team1 += 3;
-  else {
-    if (ownerOfTwoClubs !== null) teamPoints[`team${ownerOfTwoClubs}` as 'team0' | 'team1'] += 3;
+  teams.team0.zings = z.team0 || 0;
+  teams.team1.zings = z.team1 || 0;
+  teams.team0.totalPoints += teams.team0.zings;
+  teams.team1.totalPoints += teams.team1.zings;
+  teamPoints.team0 += teams.team0.zings;
+  teamPoints.team1 += teams.team1.zings;
+
+  // Most-cards +3 rule
+  let bonus: any = null;
+  if (teamTakenCounts.team0 > teamTakenCounts.team1) {
+    teamPoints.team0 += 3;
+    teams.team0.totalPoints += 3;
+    bonus = { awardedToTeam: 0, reason: 'most_cards' };
+  } else if (teamTakenCounts.team1 > teamTakenCounts.team0) {
+    teamPoints.team1 += 3;
+    teams.team1.totalPoints += 3;
+    bonus = { awardedToTeam: 1, reason: 'most_cards' };
+  } else {
+    if (ownerOfTwoClubs !== null) {
+      teamPoints[`team${ownerOfTwoClubs}` as 'team0' | 'team1'] += 3;
+      teams[`team${ownerOfTwoClubs}`].totalPoints += 3;
+      bonus = { awardedToTeam: ownerOfTwoClubs, reason: 'tie_two_clubs' };
+    }
   }
-  return { scores: teamPoints, takenCounts: teamTakenCounts };
+
+  const result = { scores: teamPoints, takenCounts: teamTakenCounts, teams, bonus };
+  return result;
 }
