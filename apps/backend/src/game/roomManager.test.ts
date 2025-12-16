@@ -1,6 +1,21 @@
 import { describe, it, expect } from 'vitest';
 import { createRoom, startGame, finalizeRound } from './roomManager';
 import { GameState } from './types';
+import { vi } from 'vitest';
+
+vi.mock('../db', () => {
+  return {
+    default: {
+      game: {
+        create: vi.fn(),
+      },
+      roundScore: {
+        createMany: vi.fn(),
+      },
+    },
+  };
+});
+
 
 describe('room manager match progression', () => {
   it('updates cumulative scores and starts a new round when target not reached', async () => {
