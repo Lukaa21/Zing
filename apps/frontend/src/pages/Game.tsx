@@ -60,6 +60,7 @@ const Game: React.FC<{ roomId: string; playerName: string; onLeave: () => void }
   const [players, setPlayers] = useState<any[]>([]);
     const [logs, setLogs] = useState<string[]>([]);
     const [myId, setMyId] = useState<string | null>(null);
+    const [ownerId, setOwnerId] = useState<string | null>(null);
     const [devMode, setDevMode] = useState<boolean>(false);
     const [controlAs, setControlAs] = useState<string | null>(null);
   const playersRef = React.useRef(players);
@@ -68,10 +69,22 @@ const Game: React.FC<{ roomId: string; playerName: string; onLeave: () => void }
   useEffect(() => {
     const s = connect(playerName);
     s.on('connect', () => { console.log('connected to backend'); s.id && setMyId(s.id); });
+    // if socket is already connected (reused singleton), set myId immediately
+    if (s.id) setMyId((cur) => cur || s.id || null);
     s.off('game_state');
     s.off('game_event');
     s.off('room_update');
-    s.on('game_state', (sState: any) => { const st = sState?.state || sState; setState(st); setPlayers(st?.players || []); });
+    s.on('game_state', (sState: any) => { const st = sState?.state || sState; setState(st); setPlayers(st?.players || []);
+      // If this client hasn't captured its socket id yet (or there's a mismatch),
+      // try to infer our player id by matching the supplied playerName so hand shows up.
+      try {
+        const meByName = st?.players?.find((p: any) => p.name === playerName);
+        if (meByName && (!s.id || s.id !== meByName.id)) {
+          // if we haven't set myId yet, set it to the found id so UI can match our hand
+          setMyId((cur) => cur || meByName.id || null);
+        }
+      } catch (e) { /* ignore */ }
+    });
     s.on('game_event', (ev: any) => {
       const actorName = playersRef.current?.find((p: any) => p.id === ev.actor)?.name || ev.actor;
       const msg = formatEvent(ev, actorName);
@@ -79,13 +92,28 @@ const Game: React.FC<{ roomId: string; playerName: string; onLeave: () => void }
       console.log('event', ev);
     });
     s.on('room_update', (u: any) => {
-      console.log('update', u);
+      console.log('room_update', u);
       setPlayers(u.players || []);
+      setOwnerId(u.ownerId || null);
+      // Prefer matching by socket id (fast and reliable), then fallback to matching by name
+      try {
+        const meById = (u.players || []).find((p: any) => p.id === s.id);
+        if (meById) {
+          setMyId((cur) => cur || meById.id || null);
+          return;
+        }
+        const normalizedName = (playerName || '').toLowerCase().trim();
+        const meByName = (u.players || []).find((p: any) => (p.name || '').toLowerCase().trim() === normalizedName);
+        if (meByName) {
+          setMyId((cur) => cur || meByName.id || null);
+        }
+      } catch (e) {}
     });
 
     // announce auth for this client and join the room
     s.emit('auth', { name: playerName, role: 'player' });
-    s.emit('join_room', { roomId });
+    // send name as fallback to avoid races where server hasn't applied auth yet
+    s.emit('join_room', { roomId, name: playerName });
     setSocket(s);
     // Do not disconnect here; socket is shared across views
     return () => {
@@ -103,8 +131,13 @@ const Game: React.FC<{ roomId: string; playerName: string; onLeave: () => void }
       socket.emit('intent_play_card_as', { roomId, cardId, asPlayerId: controlAs });
       return;
     }
-    const me = state?.players?.find((p: any) => p.id === myId);
-    if (!me) return;
+    // prefer matching by socket id, but fall back to matching by name so the player
+    // can still play when there's an id mismatch between socket and game state
+    const me = state?.players?.find((p: any) => p.id === myId) || state?.players?.find((p: any) => p.name === playerName);
+    if (!me) {
+      setLogs((l) => [`You are not recognized in the room (cannot play)`, ...l].slice(0, 200));
+      return;
+    }
     if (state?.currentTurnPlayerId !== me.id) {
       setLogs((l) => [`Not your turn`, ...l].slice(0, 200));
       return;
@@ -123,7 +156,7 @@ const Game: React.FC<{ roomId: string; playerName: string; onLeave: () => void }
     <div className="game container">
       <h1>Game Room</h1>
       <p>Room: {roomId}</p>
-      <p>Player: {playerName}</p>
+      <p>Player: {players?.find((p:any) => p.id === myId)?.name || state?.players?.find((p:any) => p.id === myId)?.name || playerName || '—'}</p>
       <div className="board">
           <div style={{ display: 'flex', gap: 24 }}>
             <div style={{ minWidth: 240 }}>
@@ -136,6 +169,7 @@ const Game: React.FC<{ roomId: string; playerName: string; onLeave: () => void }
                           {p.name} {p.role === 'spectator' ? '(spectator)' : ''} {p.id === state?.currentTurnPlayerId ? ' ← turn' : ''}
                         </div>
                         <div style={{ fontSize: 12, color: '#444' }}>{p.taken?.length || 0} taken</div>
+                      <div style={{ fontSize: 12, color: '#222', marginTop: 4 }}>{p.name || p.id}</div>
                       </div>
                       <div style={{ fontSize: 12, color: '#666' }}>{formatTakenSummary(p.taken || [])}</div>
                     </li>
@@ -197,11 +231,20 @@ const Game: React.FC<{ roomId: string; playerName: string; onLeave: () => void }
           ) : (
             <div>
               <h3>Your Hand</h3>
-              <Hand
-                cards={(state?.players?.find((p:any) => p.id === myId)?.hand) || []}
-                onPlay={(id) => handlePlay(id)}
-                disabled={state?.players?.find((p:any) => p.id === myId)?.id !== state?.currentTurnPlayerId}
-              />
+                {/* Prefer matching by socket id, but fall back to matching by player name so the hand is visible
+                  even when there is an id mismatch immediately after start. */}
+              {(() => {
+                const me = state?.players?.find((p:any) => p.id === myId) || state?.players?.find((p:any) => p.name === playerName);
+                const hand = me?.hand || [];
+                const myPlayerId = me?.id;
+                return (
+                  <Hand
+                    cards={hand}
+                    onPlay={(id) => handlePlay(id)}
+                    disabled={myPlayerId !== state?.currentTurnPlayerId}
+                  />
+                );
+              })()}
             </div>
           )}
         </div>
@@ -227,7 +270,14 @@ const Game: React.FC<{ roomId: string; playerName: string; onLeave: () => void }
           </div>
       </div>
       <div className="controls">
-        <button onClick={() => handleStart()} disabled={!(players.length === 2 || players.length === 4)}>Start Game</button>
+        {/* Only the room owner sees the Start button (ownerId provided by server in room_update) */}
+        {(() => {
+          const ownerMatchesSocket = ownerId && myId && ownerId === myId;
+          const ownerMatchesByName = ownerId && (players?.find((p:any) => p.name === playerName)?.id === ownerId);
+          const isOwner = !!(ownerMatchesSocket || ownerMatchesByName);
+          if (!isOwner) return <div style={{ color: '#666' }}>Waiting for room owner to start the game</div>;
+          return <button onClick={() => handleStart()} disabled={!(players.length === 2 || players.length === 4)}>Start Game</button>;
+        })()}
       </div>
 
       

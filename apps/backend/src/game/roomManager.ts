@@ -9,6 +9,8 @@ export type Room = {
   players: PlayerState[];
   state?: GameState;
   seq: number;
+  // id of the room owner (player who created the room)
+  ownerId?: string;
 };
 
 const rooms: Map<string, Room> = new Map();
@@ -227,6 +229,10 @@ export function joinRoom(room: Room, p: PlayerState) {
 
 export function leaveRoom(room: Room, playerId: string) {
   room.players = room.players.filter((p) => p.id !== playerId);
+  // if owner left, reassign owner to first player if any
+  if (room.ownerId === playerId) {
+    room.ownerId = room.players[0]?.id;
+  }
 }
 
 export function removePlayerFromAllRooms(playerId: string) {

@@ -47,7 +47,8 @@ const Lobby: React.FC<LobbyProps> = ({ onJoin }) => {
     if (!socket || !name) return;
 
     socket.emit('auth', { name, role: 'player' });
-    socket.emit('create_room');
+    // pass the name in payload as fallback so server can use it immediately if auth hasn't processed yet
+    socket.emit('create_room', { name });
   };
 
   const handleJoin = (roomId: string) => {

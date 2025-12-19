@@ -63,20 +63,28 @@ app.get('/rooms', (_req: Request, res: Response) => res.json(listRooms()));
       io.to('lobby').emit('lobby_update', { time: new Date().toISOString() });
     });
 
-    socket.on('create_room', (payload) => {
+    socket.on('create_room', (payload: any) => {
       const room = createRoom();
-      joinRoom(room, { id: socket.id, name: socket.data.user?.name ?? 'guest', seat: 0, role: socket.data.user?.role ?? 'player', team: 0, hand: [], taken: [] });
+      // prefer server-side auth name, fallback to payload name if provided
+      const creatorName = socket.data.user?.name ?? payload?.name ?? 'guest';
+      logger.info({ clientId: socket.id, creatorName }, 'create_room: creating room and joining creator');
+      joinRoom(room, { id: socket.id, name: creatorName, seat: 0, role: socket.data.user?.role ?? 'player', team: 0, hand: [], taken: [] });
+      // set owner id to the creator
+      room.ownerId = socket.id;
       socket.join(room.id);
+      // immediately emit room_update so creator sees their entry (include ownerId)
+      io.to(room.id).emit('room_update', { roomId: room.id, players: room.players.map((p) => ({ id: p.id, name: p.name ?? p.id, role: p.role, taken: p.taken })), ownerId: room.ownerId });
       socket.emit('room_created', { roomId: room.id });
       io.emit('rooms_list', listRooms());
     });
 
-    socket.on('join_room', ({ roomId }) => {
+    socket.on('join_room', ({ roomId, name }: any) => {
       socket.join(roomId);
       const room = getRoom(roomId);
       if (room) {
-        joinRoom(room, { id: socket.id, name: socket.data.user?.name ?? 'guest', seat: room.players.length, role: socket.data.user?.role ?? 'player', team: 0, hand: [], taken: [] });
-        io.to(roomId).emit('room_update', { roomId, players: room.players.map((p) => ({ id: p.id, name: p.name, role: p.role, taken: p.taken })) });
+        const useName = socket.data.user?.name ?? name ?? 'guest';
+        joinRoom(room, { id: socket.id, name: useName, seat: room.players.length, role: socket.data.user?.role ?? 'player', team: 0, hand: [], taken: [] });
+        io.to(roomId).emit('room_update', { roomId, players: room.players.map((p) => ({ id: p.id, name: p.name ?? p.id, role: p.role, taken: p.taken })), ownerId: room.ownerId });
       }
     });
 
@@ -100,7 +108,7 @@ app.get('/rooms', (_req: Request, res: Response) => res.json(listRooms()));
       if (!room) return;
       leaveRoom(room, socket.id);
       socket.leave(roomId);
-      io.to(roomId).emit('room_update', { roomId, players: room.players.map((p) => ({ id: p.id, name: p.name, role: p.role, taken: p.taken })) });
+      io.to(roomId).emit('room_update', { roomId, players: room.players.map((p) => ({ id: p.id, name: p.name, role: p.role, taken: p.taken })), ownerId: room.ownerId });
     });
 
     socket.on('intent_play_card', async ({ roomId, cardId }) => {
