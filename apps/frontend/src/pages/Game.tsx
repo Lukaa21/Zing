@@ -83,7 +83,7 @@ const Game: React.FC<{ roomId: string; playerName: string; onLeave: () => void }
           // if we haven't set myId yet, set it to the found id so UI can match our hand
           setMyId((cur) => cur || meByName.id || null);
         }
-      } catch (e) { /* ignore */ }
+      } catch (e) { void e; }
     });
     s.on('game_event', (ev: any) => {
       const actorName = playersRef.current?.find((p: any) => p.id === ev.actor)?.name || ev.actor;
