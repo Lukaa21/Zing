@@ -107,7 +107,7 @@ const Game: React.FC<{ roomId: string; playerName: string; onLeave: () => void }
         if (meByName) {
           setMyId((cur) => cur || meByName.id || null);
         }
-      } catch (e) {}
+      } catch (e) {void e;}
     });
 
     // announce auth for this client and join the room
