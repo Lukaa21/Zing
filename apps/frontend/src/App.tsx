@@ -1,10 +1,11 @@
 import React from 'react';
+import LandingPage from './pages/LandingPage';
 import Lobby from './pages/Lobby';
 import Game from './pages/Game';
 import { useState } from 'react';
 
 const App: React.FC = () => {
-  const [view, setView] = useState<'lobby' | 'game'>('lobby');
+  const [view, setView] = useState<'landing' | 'lobby' | 'game'>('landing');
   const [roomId, setRoomId] = useState<string | null>(null);
   const [name, setName] = useState<string>('');
 
@@ -21,8 +22,29 @@ const App: React.FC = () => {
 
   return (
     <div>
-      {view === 'lobby' && <Lobby onJoin={(id, playerName) => { setRoomId(id); setName(playerName); setView('game'); }} />}
-      {view === 'game' && <Game roomId={roomId!} playerName={name} onLeave={() => setView('lobby')} />}
+      {view === 'landing' && (
+        <LandingPage 
+          onPlayAsGuest={() => setView('lobby')}
+          onLogin={() => {}}
+          onRegister={() => {}}
+        />
+      )}
+      {view === 'lobby' && (
+        <Lobby 
+          onJoin={(id, playerName) => { 
+            setRoomId(id); 
+            setName(playerName); 
+            setView('game'); 
+          }} 
+        />
+      )}
+      {view === 'game' && (
+        <Game 
+          roomId={roomId!} 
+          playerName={name} 
+          onLeave={() => setView('lobby')} 
+        />
+      )}
     </div>
   );
 };
