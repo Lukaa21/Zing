@@ -17,6 +17,10 @@ function generateInviteToken(): string {
   return randomUUID().replace(/-/g, '').slice(0, 32);
 }
 
+function generateReconnectToken(): string {
+  return randomUUID().replace(/-/g, '').slice(0, 32);
+}
+
 export type Room = {
   id: string;
   players: PlayerState[];
@@ -33,6 +37,24 @@ export type Room = {
 };
 
 const rooms: Map<string, Room> = new Map();
+
+// Reconnect token storage: token -> { roomId, playerId, expiresAt }
+type ReconnectTokenEntry = {
+  roomId: string;
+  playerId: string; // identityId
+  expiresAt: number;
+};
+const reconnectTokens: Map<string, ReconnectTokenEntry> = new Map();
+
+// Cleanup expired tokens periodically
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, entry] of reconnectTokens.entries()) {
+    if (entry.expiresAt < now) {
+      reconnectTokens.delete(token);
+    }
+  }
+}, 30000); // Check every 30 seconds
 
 export function createRoom(visibility?: 'public' | 'private'): Room {
   const id = `room-${Math.random().toString(36).slice(2, 8)}`;
@@ -304,9 +326,31 @@ export function validateRoomAccess(room: Room, code?: string, inviteToken?: stri
   return false;
 }
 
+export function generateAndStoreReconnectToken(roomId: string, playerId: string): string {
+  const token = generateReconnectToken();
+  const expiresAt = Date.now() + 120000; // 120 seconds
+  reconnectTokens.set(token, { roomId, playerId, expiresAt });
+  return token;
+}
+
+export function validateReconnectToken(token: string, roomId: string): string | null {
+  const entry = reconnectTokens.get(token);
+  if (!entry) return null;
+  if (entry.expiresAt < Date.now()) {
+    reconnectTokens.delete(token);
+    return null;
+  }
+  if (entry.roomId !== roomId) return null;
+  return entry.playerId; // Return the playerId (identityId)
+}
+
 export function listRooms() {
   // Only list public rooms (private rooms require access code or token)
   return Array.from(rooms.values())
     .filter((r) => r.visibility !== 'private')
     .map((r) => ({ id: r.id, size: r.players.length }));
+}
+
+export function getAllRooms(): Room[] {
+  return Array.from(rooms.values());
 }

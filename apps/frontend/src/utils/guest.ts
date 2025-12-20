@@ -44,3 +44,37 @@ export function setGuestName(name: string): void {
 export function clearGuestName(): void {
   localStorage.removeItem('zing_guest_name');
 }
+/**
+ * Get reconnect token for a room and player from localStorage
+ */
+export function getReconnectToken(roomId: string, playerId?: string): string | null {
+  if (!playerId) {
+    // Fallback: try to get token without playerId (for backwards compatibility)
+    return localStorage.getItem(`zing_reconnect_${roomId}`);
+  }
+  return localStorage.getItem(`zing_reconnect_${roomId}_${playerId}`);
+}
+
+/**
+ * Set reconnect token for a room and player in localStorage
+ */
+export function setReconnectToken(roomId: string, token: string, playerId?: string): void {
+  if (!playerId) {
+    // Fallback: store without playerId (for backwards compatibility)
+    localStorage.setItem(`zing_reconnect_${roomId}`, token);
+    return;
+  }
+  localStorage.setItem(`zing_reconnect_${roomId}_${playerId}`, token);
+}
+
+/**
+ * Clear reconnect token for a room and player from localStorage
+ */
+export function clearReconnectToken(roomId: string, playerId?: string): void {
+  if (!playerId) {
+    // Fallback: clear without playerId
+    localStorage.removeItem(`zing_reconnect_${roomId}`);
+    return;
+  }
+  localStorage.removeItem(`zing_reconnect_${roomId}_${playerId}`);
+}

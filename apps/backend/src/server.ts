@@ -5,7 +5,7 @@ import { Server } from 'socket.io';
 import { createAdapter } from 'socket.io-redis';
 import Redis from 'ioredis';
 import pino from 'pino';
-import { createRoom, joinRoom, startGame, getRoom, handleIntent, listRooms, leaveRoom, removePlayerFromAllRooms, getRoomByAccessCode, validateRoomAccess } from './game/roomManager';
+import { createRoom, joinRoom, startGame, getRoom, handleIntent, listRooms, leaveRoom, removePlayerFromAllRooms, getRoomByAccessCode, validateRoomAccess, generateAndStoreReconnectToken, validateReconnectToken, getAllRooms } from './game/roomManager';
 import cors from 'cors';
 
 const logger = pino();
@@ -73,7 +73,16 @@ app.get('/rooms', (_req: Request, res: Response) => res.json(listRooms()));
       const creatorId = socket.data.identity?.id ?? socket.id;
       
       logger.info({ clientId: socket.id, creatorName, visibility, accessCode: room.accessCode }, 'create_room: creating room and joining creator');
-      joinRoom(room, { id: creatorId, name: creatorName, seat: 0, role: socket.data.user?.role ?? 'player', team: 0, hand: [], taken: [] });
+      
+      // Ensure unique name in room (even though room is empty, be consistent with join_room logic)
+      let finalName = creatorName;
+      let counter = 2;
+      while (room.players.some((p: any) => p.name === finalName)) {
+        finalName = `${creatorName}#${counter}`;
+        counter++;
+      }
+      
+      joinRoom(room, { id: creatorId, name: finalName, seat: 0, role: socket.data.user?.role ?? 'player', team: 0, hand: [], taken: [] });
       // set owner id to the creator (use same ID as player)
       room.ownerId = creatorId;
       socket.join(room.id);
@@ -137,15 +146,23 @@ app.get('/rooms', (_req: Request, res: Response) => res.json(listRooms()));
         const existingPlayer = room.players.find((p: any) => p.id === playerId);
         
         if (existingPlayer) {
-          // Update existing player
+          // Update existing player - but preserve any existing name modifications (like duplicates with #2 suffix)
           logger.info({ playerId, currentName: existingPlayer.name, newName: useName }, 'join_room: updating existing player');
           existingPlayer.socketId = socket.id;
-          existingPlayer.name = useName;
+          // Only update name if the existing name is exactly the same as what they originally requested
+          // If it was modified (e.g., had a suffix added), keep it
+          if (existingPlayer.name === useName) {
+            existingPlayer.name = useName;
+          }
+          // If names differ, it means this player was given a suffix (like #2), so keep that
         } else {
           // Ensure unique name in room
           let finalName = useName;
           let counter = 2;
+          const existingNames = room.players.map((p: any) => p.name);
+          logger.info({ playerId, useName, existingNames }, 'join_room: checking for duplicate names');
           while (room.players.some((p: any) => p.name === finalName)) {
+            logger.info({ playerId, finalName, existingNames }, 'join_room: name collision detected');
             finalName = `${useName}#${counter}`;
             counter++;
           }
@@ -164,9 +181,64 @@ app.get('/rooms', (_req: Request, res: Response) => res.json(listRooms()));
         
         logger.info({ roomId: actualRoomId, playersAfterJoin: room.players.map((p: any) => ({ id: p.id, name: p.name })) }, 'join_room: emitting room_update');
         io.to(actualRoomId).emit('room_update', { roomId: actualRoomId, players: room.players.map((p: any) => ({ id: p.id, name: p.name ?? p.id, role: p.role, taken: p.taken })), ownerId: room.ownerId });
+        
+        // Generate and send reconnect token to client
+        const reconnectToken = generateAndStoreReconnectToken(actualRoomId, playerId);
+        socket.emit('reconnect_token', { roomId: actualRoomId, token: reconnectToken });
       } else {
         socket.emit('join_error', { reason: 'room_not_found' });
       }
+    });
+
+    socket.on('rejoin_room', ({ roomId, reconnectToken }: any) => {
+      logger.info({ clientId: socket.id, roomId, reconnectToken: reconnectToken?.slice(0, 8) + '...' }, 'rejoin_room: attempting rejoin');
+      
+      const room = getRoom(roomId);
+      if (!room) {
+        logger.error({ roomId }, 'rejoin_room: room not found');
+        socket.emit('rejoin_error', { reason: 'room_not_found' });
+        return;
+      }
+
+      // Validate reconnect token
+      const playerId = validateReconnectToken(reconnectToken, roomId);
+      if (!playerId) {
+        logger.error({ roomId, reconnectToken: reconnectToken?.slice(0, 8) + '...' }, 'rejoin_room: invalid or expired token');
+        socket.emit('rejoin_error', { reason: 'invalid_token' });
+        return;
+      }
+
+      // Find player by playerId in the room
+      const player = room.players.find((p: any) => p.id === playerId);
+      if (!player) {
+        logger.error({ roomId, playerId }, 'rejoin_room: player not found in room');
+        socket.emit('rejoin_error', { reason: 'player_not_found' });
+        return;
+      }
+
+      // Update player connection
+      logger.info({ roomId, playerId, newSocketId: socket.id }, 'rejoin_room: reconnecting player');
+      player.socketId = socket.id;
+      player.connected = true;
+      socket.join(roomId);
+
+      // Send reconnect token again for next refresh
+      const newReconnectToken = generateAndStoreReconnectToken(roomId, playerId);
+      socket.emit('reconnect_token', { roomId, token: newReconnectToken });
+
+      // Send current game state if available
+      if (room.state) {
+        socket.emit('game_state', room.state);
+      }
+
+      // Notify all players in room
+      io.to(roomId).emit('room_update', { 
+        roomId, 
+        players: room.players.map((p: any) => ({ id: p.id, name: p.name ?? p.id, role: p.role, taken: p.taken, connected: p.connected ?? true })), 
+        ownerId: room.ownerId 
+      });
+
+      logger.info({ roomId, playerId }, 'rejoin_room: player successfully rejoined');
     });
 
     socket.on('start_game', async ({ roomId }) => {
@@ -228,14 +300,52 @@ app.get('/rooms', (_req: Request, res: Response) => res.json(listRooms()));
 
     socket.on('disconnect', () => {
       logger.info({ clientId: id }, 'Client disconnected');
-      // Remove player from any rooms they may have been part of and notify rooms
       const playerId = socket.data.identity?.id ?? id;
-      const changed = removePlayerFromAllRooms(playerId);
-      for (const rid of changed) {
-        const room = getRoom(rid);
-        if (!room) continue;
-        io.to(rid).emit('room_update', { roomId: rid, players: room.players.map((p) => ({ id: p.id, name: p.name, role: p.role, taken: p.taken })) });
+      const changedRooms: string[] = [];
+      
+      // Find all rooms containing this player and mark as disconnected
+      const allRooms = getAllRooms();
+      for (const room of allRooms) {
+        const player = room.players.find((p) => p.id === playerId);
+        if (player) {
+          logger.info({ roomId: room.id, playerId, socketId: socket.id }, 'disconnect: marking player as disconnected');
+          player.connected = false;
+          changedRooms.push(room.id);
+        }
       }
+      
+      // Notify all affected rooms about disconnection
+      for (const roomId of changedRooms) {
+        const room = getRoom(roomId);
+        if (!room) continue;
+        io.to(roomId).emit('room_update', { 
+          roomId, 
+          players: room.players.map((p) => ({ id: p.id, name: p.name, role: p.role, taken: p.taken, connected: p.connected ?? true })), 
+          ownerId: room.ownerId 
+        });
+      }
+      
+      // Set a timer to fully remove player if not reconnected within 120 seconds
+      setTimeout(() => {
+        const stillDisconnected = changedRooms.some((roomId) => {
+          const room = getRoom(roomId);
+          const player = room?.players.find((p) => p.id === playerId);
+          return player && player.connected === false;
+        });
+        
+        if (stillDisconnected) {
+          logger.info({ playerId }, 'disconnect: timeout - fully removing disconnected player');
+          removePlayerFromAllRooms(playerId);
+          for (const roomId of changedRooms) {
+            const room = getRoom(roomId);
+            if (!room) continue;
+            io.to(roomId).emit('room_update', { 
+              roomId, 
+              players: room.players.map((p) => ({ id: p.id, name: p.name, role: p.role, taken: p.taken, connected: p.connected ?? true })) 
+            });
+          }
+        }
+      }, 120000);
     });
   });
 })();

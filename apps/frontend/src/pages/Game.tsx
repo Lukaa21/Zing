@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { connect } from '../services/socket';
-import { getOrCreateGuestId } from '../utils/guest';
+import { getOrCreateGuestId, getReconnectToken, setReconnectToken, clearReconnectToken } from '../utils/guest';
 import WaitingRoomView from './WaitingRoomView';
 import InGameView from './InGameView';
 
@@ -102,6 +102,8 @@ const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string;
       console.log('room_update', u);
       setPlayers(u.players || []);
       setOwnerId(u.ownerId || null);
+      // Store current room in sessionStorage for reconnect on refresh
+      sessionStorage.setItem('zing_current_room', roomId);
       // Prefer matching by guestId, then fallback to matching by name
       try {
         const meByGuestId = (u.players || []).find((p: any) => p.id === guestId);
@@ -123,16 +125,44 @@ const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string;
       console.error('join_error', err);
     });
 
-    // announce auth for this client and join the room
-    s.emit('auth', { guestId, name: playerName, role: 'player' });
-    // send join_room with code or inviteToken if available (and only once)
-    if (!hasJoined) {
+    s.on('reconnect_token', (data: { token: string; roomId: string }) => {
+      console.log('Received reconnect token for room', data.roomId, 'with guestId', guestId);
+      // Store token with guestId as part of the key to avoid conflicts between different players
+      // guestId is per-tab unique, so each player has their own token key
+      setReconnectToken(data.roomId, data.token, guestId);
+    });
+
+    s.on('rejoin_error', (err: { reason: string; message?: string }) => {
+      const errorMsg = err.message || `Failed to rejoin room: ${err.reason}`;
+      console.warn('rejoin_error', err);
+      // Rejoin failed, clear the token and try normal join_room
+      clearReconnectToken(roomId, guestId);
       const joinPayload: any = { roomId, guestId, name: playerName };
       if (code) joinPayload.code = code;
       if (inviteToken) joinPayload.inviteToken = inviteToken;
-      console.log('Game.tsx: emitting join_room with payload:', joinPayload);
+      console.log('Fallback: emitting join_room after rejoin failure');
       s.emit('join_room', joinPayload);
-      setHasJoined(true);
+    });
+
+    // announce auth for this client and join the room
+    s.emit('auth', { guestId, name: playerName, role: 'player' });
+    
+    // Try to rejoin with stored token first (if available)
+    if (!hasJoined) {
+      const storedToken = getReconnectToken(roomId, guestId);
+      if (storedToken) {
+        console.log('Game.tsx: attempting rejoin with stored token for guestId', guestId);
+        s.emit('rejoin_room', { roomId, guestId, reconnectToken: storedToken });
+        setHasJoined(true);
+      } else {
+        // No stored token, do normal join_room
+        const joinPayload: any = { roomId, guestId, name: playerName };
+        if (code) joinPayload.code = code;
+        if (inviteToken) joinPayload.inviteToken = inviteToken;
+        console.log('Game.tsx: emitting join_room with payload:', joinPayload);
+        s.emit('join_room', joinPayload);
+        setHasJoined(true);
+      }
     }
     setSocket(s);
     // Do not disconnect here; socket is shared across views
@@ -172,10 +202,8 @@ const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string;
   // Determine phase: isInGame means handNumber is set and > 0
   const isInGame = Boolean(state?.handNumber && state?.handNumber > 0);
 
-  // Calculate owner status
-  const ownerMatchesSocket = ownerId && myId && ownerId === myId;
-  const ownerMatchesByName = ownerId && players?.find((p: any) => p.name === playerName)?.id === ownerId;
-  const isOwner = !!(ownerMatchesSocket || ownerMatchesByName);
+  // Calculate owner status - only use myId comparison to avoid name conflicts
+  const isOwner = !!(ownerId && myId && ownerId === myId);
 
   // Calculate start-enabled (2 or 4 players)
   const isStartEnabled = players.length === 2 || players.length === 4;

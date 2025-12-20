@@ -19,7 +19,7 @@ const App: React.FC = () => {
     const i = qp.get('invite');
     const n = qp.get('name');
     
-    // If invite link: require guest name before joining
+    // If invite link: this is a NEW user in this browser, don't use cached name
     if (r && i) {
       setRoomId(r);
       setInviteToken(i);
@@ -27,6 +27,7 @@ const App: React.FC = () => {
         setName(n);
         setView('game');
       } else {
+        // New user via invite link - go to name screen, don't use cached name from localStorage
         setView('guest-name');
       }
       return;
@@ -36,6 +37,14 @@ const App: React.FC = () => {
     if (r && n) {
       setRoomId(r);
       setName(n);
+      setView('game');
+      return;
+    }
+
+    // Check if we have a roomId stored in sessionStorage (from previous game session)
+    const storedRoomId = sessionStorage.getItem('zing_current_room');
+    if (storedRoomId) {
+      setRoomId(storedRoomId);
       setView('game');
     }
   }, []);
@@ -80,7 +89,11 @@ const App: React.FC = () => {
           playerName={name}
           inviteToken={inviteToken || undefined}
           code={code || undefined}
-          onLeave={() => setView('lobby')} 
+          onLeave={() => {
+            // Clear stored roomId when leaving game
+            sessionStorage.removeItem('zing_current_room');
+            setView('lobby');
+          }}
         />
       )}
     </div>

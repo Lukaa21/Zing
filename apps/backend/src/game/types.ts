@@ -15,6 +15,8 @@ export type PlayerState = {
   team: number; // 0 or 1
   hand: string[]; // card ids
   taken: string[]; // captured cards
+  socketId?: string; // Current socket connection (for tracking reconnects)
+  connected?: boolean; // Whether player is currently connected (default true)
 };
 
 export type Talon = string[]; // top of talon is last item
