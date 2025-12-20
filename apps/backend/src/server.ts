@@ -5,7 +5,7 @@ import { Server } from 'socket.io';
 import { createAdapter } from 'socket.io-redis';
 import Redis from 'ioredis';
 import pino from 'pino';
-import { createRoom, joinRoom, startGame, getRoom, handleIntent, listRooms, leaveRoom, removePlayerFromAllRooms } from './game/roomManager';
+import { createRoom, joinRoom, startGame, getRoom, handleIntent, listRooms, leaveRoom, removePlayerFromAllRooms, getRoomByAccessCode, validateRoomAccess } from './game/roomManager';
 import cors from 'cors';
 
 const logger = pino();
@@ -51,40 +51,121 @@ app.get('/rooms', (_req: Request, res: Response) => res.json(listRooms()));
     logger.info({ clientId: id }, 'Client connected');
 
     socket.on('auth', (payload) => {
-      const { name, role } = payload || {};
+      const { guestId, name, role } = payload || {};
       // ephemeral auth for MVP
       if (!name) {
         socket.emit('auth_error', { reason: 'name_required' });
         return;
       }
-      socket.data.user = { id, name, role: role || 'player' };
+      socket.data.identity = { type: 'guest', id: guestId };
+      socket.data.displayName = name;
+      socket.data.user = { id: guestId, name, role: role || 'player' };
       socket.join('lobby');
-      socket.emit('auth_ok', { id, name, role });
+      socket.emit('auth_ok', { id: guestId, name, role });
       io.to('lobby').emit('lobby_update', { time: new Date().toISOString() });
     });
 
     socket.on('create_room', (payload: any) => {
-      const room = createRoom();
+      const visibility = payload?.visibility || 'public';
+      const room = createRoom(visibility);
       // prefer server-side auth name, fallback to payload name if provided
-      const creatorName = socket.data.user?.name ?? payload?.name ?? 'guest';
-      logger.info({ clientId: socket.id, creatorName }, 'create_room: creating room and joining creator');
-      joinRoom(room, { id: socket.id, name: creatorName, seat: 0, role: socket.data.user?.role ?? 'player', team: 0, hand: [], taken: [] });
-      // set owner id to the creator
-      room.ownerId = socket.id;
+      const creatorName = socket.data.displayName ?? payload?.name ?? 'guest';
+      const creatorId = socket.data.identity?.id ?? socket.id;
+      
+      logger.info({ clientId: socket.id, creatorName, visibility, accessCode: room.accessCode }, 'create_room: creating room and joining creator');
+      joinRoom(room, { id: creatorId, name: creatorName, seat: 0, role: socket.data.user?.role ?? 'player', team: 0, hand: [], taken: [] });
+      // set owner id to the creator (use same ID as player)
+      room.ownerId = creatorId;
       socket.join(room.id);
-      // immediately emit room_update so creator sees their entry (include ownerId)
+      // immediately emit room_update so creator sees their entry (include ownerId and access credentials for private rooms)
       io.to(room.id).emit('room_update', { roomId: room.id, players: room.players.map((p) => ({ id: p.id, name: p.name ?? p.id, role: p.role, taken: p.taken })), ownerId: room.ownerId });
-      socket.emit('room_created', { roomId: room.id });
+      socket.emit('room_created', { roomId: room.id, visibility, accessCode: room.accessCode, inviteToken: room.inviteToken });
       io.emit('rooms_list', listRooms());
     });
 
-    socket.on('join_room', ({ roomId, name }: any) => {
-      socket.join(roomId);
-      const room = getRoom(roomId);
+    socket.on('join_room', ({ roomId, code, inviteToken, guestId, name }: any) => {
+      logger.info({ clientId: socket.id, roomId, code, inviteToken: inviteToken?.slice(0, 8) + '...', guestId }, 'join_room: received');
+      // If code provided without roomId, try to find room by access code
+
+      let actualRoomId = roomId;
+      if (!actualRoomId && code) {
+        const foundRoom = getRoomByAccessCode(code);
+        if (foundRoom) {
+          actualRoomId = foundRoom.id;
+        }
+      }
+      
+      if (!actualRoomId) {
+        socket.emit('join_error', { reason: 'invalid_room' });
+        return;
+      }
+      
+      socket.join(actualRoomId);
+      const room = getRoom(actualRoomId);
       if (room) {
-        const useName = socket.data.user?.name ?? name ?? 'guest';
-        joinRoom(room, { id: socket.id, name: useName, seat: room.players.length, role: socket.data.user?.role ?? 'player', team: 0, hand: [], taken: [] });
-        io.to(roomId).emit('room_update', { roomId, players: room.players.map((p) => ({ id: p.id, name: p.name ?? p.id, role: p.role, taken: p.taken })), ownerId: room.ownerId });
+        logger.info({ 
+          clientId: socket.id, 
+          roomId: actualRoomId, 
+          visibility: room.visibility,
+          roomAccessCode: room.accessCode,
+          roomInviteToken: room.inviteToken?.slice(0, 8) + '...',
+          providedCode: code,
+          providedInviteToken: inviteToken?.slice(0, 8) + '...' 
+        }, 'join_room: checking access');
+        
+        // Validate access for private rooms
+        if (!validateRoomAccess(room, code, inviteToken)) {
+          logger.error({ 
+            clientId: socket.id, 
+            roomId: actualRoomId, 
+            visibility: room.visibility,
+            code,
+            inviteToken: inviteToken?.slice(0, 8) + '...' 
+          }, 'join_room: access denied');
+          socket.emit('join_error', { reason: 'access_denied', message: 'Invalid code or token' });
+          return;
+        }
+        
+        logger.info({ clientId: socket.id, roomId: actualRoomId }, 'join_room: access granted');
+        
+        const useName = socket.data.displayName ?? name ?? 'guest';
+        const playerId = guestId || socket.id;
+        
+        logger.info({ clientId: socket.id, roomId: actualRoomId, guestId, playerId, name, useName, currentPlayers: room.players.map(p => p.id) }, 'join_room: processing join');
+        
+        // Check if player with this identity already exists in the room
+        const existingPlayer = room.players.find((p: any) => p.id === playerId);
+        
+        if (existingPlayer) {
+          // Update existing player
+          logger.info({ playerId, currentName: existingPlayer.name, newName: useName }, 'join_room: updating existing player');
+          existingPlayer.socketId = socket.id;
+          existingPlayer.name = useName;
+        } else {
+          // Ensure unique name in room
+          let finalName = useName;
+          let counter = 2;
+          while (room.players.some((p: any) => p.name === finalName)) {
+            finalName = `${useName}#${counter}`;
+            counter++;
+          }
+          
+          logger.info({ playerId, finalName }, 'join_room: adding new player');
+          joinRoom(room, { 
+            id: playerId, 
+            name: finalName, 
+            seat: room.players.length, 
+            role: socket.data.user?.role ?? 'player', 
+            team: 0, 
+            hand: [], 
+            taken: [] 
+          });
+        }
+        
+        logger.info({ roomId: actualRoomId, playersAfterJoin: room.players.map((p: any) => ({ id: p.id, name: p.name })) }, 'join_room: emitting room_update');
+        io.to(actualRoomId).emit('room_update', { roomId: actualRoomId, players: room.players.map((p: any) => ({ id: p.id, name: p.name ?? p.id, role: p.role, taken: p.taken })), ownerId: room.ownerId });
+      } else {
+        socket.emit('join_error', { reason: 'room_not_found' });
       }
     });
 
@@ -106,7 +187,8 @@ app.get('/rooms', (_req: Request, res: Response) => res.json(listRooms()));
     socket.on('leave_room', ({ roomId }) => {
       const room = getRoom(roomId);
       if (!room) return;
-      leaveRoom(room, socket.id);
+      const playerId = socket.data.identity?.id ?? socket.id;
+      leaveRoom(room, playerId);
       socket.leave(roomId);
       io.to(roomId).emit('room_update', { roomId, players: room.players.map((p) => ({ id: p.id, name: p.name, role: p.role, taken: p.taken })), ownerId: room.ownerId });
     });
@@ -114,7 +196,8 @@ app.get('/rooms', (_req: Request, res: Response) => res.json(listRooms()));
     socket.on('intent_play_card', async ({ roomId, cardId }) => {
       const room = getRoom(roomId);
       if (!room) return;
-      const ev = await handleIntent(room, { type: 'play_card', playerId: socket.id, cardId });
+      const playerId = socket.data.identity?.id ?? socket.id;
+      const ev = await handleIntent(room, { type: 'play_card', playerId, cardId });
       if (Array.isArray(ev)) {
         for (const e of ev) io.to(roomId).emit('game_event', e);
       } else if (ev) {
@@ -146,7 +229,8 @@ app.get('/rooms', (_req: Request, res: Response) => res.json(listRooms()));
     socket.on('disconnect', () => {
       logger.info({ clientId: id }, 'Client disconnected');
       // Remove player from any rooms they may have been part of and notify rooms
-      const changed = removePlayerFromAllRooms(id);
+      const playerId = socket.data.identity?.id ?? id;
+      const changed = removePlayerFromAllRooms(playerId);
       for (const rid of changed) {
         const room = getRoom(rid);
         if (!room) continue;

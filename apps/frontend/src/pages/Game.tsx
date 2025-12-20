@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { connect } from '../services/socket';
+import { getOrCreateGuestId } from '../utils/guest';
 import WaitingRoomView from './WaitingRoomView';
 import InGameView from './InGameView';
 
@@ -49,7 +50,7 @@ function formatEvent(ev: any, actorName?: string) {
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
 
-const Game: React.FC<{ roomId: string; playerName: string; onLeave: () => void }> = ({ roomId, playerName }) => {
+const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string; code?: string; onLeave: () => void }> = ({ roomId, playerName, inviteToken, code }) => {
   const [socket, setSocket] = useState<any>(null);
   const [state, setState] = useState<any>(null);
   const [players, setPlayers] = useState<any[]>([]);
@@ -57,7 +58,9 @@ const Game: React.FC<{ roomId: string; playerName: string; onLeave: () => void }
   const [myId, setMyId] = useState<string | null>(null);
   const [ownerId, setOwnerId] = useState<string | null>(null);
   const [devMode, setDevMode] = useState<boolean>(false);
+  const [hasJoined, setHasJoined] = useState<boolean>(false);
   const [controlAs, setControlAs] = useState<string | null>(null);
+  const [joinError, setJoinError] = useState<string | null>(null);
   const playersRef = React.useRef(players);
   React.useEffect(() => {
     playersRef.current = players;
@@ -65,20 +68,27 @@ const Game: React.FC<{ roomId: string; playerName: string; onLeave: () => void }
 
   useEffect(() => {
     const s = connect(playerName);
-    s.on('connect', () => { console.log('connected to backend'); s.id && setMyId(s.id); });
+    const guestId = getOrCreateGuestId();
+    
+    s.on('connect', () => { console.log('connected to backend'); setMyId(guestId); });
     // if socket is already connected (reused singleton), set myId immediately
-    if (s.id) setMyId((cur) => cur || s.id || null);
+    if (s.connected) setMyId(guestId);
     s.off('game_state');
     s.off('game_event');
     s.off('room_update');
+    s.off('join_error');
     s.on('game_state', (sState: any) => { const st = sState?.state || sState; setState(st); setPlayers(st?.players || []);
-      // If this client hasn't captured its socket id yet (or there's a mismatch),
+      // If this client hasn't captured its player id yet (or there's a mismatch),
       // try to infer our player id by matching the supplied playerName so hand shows up.
       try {
+        const meByGuestId = st?.players?.find((p: any) => p.id === guestId);
+        if (meByGuestId) {
+          setMyId(guestId);
+          return;
+        }
         const meByName = st?.players?.find((p: any) => p.name === playerName);
-        if (meByName && (!s.id || s.id !== meByName.id)) {
-          // if we haven't set myId yet, set it to the found id so UI can match our hand
-          setMyId((cur) => cur || meByName.id || null);
+        if (meByName) {
+          setMyId(meByName.id);
         }
       } catch (e) { void e; }
     });
@@ -92,25 +102,38 @@ const Game: React.FC<{ roomId: string; playerName: string; onLeave: () => void }
       console.log('room_update', u);
       setPlayers(u.players || []);
       setOwnerId(u.ownerId || null);
-      // Prefer matching by socket id (fast and reliable), then fallback to matching by name
+      // Prefer matching by guestId, then fallback to matching by name
       try {
-        const meById = (u.players || []).find((p: any) => p.id === s.id);
-        if (meById) {
-          setMyId((cur) => cur || meById.id || null);
+        const meByGuestId = (u.players || []).find((p: any) => p.id === guestId);
+        if (meByGuestId) {
+          setMyId(guestId);
           return;
         }
         const normalizedName = (playerName || '').toLowerCase().trim();
         const meByName = (u.players || []).find((p: any) => (p.name || '').toLowerCase().trim() === normalizedName);
         if (meByName) {
-          setMyId((cur) => cur || meByName.id || null);
+          setMyId(meByName.id);
         }
       } catch (e) {void e;}
     });
 
+    s.on('join_error', (err: { reason: string; message?: string }) => {
+      const errorMsg = err.message || `Failed to join room: ${err.reason}`;
+      setJoinError(errorMsg);
+      console.error('join_error', err);
+    });
+
     // announce auth for this client and join the room
-    s.emit('auth', { name: playerName, role: 'player' });
-    // send name as fallback to avoid races where server hasn't applied auth yet
-    s.emit('join_room', { roomId, name: playerName });
+    s.emit('auth', { guestId, name: playerName, role: 'player' });
+    // send join_room with code or inviteToken if available (and only once)
+    if (!hasJoined) {
+      const joinPayload: any = { roomId, guestId, name: playerName };
+      if (code) joinPayload.code = code;
+      if (inviteToken) joinPayload.inviteToken = inviteToken;
+      console.log('Game.tsx: emitting join_room with payload:', joinPayload);
+      s.emit('join_room', joinPayload);
+      setHasJoined(true);
+    }
     setSocket(s);
     // Do not disconnect here; socket is shared across views
     return () => {
@@ -160,6 +183,7 @@ const Game: React.FC<{ roomId: string; playerName: string; onLeave: () => void }
   return (
     <div className="game container">
       <h1>Game Room</h1>
+      {joinError && <div className="error-banner">{joinError}</div>}
       <p>Room: {roomId}</p>
       <p>Player: {players?.find((p: any) => p.id === myId)?.name || state?.players?.find((p: any) => p.id === myId)?.name || playerName || '—'}</p>
       <div className="board">

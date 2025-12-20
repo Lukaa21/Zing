@@ -4,6 +4,19 @@ import { randomUUID } from 'crypto';
 import prisma from '../db';
 import { appendGameEvent } from '../events/logger';
 
+function generateAccessCode(): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
+function generateInviteToken(): string {
+  return randomUUID().replace(/-/g, '').slice(0, 32);
+}
+
 export type Room = {
   id: string;
   players: PlayerState[];
@@ -11,13 +24,31 @@ export type Room = {
   seq: number;
   // id of the room owner (player who created the room)
   ownerId?: string;
+  // room visibility
+  visibility?: 'public' | 'private';
+  // access code for private rooms (6 chars like "vpq6rc")
+  accessCode?: string;
+  // invite token for private rooms
+  inviteToken?: string;
 };
 
 const rooms: Map<string, Room> = new Map();
 
-export function createRoom() {
+export function createRoom(visibility?: 'public' | 'private'): Room {
   const id = `room-${Math.random().toString(36).slice(2, 8)}`;
-  const room: Room = { id, players: [], seq: 0 };
+  const room: Room = { 
+    id, 
+    players: [], 
+    seq: 0,
+    visibility: visibility || 'public'
+  };
+  
+  // Generate access credentials for private rooms
+  if (visibility === 'private') {
+    room.accessCode = generateAccessCode();
+    room.inviteToken = generateInviteToken();
+  }
+  
   rooms.set(id, room);
   return room;
 }
@@ -249,6 +280,33 @@ export function getRoom(id: string) {
   return rooms.get(id);
 }
 
+export function getRoomByAccessCode(code: string): Room | undefined {
+  return Array.from(rooms.values()).find((r) => r.accessCode === code);
+}
+
+export function validateRoomAccess(room: Room, code?: string, inviteToken?: string): boolean {
+  // Public rooms: no validation needed
+  if (room.visibility === 'public') {
+    return true;
+  }
+  
+  // Private rooms: check code or token
+  if (room.visibility === 'private') {
+    if (code && room.accessCode === code) {
+      return true;
+    }
+    if (inviteToken && room.inviteToken === inviteToken) {
+      return true;
+    }
+    return false;
+  }
+  
+  return false;
+}
+
 export function listRooms() {
-  return Array.from(rooms.values()).map((r) => ({ id: r.id, size: r.players.length }));
+  // Only list public rooms (private rooms require access code or token)
+  return Array.from(rooms.values())
+    .filter((r) => r.visibility !== 'private')
+    .map((r) => ({ id: r.id, size: r.players.length }));
 }
