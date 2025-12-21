@@ -73,10 +73,13 @@ const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string;
     const guestId = getOrCreateGuestId();
     
     // Listen for auth_ok to get the correct ID (either userId or guestId)
-    s.on('auth_ok', (auth: any) => {
+    const authOkHandler = (auth: any) => {
       console.log('auth_ok received:', auth);
       setMyId(auth.id);
-    });
+    };
+    
+    s.off('auth_ok'); // Remove old handlers
+    s.on('auth_ok', authOkHandler);
     
     // Fallback: if already connected, set guestId initially
     if (s.connected) setMyId(guestId);
@@ -87,19 +90,14 @@ const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string;
     s.off('room_update');
     s.off('join_error');
     s.on('game_state', (sState: any) => { const st = sState?.state || sState; setState(st); setPlayers(st?.players || []);
-      // If this client hasn't captured its player id yet (or there's a mismatch),
-      // try to infer our player id by matching the supplied playerName so hand shows up.
-      try {
+      // Only try to infer myId from game_state if we don't have it yet
+      // Match by guestId only, don't use playerName as it can be outdated
+      if (!myId) {
         const meByGuestId = st?.players?.find((p: any) => p.id === guestId);
         if (meByGuestId) {
           setMyId(guestId);
-          return;
         }
-        const meByName = st?.players?.find((p: any) => p.name === playerName);
-        if (meByName) {
-          setMyId(meByName.id);
-        }
-      } catch (e) { void e; }
+      }
     });
     s.on('game_event', (ev: any) => {
       const actorName = playersRef.current?.find((p: any) => p.id === ev.actor)?.name || ev.actor;
@@ -113,19 +111,13 @@ const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string;
       setOwnerId(u.ownerId || null);
       // Store current room in sessionStorage for reconnect on refresh
       sessionStorage.setItem('zing_current_room', roomId);
-      // Prefer matching by guestId, then fallback to matching by name
-      try {
+      // Only match by guestId, don't use playerName (can be outdated)
+      if (!myId) {
         const meByGuestId = (u.players || []).find((p: any) => p.id === guestId);
         if (meByGuestId) {
           setMyId(guestId);
-          return;
         }
-        const normalizedName = (playerName || '').toLowerCase().trim();
-        const meByName = (u.players || []).find((p: any) => (p.name || '').toLowerCase().trim() === normalizedName);
-        if (meByName) {
-          setMyId(meByName.id);
-        }
-      } catch (e) {void e;}
+      }
     });
 
     s.on('join_error', (err: { reason: string; message?: string }) => {
@@ -146,6 +138,11 @@ const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string;
       console.warn('rejoin_error', err);
       // Rejoin failed, clear the token and try normal join_room
       clearReconnectToken(roomId, guestId);
+      
+      // After rejoin fails, we need to authenticate
+      console.log('Sending auth after rejoin failure');
+      s.emit('auth', { token: token || undefined, guestId, name: playerName, role: 'player' });
+      
       const joinPayload: any = { roomId, guestId, name: playerName };
       if (code) joinPayload.code = code;
       if (inviteToken) joinPayload.inviteToken = inviteToken;
@@ -153,10 +150,9 @@ const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string;
       s.emit('join_room', joinPayload);
     });
 
-    // announce auth for this client and join the room
-    s.emit('auth', { token: token || undefined, guestId, name: playerName, role: 'player' });
-    
     // Try to rejoin with stored token first (if available)
+    // If rejoin succeeds, auth will be handled by the server
+    // If rejoin fails, rejoin_error handler will emit auth + join_room
     if (!hasJoined) {
       const storedToken = getReconnectToken(roomId, guestId);
       if (storedToken) {
@@ -164,7 +160,10 @@ const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string;
         s.emit('rejoin_room', { roomId, guestId, reconnectToken: storedToken });
         setHasJoined(true);
       } else {
-        // No stored token, do normal join_room
+        // No stored token, do normal auth + join_room
+        console.log('Game.tsx: no reconnect token, doing normal auth + join');
+        s.emit('auth', { token: token || undefined, guestId, name: playerName, role: 'player' });
+        
         const joinPayload: any = { roomId, guestId, name: playerName };
         if (code) joinPayload.code = code;
         if (inviteToken) joinPayload.inviteToken = inviteToken;
@@ -176,6 +175,8 @@ const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string;
     setSocket(s);
     // Do not disconnect here; socket is shared across views
     return () => {
+      // Clean up all event handlers
+      s.off('auth_ok', authOkHandler);
       // keep socket alive (do not disconnect singleton)
       s.disconnect();
     };
@@ -199,7 +200,7 @@ const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string;
       setLogs((l) => [`Not your turn`, ...l].slice(0, 200));
       return;
     }
-    socket.emit('intent_play_card', { roomId, cardId });
+    socket.emit('intent_play_card', { roomId, cardId, playerId: me.id });
   };
 
   const handleStart = () => {

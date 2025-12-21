@@ -257,6 +257,14 @@ app.use('/api/auth', authRoutes);
       player.socketId = socket.id;
       player.connected = true;
       socket.join(roomId);
+      
+      // Set socket identity to the rejoined player (guest identity)
+      socket.data.identity = { type: 'guest', id: playerId };
+      socket.data.displayName = player.name;
+      socket.data.user = { id: playerId, name: player.name, role: player.role || 'player' };
+      
+      // Send auth_ok to confirm identity
+      socket.emit('auth_ok', { id: playerId, name: player.name, role: player.role, type: 'guest' });
 
       // Send reconnect token again for next refresh
       const newReconnectToken = generateAndStoreReconnectToken(roomId, playerId);
@@ -301,11 +309,13 @@ app.use('/api/auth', authRoutes);
       io.to(roomId).emit('room_update', { roomId, players: room.players.map((p) => ({ id: p.id, name: p.name, role: p.role, taken: p.taken })), ownerId: room.ownerId });
     });
 
-    socket.on('intent_play_card', async ({ roomId, cardId }) => {
+    socket.on('intent_play_card', async ({ roomId, cardId, playerId }) => {
       const room = getRoom(roomId);
       if (!room) return;
-      const playerId = socket.data.identity?.id ?? socket.id;
-      const ev = await handleIntent(room, { type: 'play_card', playerId, cardId });
+      // Use playerId from client if provided, otherwise find player by socketId, fallback to identity
+      const player = room.players.find((p: any) => p.socketId === socket.id);
+      const actualPlayerId = playerId ?? player?.id ?? socket.data.identity?.id ?? socket.id;
+      const ev = await handleIntent(room, { type: 'play_card', playerId: actualPlayerId, cardId });
       if (Array.isArray(ev)) {
         for (const e of ev) io.to(roomId).emit('game_event', e);
       } else if (ev) {

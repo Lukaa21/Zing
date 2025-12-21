@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 interface LoginFormProps {
-  onSuccess: () => void;
+  onSuccess: (user: { id: string; email: string; displayName: string }) => void;
 }
 
 const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
@@ -18,8 +18,10 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
     setIsLoading(true);
 
     try {
-      await login(email, password);
-      onSuccess();
+      const data = await login(email, password);
+      // Clear old guest name from localStorage
+      localStorage.removeItem('zing_guest_name');
+      onSuccess(data.user);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'login failed');
     } finally {

@@ -16,11 +16,6 @@ for (const p of candidates) {
     
     const result = dotenv.config({ path: p, override: true });
     
-    console.log('ENV FILE LOADED FROM:', p);
-    console.log('Dotenv parsed:', result.parsed);
-    console.log('DATABASE_URL from parsed:', result.parsed?.DATABASE_URL);
-    console.log('process.env.DATABASE_URL:', process.env.DATABASE_URL);
-    
     // Manual parse as fallback with BOM cleanup
     if (!result.parsed || Object.keys(result.parsed).length === 0) {
       console.log('Dotenv parse failed, trying manual parse...');
