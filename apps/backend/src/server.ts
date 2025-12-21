@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import './env';
 import express, { type Request, type Response } from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
@@ -7,13 +7,24 @@ import Redis from 'ioredis';
 import pino from 'pino';
 import { createRoom, joinRoom, startGame, getRoom, handleIntent, listRooms, leaveRoom, removePlayerFromAllRooms, getRoomByAccessCode, validateRoomAccess, generateAndStoreReconnectToken, validateReconnectToken, getAllRooms } from './game/roomManager';
 import cors from 'cors';
+import authRoutes from './auth/routes';
+import { verifyToken } from './auth/jwt';
+import { prisma } from './db/prisma';
 
 const logger = pino();
 
 const app = express();
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // Accept all localhost origins (5173, 5174, etc.)
+    if (!origin || origin.match(/^http:\/\/localhost(:\d+)?$/)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  }
 }));
+app.use(express.json());
 const server = http.createServer(app);
 
 const PORT = process.env.BACKEND_PORT || 4000;
@@ -21,6 +32,9 @@ const PORT = process.env.BACKEND_PORT || 4000;
 // Simple health endpoint
 app.get('/health', (_req: Request, res: Response) => res.status(200).json({ ok: true }));
 app.get('/rooms', (_req: Request, res: Response) => res.json(listRooms()));
+
+// Auth routes
+app.use('/api/auth', authRoutes);
 
 
 (async function bootstrap() {
@@ -50,9 +64,30 @@ app.get('/rooms', (_req: Request, res: Response) => res.json(listRooms()));
     const { id } = socket;
     logger.info({ clientId: id }, 'Client connected');
 
-    socket.on('auth', (payload) => {
-      const { guestId, name, role } = payload || {};
-      // ephemeral auth for MVP
+    socket.on('auth', async (payload) => {
+      const { token, guestId, name, role } = payload || {};
+      
+      // Try to authenticate with token first
+      if (token) {
+        const decoded = verifyToken(token);
+        if (decoded) {
+          // Load user from database
+          const user = await prisma.user.findUnique({
+            where: { id: decoded.userId },
+          });
+          if (user) {
+            socket.data.identity = { type: 'user', id: user.id };
+            socket.data.displayName = user.displayName;
+            socket.data.user = { id: user.id, email: user.email, displayName: user.displayName, role: role || 'player' };
+            socket.join('lobby');
+            socket.emit('auth_ok', { id: user.id, displayName: user.displayName, type: 'user', role });
+            io.to('lobby').emit('lobby_update', { time: new Date().toISOString() });
+            return;
+          }
+        }
+      }
+      
+      // Fallback to guest auth
       if (!name) {
         socket.emit('auth_error', { reason: 'name_required' });
         return;
@@ -61,7 +96,7 @@ app.get('/rooms', (_req: Request, res: Response) => res.json(listRooms()));
       socket.data.displayName = name;
       socket.data.user = { id: guestId, name, role: role || 'player' };
       socket.join('lobby');
-      socket.emit('auth_ok', { id: guestId, name, role });
+      socket.emit('auth_ok', { id: guestId, name, role, type: 'guest' });
       io.to('lobby').emit('lobby_update', { time: new Date().toISOString() });
     });
 
@@ -138,7 +173,8 @@ app.get('/rooms', (_req: Request, res: Response) => res.json(listRooms()));
         logger.info({ clientId: socket.id, roomId: actualRoomId }, 'join_room: access granted');
         
         const useName = socket.data.displayName ?? name ?? 'guest';
-        const playerId = guestId || socket.id;
+        // Use socket.data.identity.id for authenticated users, otherwise guestId, otherwise socket.id
+        const playerId = socket.data.identity?.id ?? guestId ?? socket.id;
         
         logger.info({ clientId: socket.id, roomId: actualRoomId, guestId, playerId, name, useName, currentPlayers: room.players.map(p => p.id) }, 'join_room: processing join');
         

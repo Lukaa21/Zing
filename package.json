@@ -12,5 +12,12 @@
     "lint": "pnpm -s -r lint",
     "test": "pnpm -s -r test"
   },
-  "devDependencies": {}
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "jsonwebtoken": "^9.0.3"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/jsonwebtoken": "^9.0.10"
+  }
 }

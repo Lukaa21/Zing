@@ -3,6 +3,7 @@ import { connect } from '../services/socket';
 import { getOrCreateGuestId, getReconnectToken, setReconnectToken, clearReconnectToken } from '../utils/guest';
 import WaitingRoomView from './WaitingRoomView';
 import InGameView from './InGameView';
+import { useAuth } from '../context/AuthContext';
 
 function shortCardName(cardId: string) {
   const [suit, rank] = cardId.split('-');
@@ -51,6 +52,7 @@ function formatEvent(ev: any, actorName?: string) {
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
 
 const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string; code?: string; onLeave: () => void }> = ({ roomId, playerName, inviteToken, code }) => {
+  const { token } = useAuth();
   const [socket, setSocket] = useState<any>(null);
   const [state, setState] = useState<any>(null);
   const [players, setPlayers] = useState<any[]>([]);
@@ -70,9 +72,16 @@ const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string;
     const s = connect(playerName);
     const guestId = getOrCreateGuestId();
     
-    s.on('connect', () => { console.log('connected to backend'); setMyId(guestId); });
-    // if socket is already connected (reused singleton), set myId immediately
+    // Listen for auth_ok to get the correct ID (either userId or guestId)
+    s.on('auth_ok', (auth: any) => {
+      console.log('auth_ok received:', auth);
+      setMyId(auth.id);
+    });
+    
+    // Fallback: if already connected, set guestId initially
     if (s.connected) setMyId(guestId);
+    
+    s.on('connect', () => { console.log('connected to backend'); });
     s.off('game_state');
     s.off('game_event');
     s.off('room_update');
@@ -145,7 +154,7 @@ const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string;
     });
 
     // announce auth for this client and join the room
-    s.emit('auth', { guestId, name: playerName, role: 'player' });
+    s.emit('auth', { token: token || undefined, guestId, name: playerName, role: 'player' });
     
     // Try to rejoin with stored token first (if available)
     if (!hasJoined) {
