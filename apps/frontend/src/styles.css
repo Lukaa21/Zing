@@ -15,8 +15,8 @@ button { margin-left: 0.5rem; }
 .card-front .bottom-right { position: absolute; right: 6px; bottom: 6px; transform: rotate(180deg);} 
 .card-front .suit { font-size: 36px; }
 .player-hand { margin-top: 8px; } .talon-row { display: flex; align-items: center; min-height: 100px; }
- .talon-row > div { transition: transform 120ms ease; }
- .move-log { max-height: 240px; overflow: auto; }
+.talon-row > div { transition: transform 120ms ease; }
+.move-log { max-height: 240px; overflow: auto; }
 
 /* Landing Page Styles */
 .landing-page {

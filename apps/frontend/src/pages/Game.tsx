@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { connect } from '../services/socket';
 import { getOrCreateGuestId, getReconnectToken, setReconnectToken, clearReconnectToken } from '../utils/guest';
 import WaitingRoomView from './WaitingRoomView';
@@ -51,8 +52,10 @@ function formatEvent(ev: any, actorName?: string) {
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
 
-const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string; code?: string; onLeave: () => void }> = ({ roomId, playerName, inviteToken, code }) => {
+const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string; code?: string; onLeave?: () => void; initialRoute?: 'room' | 'game' }> = ({ roomId, playerName, inviteToken, code, onLeave, initialRoute }) => {
   const { token } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [socket, setSocket] = useState<any>(null);
   const [state, setState] = useState<any>(null);
   const [players, setPlayers] = useState<any[]>([]);
@@ -210,7 +213,18 @@ const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string;
   };
 
   // Determine phase: isInGame means handNumber is set and > 0
-  const isInGame = Boolean(state?.handNumber && state?.handNumber > 0);
+  const computedInGame = Boolean(state?.handNumber && state?.handNumber > 0);
+  // If `initialRoute` is provided (via router path), let it override the computed state
+  const isInGame = initialRoute ? initialRoute === 'game' : computedInGame;
+
+  // Auto-navigate from /room to /game when game starts
+  useEffect(() => {
+    // Only navigate if we're on /room and the game has actually started
+    if (location.pathname === '/room' && computedInGame) {
+      console.log('Game started detected (handNumber:', state?.handNumber, '), navigating to /game');
+      navigate('/game', { replace: true });
+    }
+  }, [computedInGame, location.pathname, navigate, state?.handNumber]);
 
   // Calculate owner status - only use myId comparison to avoid name conflicts
   const isOwner = !!(ownerId && myId && ownerId === myId);
@@ -220,10 +234,7 @@ const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string;
 
   return (
     <div className="game container">
-      <h1>Game Room</h1>
       {joinError && <div className="error-banner">{joinError}</div>}
-      <p>Room: {roomId}</p>
-      <p>Player: {players?.find((p: any) => p.id === myId)?.name || state?.players?.find((p: any) => p.id === myId)?.name || playerName || '—'}</p>
       <div className="board">
         {isInGame ? (
           <InGameView

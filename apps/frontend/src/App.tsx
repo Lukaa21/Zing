@@ -8,10 +8,11 @@ import Game from './pages/Game';
 import { useState } from 'react';
 import { getGuestName } from './utils/guest';
 import { useAuth } from './context/AuthContext';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 
 const App: React.FC = () => {
   const { authUser, logout, isLoading } = useAuth();
-  const [view, setView] = useState<'landing' | 'login' | 'register' | 'guest-name' | 'lobby' | 'game'>('landing');
+  const navigate = useNavigate();
   const [roomId, setRoomId] = useState<string | null>(null);
   const [name, setName] = useState<string>(getGuestName() || '');
   const [inviteToken, setInviteToken] = useState<string | null>(null);
@@ -31,7 +32,7 @@ const App: React.FC = () => {
     // Check if there's a pending invite that hasn't been processed yet
     const pendingRoom = sessionStorage.getItem('zing_pending_invite_room');
     const pendingToken = sessionStorage.getItem('zing_pending_invite_token');
-    
+
     // If we have pending invite and now we have a name (after auth or guest name entry), join the game
     if (pendingRoom && pendingToken && name) {
       sessionStorage.removeItem('zing_pending_invite_room');
@@ -40,7 +41,7 @@ const App: React.FC = () => {
       
       setRoomId(pendingRoom);
       setInviteToken(pendingToken);
-      setView('game');
+      navigate('/game');
       return;
     }
     
@@ -53,10 +54,10 @@ const App: React.FC = () => {
       const existingName = authUser?.displayName || getGuestName();
       if (existingName) {
         setName(existingName);
-        setView('game');
+        navigate('/game');
       } else {
         // Shouldn't happen (refresh without name), but fallback to name screen
-        setView('guest-name');
+        navigate('/guest-name');
       }
       return;
     }
@@ -70,7 +71,7 @@ const App: React.FC = () => {
         sessionStorage.setItem('zing_pending_invite_name', n);
       }
       // Go to landing page to let user choose: guest, login, or register
-      setView('landing');
+      navigate('/');
       return;
     }
     
@@ -78,85 +79,86 @@ const App: React.FC = () => {
     if (r && n) {
       setRoomId(r);
       setName(n);
-      setView('game');
+      navigate('/game');
       return;
     }
 
     // If we have a roomId stored in sessionStorage (from previous game session), rejoin
     if (storedRoomId) {
       setRoomId(storedRoomId);
-      setView('game');
+      navigate('/game');
     }
-  }, [isLoading, authUser, name]);
+  }, [isLoading, authUser, name, navigate]);
 
   if (isLoading) {
     return <div>Loading...</div>;
   }
 
   return (
-    <div>
-      {view === 'landing' && (
+    <Routes>
+      <Route path="/" element={
         <LandingPage 
-          onPlayAsGuest={() => setView('guest-name')}
-          onLogin={() => setView('login')}
-          onRegister={() => setView('register')}
+          onPlayAsGuest={() => navigate('/guest-name')}
+          onLogin={() => navigate('/login')}
+          onRegister={() => navigate('/register')}
         />
-      )}
-      {view === 'login' && (
+      } />
+
+      <Route path="/login" element={
         <>
           <LoginForm onSuccess={(user) => {
             setName(user.displayName);
-            // Check if there's a pending invite - if not, go to lobby
             const pendingRoom = sessionStorage.getItem('zing_pending_invite_room');
             if (!pendingRoom) {
-              setView('lobby');
+              navigate('/lobby');
             }
-            // If there is pending invite, useEffect will handle navigation to game
+            // If pending invite exists, useEffect will route to /game
           }} />
           <div style={{ textAlign: 'center', marginTop: 20 }}>
-            <button onClick={() => setView('landing')} style={{ marginRight: 10 }}>Back</button>
-            <span>Don't have an account? <button onClick={() => setView('register')}>Register</button></span>
+            <button onClick={() => navigate('/')} style={{ marginRight: 10 }}>Back</button>
+            <span>Don't have an account? <button onClick={() => navigate('/register')}>Register</button></span>
           </div>
         </>
-      )}
-      {view === 'register' && (
+      } />
+
+      <Route path="/register" element={
         <>
           <RegisterForm onSuccess={(user) => {
             setName(user.displayName);
-            // Check if there's a pending invite - if not, go to lobby
             const pendingRoom = sessionStorage.getItem('zing_pending_invite_room');
             if (!pendingRoom) {
-              setView('lobby');
+              navigate('/lobby');
             }
-            // If there is pending invite, useEffect will handle navigation to game
+            // If pending invite exists, useEffect will route to /game
           }} />
           <div style={{ textAlign: 'center', marginTop: 20 }}>
-            <button onClick={() => setView('landing')} style={{ marginRight: 10 }}>Back</button>
-            <span>Already have an account? <button onClick={() => setView('login')}>Login</button></span>
+            <button onClick={() => navigate('/')} style={{ marginRight: 10 }}>Back</button>
+            <span>Already have an account? <button onClick={() => navigate('/login')}>Login</button></span>
           </div>
         </>
-      )}
-      {view === 'guest-name' && (
+      } />
+
+      <Route path="/guest-name" element={
         <GuestNameScreen 
           onConfirm={(guestName) => {
             setName(guestName);
-            // Check if there's a pending invite - if not, go to lobby
             const pendingRoom = sessionStorage.getItem('zing_pending_invite_room');
             if (!pendingRoom) {
-              setView('lobby');
+              navigate('/lobby');
             }
-            // If there is pending invite, useEffect will handle navigation to game
+            // If pending invite exists, useEffect will route to /game
           }}
         />
-      )}
-      {view === 'lobby' && (
+      } />
+
+      <Route path="/lobby" element={
         <>
           {authUser && (
             <div style={{ textAlign: 'right', padding: 10 }}>
               <span>{authUser.displayName}</span>
               <button onClick={() => {
                 logout();
-                setView('landing');
+                navigate('/');
               }} style={{ marginLeft: 10 }}>Logout</button>
             </div>
           )}
@@ -167,13 +169,15 @@ const App: React.FC = () => {
               setName(playerName);
               setCode(joinCode || null);
               setInviteToken(joinInviteToken || null);
-              setView('game'); 
+              navigate('/room'); 
             }} 
           />
         </>
-      )}
-      {view === 'game' && (
+      } />
+
+      <Route path="/game" element={
         <Game 
+          key="game-view"
           roomId={roomId!} 
           playerName={name}
           inviteToken={inviteToken || undefined}
@@ -181,11 +185,25 @@ const App: React.FC = () => {
           onLeave={() => {
             // Clear stored roomId when leaving game
             sessionStorage.removeItem('zing_current_room');
-            setView('lobby');
+            navigate('/lobby');
           }}
         />
-      )}
-    </div>
+      } />
+      <Route path="/room" element={
+        <Game 
+          key="room-view"
+          roomId={roomId!}
+          playerName={name}
+          inviteToken={inviteToken || undefined}
+          code={code || undefined}
+          initialRoute="room"
+          onLeave={() => {
+            sessionStorage.removeItem('zing_current_room');
+            navigate('/lobby');
+          }}
+        />
+      } />
+    </Routes>
   );
 };
 

@@ -1,14 +1,5 @@
 import React from 'react';
 
-function formatTakenSummary(taken: string[]) {
-  if (!taken || taken.length === 0) return 'no cards';
-  const shortCardName = (cardId: string) => {
-    const [suit, rank] = cardId.split('-');
-    return `${rank} ${suit}`;
-  };
-  return taken.map(shortCardName).slice(0, 6).join(', ');
-}
-
 interface WaitingRoomViewProps {
   roomId: string;
   players: any[];
@@ -32,6 +23,9 @@ const WaitingRoomView: React.FC<WaitingRoomViewProps> = ({
 }) => {
   return (
     <div className="waiting-room">
+      <h1>Game Room</h1>
+      <p>Room: {roomId}</p>
+      <p>Player: {players?.find((p: any) => p.id === myId)?.name || playerName || '—'}</p>
       <div style={{ display: 'flex', gap: 24 }}>
         <div style={{ minWidth: 240 }}>
           <h3>Players in Room</h3>
@@ -42,9 +36,7 @@ const WaitingRoomView: React.FC<WaitingRoomViewProps> = ({
                   <div>
                     {p.name} {p.role === 'spectator' ? '(spectator)' : ''} {p.id === ownerId ? '(host)' : ''}
                   </div>
-                  <div style={{ fontSize: 12, color: '#444' }}>{p.taken?.length || 0} taken</div>
                 </div>
-                <div style={{ fontSize: 12, color: '#666' }}>{formatTakenSummary(p.taken || [])}</div>
               </li>
             ))}
           </ul>
