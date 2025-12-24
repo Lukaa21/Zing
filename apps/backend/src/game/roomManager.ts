@@ -344,13 +344,6 @@ export function validateReconnectToken(token: string, roomId: string): string | 
   return entry.playerId; // Return the playerId (identityId)
 }
 
-export function listRooms() {
-  // Only list public rooms (private rooms require access code or token)
-  return Array.from(rooms.values())
-    .filter((r) => r.visibility !== 'private')
-    .map((r) => ({ id: r.id, size: r.players.length }));
-}
-
 export function getAllRooms(): Room[] {
   return Array.from(rooms.values());
 }

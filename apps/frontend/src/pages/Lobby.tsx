@@ -3,17 +3,9 @@ import { Socket } from 'socket.io-client';
 import { connect } from '../services/socket';
 import { getOrCreateGuestId } from '../utils/guest';
 
-const LOBBY_URL =
-  import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
-
 type LobbyProps = {
   playerName: string;
-  onJoin: (roomId: string, name: string, code?: string, inviteToken?: string) => void;
-};
-
-type RoomInfo = {
-  id: string;
-  size: number;
+  onJoin: (roomId: string, name: string, code?: string, inviteToken?: string, directToGame?: boolean) => void;
 };
 
 type AccessCredentials = {
@@ -23,36 +15,65 @@ type AccessCredentials = {
   inviteToken?: string;
 };
 
+type MatchmakingMode = '1v1' | '2v2';
+
 const Lobby: React.FC<LobbyProps> = ({ playerName, onJoin }) => {
   const [socket, setSocket] = useState<Socket | null>(null);
-  const [rooms, setRooms] = useState<RoomInfo[]>([]);
-  const [visibility, setVisibility] = useState<'public' | 'private'>('public');
   const [credentials, setCredentials] = useState<AccessCredentials | null>(null);
   const [joinCode, setJoinCode] = useState<string>('');
   const [joinError, setJoinError] = useState<string>('');
+  
+  // Matchmaking state
+  const [selectedMode, setSelectedMode] = useState<MatchmakingMode>('2v2');
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [queuePosition, setQueuePosition] = useState<number | null>(null);
 
   useEffect(() => {
     const s = connect(playerName || 'guest');
 
+    // Remove old public room listeners
     s.off('rooms_list');
     s.off('room_created');
     s.off('join_error');
-    s.on('rooms_list', (r: RoomInfo[]) => {
-      setRooms(r);
-    });
 
+    // Private room creation listener
     s.on('room_created', (payload: { roomId: string; visibility?: string; accessCode?: string; inviteToken?: string }) => {
       if (payload.visibility === 'private') {
-        // Show credentials modal for private rooms
         setCredentials({
           roomId: payload.roomId,
           visibility: 'private',
           accessCode: payload.accessCode,
           inviteToken: payload.inviteToken
         });
-      } else {
-        onJoin(payload.roomId, playerName);
       }
+    });
+
+    // Matchmaking listeners
+    s.on('queue_joined', (payload: { mode: MatchmakingMode; position?: number }) => {
+      console.log('Joined queue:', payload);
+      setIsSearching(true);
+      setQueuePosition(payload.position || null);
+    });
+
+    s.on('queue_left', () => {
+      console.log('Left queue');
+      setIsSearching(false);
+      setQueuePosition(null);
+    });
+
+    s.on('match_found', (payload: { roomId: string; mode: MatchmakingMode; players: any[] }) => {
+      console.log('Match found!', payload);
+      setIsSearching(false);
+      setQueuePosition(null);
+      // Navigate directly to game (matchmaking auto-starts)
+      onJoin(payload.roomId, playerName, undefined, undefined, true);
+    });
+
+    s.on('matchmaking_error', (err: { reason: string }) => {
+      console.error('Matchmaking error:', err);
+      setIsSearching(false);
+      setQueuePosition(null);
+      setJoinError(`Matchmaking error: ${err.reason}`);
     });
 
     s.on('join_error', (err: { reason: string; message?: string }) => {
@@ -61,32 +82,38 @@ const Lobby: React.FC<LobbyProps> = ({ playerName, onJoin }) => {
 
     setSocket(s);
 
-    // initial HTTP fetch
-    fetch(`${LOBBY_URL}/rooms`)
-      .then((r) => r.json())
-      .then((list: RoomInfo[]) => setRooms(list))
-      .catch(console.error);
-
-    // Do not disconnect here; keep the shared socket alive across views
+    return () => {
+      // Cleanup listeners when component unmounts
+      s.off('room_created');
+      s.off('queue_joined');
+      s.off('queue_left');
+      s.off('match_found');
+      s.off('matchmaking_error');
+      s.off('join_error');
+    };
   }, [playerName, onJoin]);
 
-  const handleCreate = () => {
+  const handleFindGame = () => {
     if (!socket || !playerName) return;
 
     const guestId = getOrCreateGuestId();
     socket.emit('auth', { guestId, name: playerName, role: 'player' });
-    // pass visibility and name in payload
-    socket.emit('create_room', { name: playerName, visibility });
+    socket.emit('find_game', { mode: selectedMode });
+    
+    console.log('Finding game:', selectedMode);
   };
 
-  const handleJoin = (roomId: string) => {
+  const handleCancelSearch = () => {
+    if (!socket) return;
+    socket.emit('cancel_find_game');
+  };
+
+  const handleCreatePrivate = () => {
     if (!socket || !playerName) return;
-    setJoinError('');
 
     const guestId = getOrCreateGuestId();
     socket.emit('auth', { guestId, name: playerName, role: 'player' });
-    // Game.tsx will emit join_room when it mounts - just trigger navigation here
-    onJoin(roomId, playerName);
+    socket.emit('create_private_room', { name: playerName });
   };
 
   const handleJoinByCode = () => {
@@ -100,22 +127,19 @@ const Lobby: React.FC<LobbyProps> = ({ playerName, onJoin }) => {
     socket.emit('auth', { guestId, name: playerName, role: 'player' });
 
     const input = joinCode.trim();
-    // Store this so we know we're waiting for join response
     let actualRoomId = '';
-    let joinCode_value = '';
     let isAccessCode = /^[a-z0-9]{6}$/i.test(input);
 
-    // One-time listener to handle join response
     const handleRoomUpdate = (data: { roomId: string }) => {
       actualRoomId = data.roomId;
       socket.off('room_update', handleRoomUpdate);
       socket.off('join_error', handleJoinError);
       setJoinCode('');
-      // Prosleđi code ili samo roomId zavisno od toga što je korišten
+      
       if (isAccessCode) {
-        onJoin(actualRoomId, playerName, input); // input je code
+        onJoin(actualRoomId, playerName, input);
       } else {
-        onJoin(actualRoomId, playerName); // input je roomId
+        onJoin(actualRoomId, playerName);
       }
     };
 
@@ -128,14 +152,12 @@ const Lobby: React.FC<LobbyProps> = ({ playerName, onJoin }) => {
     socket.once('room_update', handleRoomUpdate);
     socket.once('join_error', handleJoinError);
 
-    // Send join request
     if (isAccessCode) {
       socket.emit('join_room', { code: input, guestId, name: playerName });
     } else {
       socket.emit('join_room', { roomId: input, guestId, name: playerName });
     }
 
-    // Safety timeout - if no response in 5 seconds, show error
     setTimeout(() => {
       socket.off('room_update', handleRoomUpdate);
       socket.off('join_error', handleJoinError);
@@ -151,7 +173,6 @@ const Lobby: React.FC<LobbyProps> = ({ playerName, onJoin }) => {
 
     const guestId = getOrCreateGuestId();
     socket.emit('auth', { guestId, name: playerName, role: 'player' });
-    // Don't emit join_room here - let Game.tsx do it when it mounts with inviteToken prop
     
     setCredentials(null);
     onJoin(credentials.roomId, playerName, undefined, credentials.inviteToken);
@@ -164,36 +185,56 @@ const Lobby: React.FC<LobbyProps> = ({ playerName, onJoin }) => {
   return (
     <div className="lobby container">
       <h1>Zing — Lobby</h1>
+      <p className="player-info">Playing as: <strong>{playerName}</strong></p>
 
-      <div className="lobby-section">
-        <h2>Create Room</h2>
-        <p>Playing as: <strong>{playerName}</strong></p>
+      {/* MATCHMAKING SECTION */}
+      <div className="lobby-section matchmaking-section">
+        <h2>Find Game</h2>
         
-        <div className="visibility-toggle">
-          <label>
-            <input
-              type="radio"
-              name="visibility"
-              value="public"
-              checked={visibility === 'public'}
-              onChange={(e) => setVisibility(e.target.value as 'public')}
-            />
-            Public
-          </label>
-          <label>
-            <input
-              type="radio"
-              name="visibility"
-              value="private"
-              checked={visibility === 'private'}
-              onChange={(e) => setVisibility(e.target.value as 'private')}
-            />
-            Private
-          </label>
-        </div>
+        {!isSearching ? (
+          <>
+            <div className="mode-selector">
+              <label>
+                <input
+                  type="radio"
+                  name="mode"
+                  value="1v1"
+                  checked={selectedMode === '1v1'}
+                  onChange={(e) => setSelectedMode(e.target.value as MatchmakingMode)}
+                />
+                1v1
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="mode"
+                  value="2v2"
+                  checked={selectedMode === '2v2'}
+                  onChange={(e) => setSelectedMode(e.target.value as MatchmakingMode)}
+                />
+                2v2
+              </label>
+            </div>
+            <button onClick={handleFindGame} disabled={!playerName} className="btn-primary btn-find-game">
+              Find Game ({selectedMode})
+            </button>
+          </>
+        ) : (
+          <div className="searching-status">
+            <p className="searching-text">Searching for {selectedMode} match...</p>
+            {queuePosition && <p className="queue-position">Position in queue: {queuePosition}</p>}
+            <button onClick={handleCancelSearch} className="btn-secondary">
+              Cancel Search
+            </button>
+          </div>
+        )}
+      </div>
 
-        <button onClick={handleCreate} disabled={!playerName} className="btn-primary">
-          Create Room
+      {/* PRIVATE ROOMS SECTION */}
+      <div className="lobby-section">
+        <h2>Private Room</h2>
+        <button onClick={handleCreatePrivate} disabled={!playerName} className="btn-secondary">
+          Create Private Room
         </button>
       </div>
 
@@ -231,7 +272,7 @@ const Lobby: React.FC<LobbyProps> = ({ playerName, onJoin }) => {
       )}
 
       <div className="lobby-section">
-        <h2>Join Room</h2>
+        <h2>Join Private Room</h2>
         <div className="join-by-code">
           <input
             type="text"
@@ -245,20 +286,6 @@ const Lobby: React.FC<LobbyProps> = ({ playerName, onJoin }) => {
           </button>
         </div>
         {joinError && <p className="error">{joinError}</p>}
-      </div>
-
-      <div className="lobby-section">
-        <h2>Open Rooms</h2>
-        <ul>
-          {rooms.map((r) => (
-            <li key={r.id}>
-              {r.id} — {r.size} {r.size === 1 ? 'player' : 'players'}
-              <button onClick={() => handleJoin(r.id)} disabled={!playerName} className="btn-secondary">
-                Join
-              </button>
-            </li>
-          ))}
-        </ul>
       </div>
     </div>
   );

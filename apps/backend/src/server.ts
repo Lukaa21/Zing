@@ -5,7 +5,8 @@ import { Server } from 'socket.io';
 import { createAdapter } from 'socket.io-redis';
 import Redis from 'ioredis';
 import pino from 'pino';
-import { createRoom, joinRoom, startGame, getRoom, handleIntent, listRooms, leaveRoom, removePlayerFromAllRooms, getRoomByAccessCode, validateRoomAccess, generateAndStoreReconnectToken, validateReconnectToken, getAllRooms } from './game/roomManager';
+import { createRoom, joinRoom, startGame, getRoom, handleIntent, leaveRoom, removePlayerFromAllRooms, getRoomByAccessCode, validateRoomAccess, generateAndStoreReconnectToken, validateReconnectToken, getAllRooms } from './game/roomManager';
+import { matchmakingManager } from './game/matchmakingManager';
 import cors from 'cors';
 import authRoutes from './auth/routes';
 import { verifyToken } from './auth/jwt';
@@ -31,7 +32,6 @@ const PORT = process.env.BACKEND_PORT || 4000;
 
 // Simple health endpoint
 app.get('/health', (_req: Request, res: Response) => res.status(200).json({ ok: true }));
-app.get('/rooms', (_req: Request, res: Response) => res.json(listRooms()));
 
 // Auth routes
 app.use('/api/auth', authRoutes);
@@ -100,16 +100,98 @@ app.use('/api/auth', authRoutes);
       io.to('lobby').emit('lobby_update', { time: new Date().toISOString() });
     });
 
-    socket.on('create_room', (payload: any) => {
-      const visibility = payload?.visibility || 'public';
-      const room = createRoom(visibility);
-      // prefer server-side auth name, fallback to payload name if provided
+    // MATCHMAKING EVENTS
+    socket.on('find_game', async (payload: any) => {
+      const mode = payload?.mode as '1v1' | '2v2';
+      if (!mode || (mode !== '1v1' && mode !== '2v2')) {
+        socket.emit('matchmaking_error', { reason: 'invalid_mode' });
+        return;
+      }
+
+      const playerName = socket.data.displayName ?? 'guest';
+      const playerId = socket.data.identity?.id ?? socket.id;
+
+      logger.info({ clientId: socket.id, playerId, playerName, mode }, 'find_game: player joining queue');
+
+      try {
+        const result = await matchmakingManager.addToQueue(mode, playerId, playerName, socket.id);
+
+        if (result.matched && result.room && result.players) {
+          // Match found! Notify all matched players
+          logger.info({ 
+            roomId: result.room.id, 
+            mode, 
+            players: result.players.map(p => p.playerName) 
+          }, 'find_game: match formed, notifying players');
+
+          for (const player of result.players) {
+            const playerSocket = io.sockets.sockets.get(player.socketId);
+            if (playerSocket) {
+              playerSocket.join(result.room.id);
+              playerSocket.emit('match_found', {
+                roomId: result.room.id,
+                mode,
+                players: result.room.players.map((p: any) => ({ 
+                  id: p.id, 
+                  name: p.name, 
+                  team: p.team 
+                }))
+              });
+            }
+          }
+
+          // Emit initial game state to all players in the room
+          if (result.room.state) {
+            io.to(result.room.id).emit('game_state', { state: result.room.state });
+            
+            // Emit hands_dealt event so clients know game has started
+            const dealt: Record<string, string[]> = {};
+            for (const p of result.room.state.players) {
+              dealt[p.id] = [...p.hand];
+            }
+            io.to(result.room.id).emit('game_event', { 
+              type: 'hands_dealt', 
+              actor: undefined, 
+              payload: { dealt, handNumber: result.room.state.handNumber } 
+            });
+            
+            io.to(result.room.id).emit('room_update', { 
+              roomId: result.room.id, 
+              players: result.room.players.map((p: any) => ({ 
+                id: p.id, 
+                name: p.name, 
+                role: p.role, 
+                taken: p.taken 
+              })), 
+              ownerId: result.room.ownerId 
+            });
+          }
+        } else {
+          // Added to queue, waiting for more players
+          socket.emit('queue_joined', { mode, position: matchmakingManager.getPlayerQueueStatus(playerId).position });
+        }
+      } catch (error) {
+        logger.error({ error }, 'find_game: error during matchmaking');
+        socket.emit('matchmaking_error', { reason: 'server_error' });
+      }
+    });
+
+    socket.on('cancel_find_game', () => {
+      const playerId = socket.data.identity?.id ?? socket.id;
+      logger.info({ clientId: socket.id, playerId }, 'cancel_find_game: removing from queue');
+      
+      matchmakingManager.removeFromQueue(playerId);
+      socket.emit('queue_left', {});
+    });
+
+    // PRIVATE ROOM CREATION (keep for invite-based private games)
+    socket.on('create_private_room', (payload: any) => {
+      const room = createRoom('private');
       const creatorName = socket.data.displayName ?? payload?.name ?? 'guest';
       const creatorId = socket.data.identity?.id ?? socket.id;
       
-      logger.info({ clientId: socket.id, creatorName, visibility, accessCode: room.accessCode }, 'create_room: creating room and joining creator');
+      logger.info({ clientId: socket.id, creatorName, accessCode: room.accessCode }, 'create_private_room: creating private room');
       
-      // Ensure unique name in room (even though room is empty, be consistent with join_room logic)
       let finalName = creatorName;
       let counter = 2;
       while (room.players.some((p: any) => p.name === finalName)) {
@@ -118,13 +200,20 @@ app.use('/api/auth', authRoutes);
       }
       
       joinRoom(room, { id: creatorId, name: finalName, seat: 0, role: socket.data.user?.role ?? 'player', team: 0, hand: [], taken: [] });
-      // set owner id to the creator (use same ID as player)
       room.ownerId = creatorId;
       socket.join(room.id);
-      // immediately emit room_update so creator sees their entry (include ownerId and access credentials for private rooms)
-      io.to(room.id).emit('room_update', { roomId: room.id, players: room.players.map((p) => ({ id: p.id, name: p.name ?? p.id, role: p.role, taken: p.taken })), ownerId: room.ownerId });
-      socket.emit('room_created', { roomId: room.id, visibility, accessCode: room.accessCode, inviteToken: room.inviteToken });
-      io.emit('rooms_list', listRooms());
+      
+      io.to(room.id).emit('room_update', { 
+        roomId: room.id, 
+        players: room.players.map((p) => ({ id: p.id, name: p.name ?? p.id, role: p.role, taken: p.taken })), 
+        ownerId: room.ownerId 
+      });
+      socket.emit('room_created', { 
+        roomId: room.id, 
+        visibility: 'private', 
+        accessCode: room.accessCode, 
+        inviteToken: room.inviteToken 
+      });
     });
 
     socket.on('join_room', ({ roomId, code, inviteToken, guestId, name }: any) => {
@@ -217,6 +306,11 @@ app.use('/api/auth', authRoutes);
         
         logger.info({ roomId: actualRoomId, playersAfterJoin: room.players.map((p: any) => ({ id: p.id, name: p.name })) }, 'join_room: emitting room_update');
         io.to(actualRoomId).emit('room_update', { roomId: actualRoomId, players: room.players.map((p: any) => ({ id: p.id, name: p.name ?? p.id, role: p.role, taken: p.taken })), ownerId: room.ownerId });
+        
+        // If game has already started (e.g., matchmaking auto-start), send game state to this player
+        if (room.state) {
+          socket.emit('game_state', room.state);
+        }
         
         // Generate and send reconnect token to client
         const reconnectToken = generateAndStoreReconnectToken(actualRoomId, playerId);
@@ -348,6 +442,9 @@ app.use('/api/auth', authRoutes);
       logger.info({ clientId: id }, 'Client disconnected');
       const playerId = socket.data.identity?.id ?? id;
       const changedRooms: string[] = [];
+      
+      // Remove from matchmaking queue immediately
+      matchmakingManager.removeFromQueue(playerId);
       
       // Find all rooms containing this player and mark as disconnected
       const allRooms = getAllRooms();

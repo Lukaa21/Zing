@@ -164,12 +164,13 @@ const App: React.FC = () => {
           )}
           <Lobby 
             playerName={name}
-            onJoin={(id, playerName, joinCode, joinInviteToken) => { 
+            onJoin={(id, playerName, joinCode, joinInviteToken, directToGame) => { 
               setRoomId(id); 
               setName(playerName);
               setCode(joinCode || null);
               setInviteToken(joinInviteToken || null);
-              navigate('/room'); 
+              // Pass state flag for matchmaking to force InGameView immediately
+              navigate(directToGame ? '/game' : '/room', directToGame ? { state: { isMatchmakingMatch: true } } : undefined); 
             }} 
           />
         </>

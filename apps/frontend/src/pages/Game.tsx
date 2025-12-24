@@ -214,8 +214,11 @@ const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string;
 
   // Determine phase: isInGame means handNumber is set and > 0
   const computedInGame = Boolean(state?.handNumber && state?.handNumber > 0);
+  // Check if this is a matchmaking match (force InGameView immediately)
+  const isMatchmakingMatch = location.state?.isMatchmakingMatch;
   // If `initialRoute` is provided (via router path), let it override the computed state
-  const isInGame = initialRoute ? initialRoute === 'game' : computedInGame;
+  // If isMatchmakingMatch is true, force InGameView even before state arrives
+  const isInGame = initialRoute ? initialRoute === 'game' : (isMatchmakingMatch || computedInGame);
 
   // Auto-navigate from /room to /game when game starts
   useEffect(() => {
