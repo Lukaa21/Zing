@@ -17,7 +17,9 @@ const App: React.FC = () => {
   const [roomId, setRoomId] = useState<string | null>(() => {
     return sessionStorage.getItem('zing_current_room') || null;
   });
-  const [name, setName] = useState<string>(getGuestName() || '');
+  // Don't initialize name from localStorage yet - let user explicitly choose identity
+  // This prevents invited players from getting the room creator's name
+  const [name, setName] = useState<string>('');
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [code, setCode] = useState<string | null>(null);
 
@@ -35,6 +37,15 @@ const App: React.FC = () => {
     // Check if there's a pending invite that hasn't been processed yet
     const pendingRoom = sessionStorage.getItem('zing_pending_invite_room');
     const pendingToken = sessionStorage.getItem('zing_pending_invite_token');
+    
+    // Initialize name from authUser or localStorage if no pending invite
+    // This prevents invited players from inheriting the room creator's guest name
+    if (!name && !pendingRoom && !r) {
+      const existingName = authUser?.displayName || getGuestName();
+      if (existingName) {
+        setName(existingName);
+      }
+    }
 
     // If we have pending invite and now we have a name (after auth or guest name entry), join the game
     if (pendingRoom && pendingToken && name) {
