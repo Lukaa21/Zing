@@ -13,7 +13,10 @@ import { Routes, Route, useNavigate } from 'react-router-dom';
 const App: React.FC = () => {
   const { authUser, logout, isLoading } = useAuth();
   const navigate = useNavigate();
-  const [roomId, setRoomId] = useState<string | null>(null);
+  // Initialize roomId from sessionStorage if available (for refresh during active game)
+  const [roomId, setRoomId] = useState<string | null>(() => {
+    return sessionStorage.getItem('zing_current_room') || null;
+  });
   const [name, setName] = useState<string>(getGuestName() || '');
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [code, setCode] = useState<string | null>(null);
@@ -169,6 +172,8 @@ const App: React.FC = () => {
               setName(playerName);
               setCode(joinCode || null);
               setInviteToken(joinInviteToken || null);
+              // Store roomId for refresh recovery
+              sessionStorage.setItem('zing_current_room', id);
               // Pass state flag for matchmaking to force InGameView immediately
               navigate(directToGame ? '/game' : '/room', directToGame ? { state: { isMatchmakingMatch: true } } : undefined); 
             }} 
