@@ -7,13 +7,36 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
 model User {
-  id           String   @id @default(uuid())
-  username     String   @unique
-  email        String   @unique
-  passwordHash String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                    String       @id @default(uuid())
+  username              String       @unique
+  email                 String       @unique
+  passwordHash          String
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  friendRequestsSent    Friendship[] @relation("FriendRequester")
+  friendRequestsReceived Friendship[] @relation("FriendAddressee")
+}
+
+model Friendship {
+  id           String           @id @default(uuid())
+  requesterId  String
+  addresseeId  String
+  status       FriendshipStatus @default(PENDING)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  requester    User             @relation("FriendRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee    User             @relation("FriendAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
+  @@index([requesterId])
+  @@index([addresseeId])
 }
 
 model Game {
