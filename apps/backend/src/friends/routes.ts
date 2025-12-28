@@ -5,6 +5,63 @@ import { FriendshipStatus } from '@prisma/client';
 
 const router = Router();
 
+// We'll store the activeUsers Set as part of the router's context
+// It will be set by server.ts
+let activeUsers: Set<string> = new Set();
+
+export function setActiveUsers(users: Set<string>) {
+  activeUsers = users;
+}
+
+// All routes require authentication
+router.use(requireAuth);
+
+// GET /api/friends/status - Get friend status with online/offline info
+router.get('/status', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+
+    // Get all friends (accepted friendships)
+    const friendships = await prisma.friendship.findMany({
+      where: {
+        OR: [
+          { requesterId: userId, status: FriendshipStatus.ACCEPTED },
+          { addresseeId: userId, status: FriendshipStatus.ACCEPTED },
+        ],
+      },
+      include: {
+        requester: {
+          select: { id: true, username: true },
+        },
+        addressee: {
+          select: { id: true, username: true },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    // Transform to show the friend (not self) and check if online
+    const friends = friendships.map((f) => {
+      const iAmRequester = f.requesterId === userId;
+      const friend = iAmRequester ? f.addressee : f.requester;
+      const isOnline = activeUsers.has(friend.id);
+
+      return {
+        id: f.id,
+        friendId: friend.id,
+        username: friend.username,
+        isOnline,
+        since: f.updatedAt,
+      };
+    });
+
+    return res.json({ friends });
+  } catch (error) {
+    console.error('get friend status error:', error);
+    return res.status(500).json({ error: 'internal server error' });
+  }
+});
+
 // All routes require authentication
 router.use(requireAuth);
 

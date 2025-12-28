@@ -7,6 +7,10 @@ export interface Friend {
   since: string;
 }
 
+export interface FriendWithStatus extends Friend {
+  isOnline: boolean;
+}
+
 export interface FriendRequest {
   id: string;
   requesterId: string;
@@ -52,6 +56,23 @@ export async function getFriends(token: string): Promise<{ friends: Friend[] }> 
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || 'Failed to get friends');
+  }
+
+  return response.json();
+}
+
+// Get friend status (includes online/offline info)
+export async function getFriendsStatus(token: string): Promise<{ friends: FriendWithStatus[] }> {
+  const response = await fetch(`${API_URL}/friends/status`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to get friend status');
   }
 
   return response.json();

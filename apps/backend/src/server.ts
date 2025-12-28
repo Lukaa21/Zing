@@ -9,7 +9,7 @@ import { createRoom, joinRoom, startGame, getRoom, handleIntent, leaveRoom, remo
 import { matchmakingManager } from './game/matchmakingManager';
 import cors from 'cors';
 import authRoutes from './auth/routes';
-import friendRoutes from './friends/routes';
+import friendRoutes, { setActiveUsers } from './friends/routes';
 import { verifyToken } from './auth/jwt';
 import { prisma } from './db/prisma';
 
@@ -40,6 +40,11 @@ app.use('/api/auth', authRoutes);
 // Friend routes
 app.use('/api/friends', friendRoutes);
 
+// Track active users globally
+const activeUsers = new Set<string>();
+
+// Pass activeUsers to friends routes
+setActiveUsers(activeUsers);
 
 (async function bootstrap() {
   server.listen(PORT, () => {
@@ -83,9 +88,13 @@ app.use('/api/friends', friendRoutes);
             socket.data.identity = { type: 'user', id: user.id };
             socket.data.displayName = user.username;
             socket.data.user = { id: user.id, email: user.email, username: user.username, role: role || 'player' };
+            // Mark user as active
+            activeUsers.add(user.id);
             socket.join('lobby');
             socket.emit('auth_ok', { id: user.id, username: user.username, type: 'user', role });
             io.to('lobby').emit('lobby_update', { time: new Date().toISOString() });
+            // Broadcast user online status
+            io.emit('user_online', { userId: user.id });
             return;
           }
         }
@@ -102,6 +111,17 @@ app.use('/api/friends', friendRoutes);
       socket.join('lobby');
       socket.emit('auth_ok', { id: guestId, name, role, type: 'guest' });
       io.to('lobby').emit('lobby_update', { time: new Date().toISOString() });
+    });
+
+    socket.on('disconnect', () => {
+      // Remove user from active set
+      if (socket.data.identity?.type === 'user') {
+        const userId = socket.data.identity.id;
+        activeUsers.delete(userId);
+        // Broadcast user offline status
+        io.emit('user_offline', { userId });
+      }
+      logger.info({ clientId: id }, 'Client disconnected');
     });
 
     // MATCHMAKING EVENTS

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   getFriends,
+  getFriendsStatus,
   getFriendRequests,
   getSentRequests,
   sendFriendRequest,
@@ -10,15 +11,17 @@ import {
   rejectFriendRequest,
   removeFriend,
   Friend,
+  FriendWithStatus,
   FriendRequest,
   SentRequest,
 } from '../services/friends';
+import { getSocket } from '../services/socket';
 
 export default function FriendsPage() {
   const { authUser, token } = useAuth();
   const navigate = useNavigate();
 
-  const [friends, setFriends] = useState<Friend[]>([]);
+  const [friends, setFriends] = useState<FriendWithStatus[]>([]);
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [sentRequests, setSentRequests] = useState<SentRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,6 +47,36 @@ export default function FriendsPage() {
     }
   }, [token]);
 
+  // Listen for online/offline events
+  useEffect(() => {
+    const s = getSocket();
+    if (!s) return;
+
+    const handleUserOnline = (data: { userId: string }) => {
+      setFriends((prev) =>
+        prev.map((f) =>
+          f.friendId === data.userId ? { ...f, isOnline: true } : f
+        )
+      );
+    };
+
+    const handleUserOffline = (data: { userId: string }) => {
+      setFriends((prev) =>
+        prev.map((f) =>
+          f.friendId === data.userId ? { ...f, isOnline: false } : f
+        )
+      );
+    };
+
+    s.on('user_online', handleUserOnline);
+    s.on('user_offline', handleUserOffline);
+
+    return () => {
+      s.off('user_online', handleUserOnline);
+      s.off('user_offline', handleUserOffline);
+    };
+  }, []);
+
   const loadData = async () => {
     if (!token) return;
 
@@ -52,7 +85,7 @@ export default function FriendsPage() {
       setError(null);
 
       const [friendsData, requestsData, sentData] = await Promise.all([
-        getFriends(token),
+        getFriendsStatus(token),
         getFriendRequests(token),
         getSentRequests(token),
       ]);
@@ -287,11 +320,24 @@ export default function FriendsPage() {
                     alignItems: 'center',
                   }}
                 >
-                  <div>
-                    <strong style={{ fontSize: '1.1rem' }}>{friend.username}</strong>
-                    <p style={{ color: '#666', fontSize: '0.85rem', margin: '0.25rem 0 0 0' }}>
-                      Friends since {new Date(friend.since).toLocaleDateString()}
-                    </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
+                    {friend.isOnline && (
+                      <div
+                        style={{
+                          width: '12px',
+                          height: '12px',
+                          borderRadius: '50%',
+                          backgroundColor: '#4CAF50',
+                          flexShrink: 0,
+                        }}
+                      />
+                    )}
+                    <div>
+                      <strong style={{ fontSize: '1.1rem' }}>{friend.username}</strong>
+                      <p style={{ color: '#666', fontSize: '0.85rem', margin: '0.25rem 0 0 0' }}>
+                        Friends since {new Date(friend.since).toLocaleDateString()}
+                      </p>
+                    </div>
                   </div>
                   <button
                     onClick={() => handleRemoveFriend(friend.id)}
