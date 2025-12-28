@@ -112,7 +112,10 @@ const App: React.FC = () => {
     <Routes>
       <Route path="/" element={
         <LandingPage 
-          onPlayAsGuest={() => navigate('/guest-name')}
+          onPlayAsGuest={() => {
+            logout(); // Clear any existing auth token
+            navigate('/guest-name');
+          }}
           onLogin={() => navigate('/login')}
           onRegister={() => navigate('/register')}
         />

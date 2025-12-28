@@ -108,8 +108,13 @@ app.use('/api/auth', authRoutes);
         return;
       }
 
-      const playerName = socket.data.displayName ?? 'guest';
+      let playerName = socket.data.displayName ?? 'guest';
       const playerId = socket.data.identity?.id ?? socket.id;
+      
+      // Add Guest- prefix for non-authenticated users
+      if (socket.data.identity?.type !== 'user' && !playerName.startsWith('Guest-')) {
+        playerName = `Guest-${playerName}`;
+      }
 
       logger.info({ clientId: socket.id, playerId, playerName, mode }, 'find_game: player joining queue');
 
@@ -187,8 +192,13 @@ app.use('/api/auth', authRoutes);
     // PRIVATE ROOM CREATION (keep for invite-based private games)
     socket.on('create_private_room', (payload: any) => {
       const room = createRoom('private');
-      const creatorName = socket.data.displayName ?? payload?.name ?? 'guest';
+      let creatorName = socket.data.displayName ?? payload?.name ?? 'guest';
       const creatorId = socket.data.identity?.id ?? socket.id;
+      
+      // Add Guest- prefix for non-authenticated users
+      if (socket.data.identity?.type !== 'user' && !creatorName.startsWith('Guest-')) {
+        creatorName = `Guest-${creatorName}`;
+      }
       
       logger.info({ clientId: socket.id, creatorName, accessCode: room.accessCode }, 'create_private_room: creating private room');
       
@@ -261,7 +271,12 @@ app.use('/api/auth', authRoutes);
         
         logger.info({ clientId: socket.id, roomId: actualRoomId }, 'join_room: access granted');
         
-        const useName = socket.data.displayName ?? name ?? 'guest';
+        // Get player name and add Guest- prefix for non-authenticated users
+        let useName = socket.data.displayName ?? name ?? 'guest';
+        if (socket.data.identity?.type !== 'user' && !useName.startsWith('Guest-')) {
+          useName = `Guest-${useName}`;
+        }
+        
         // Use socket.data.identity.id for authenticated users, otherwise guestId, otherwise socket.id
         const playerId = socket.data.identity?.id ?? guestId ?? socket.id;
         

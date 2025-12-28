@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Socket } from 'socket.io-client';
 import { connect } from '../services/socket';
 import { getOrCreateGuestId } from '../utils/guest';
+import { useAuth } from '../context/AuthContext';
 
 type LobbyProps = {
   playerName: string;
@@ -18,18 +19,19 @@ type AccessCredentials = {
 type MatchmakingMode = '1v1' | '2v2';
 
 const Lobby: React.FC<LobbyProps> = ({ playerName, onJoin }) => {
+  const { token } = useAuth();
   const [socket, setSocket] = useState<Socket | null>(null);
   const [credentials, setCredentials] = useState<AccessCredentials | null>(null);
   const [joinCode, setJoinCode] = useState<string>('');
   const [joinError, setJoinError] = useState<string>('');
-  
+
   // Matchmaking state
   const [selectedMode, setSelectedMode] = useState<MatchmakingMode>('2v2');
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [queuePosition, setQueuePosition] = useState<number | null>(null);
 
   useEffect(() => {
-    const s = connect(playerName || 'guest');
+    const s = connect(playerName || 'guest', 'player', token || undefined);
 
     // Remove old public room listeners
     s.off('rooms_list');
@@ -37,16 +39,19 @@ const Lobby: React.FC<LobbyProps> = ({ playerName, onJoin }) => {
     s.off('join_error');
 
     // Private room creation listener
-    s.on('room_created', (payload: { roomId: string; visibility?: string; accessCode?: string; inviteToken?: string }) => {
-      if (payload.visibility === 'private') {
-        setCredentials({
-          roomId: payload.roomId,
-          visibility: 'private',
-          accessCode: payload.accessCode,
-          inviteToken: payload.inviteToken
-        });
+    s.on(
+      'room_created',
+      (payload: { roomId: string; visibility?: string; accessCode?: string; inviteToken?: string }) => {
+        if (payload.visibility === 'private') {
+          setCredentials({
+            roomId: payload.roomId,
+            visibility: 'private',
+            accessCode: payload.accessCode,
+            inviteToken: payload.inviteToken,
+          });
+        }
       }
-    });
+    );
 
     // Matchmaking listeners
     s.on('queue_joined', (payload: { mode: MatchmakingMode; position?: number }) => {
@@ -91,16 +96,23 @@ const Lobby: React.FC<LobbyProps> = ({ playerName, onJoin }) => {
       s.off('matchmaking_error');
       s.off('join_error');
     };
-  }, [playerName, onJoin]);
+  }, [playerName, onJoin, token]);
 
   const handleFindGame = () => {
     if (!socket || !playerName) return;
 
     const guestId = getOrCreateGuestId();
-    socket.emit('auth', { guestId, name: playerName, role: 'player' });
-    socket.emit('find_game', { mode: selectedMode });
-    
-    console.log('Finding game:', selectedMode);
+
+    // Wait for auth_ok before sending find_game to ensure socket.data.identity is set
+    const onAuthOkMatchmaking = () => {
+      console.log('Auth complete, now finding game:', selectedMode);
+      socket.emit('find_game', { mode: selectedMode });
+      socket.off('auth_ok', onAuthOkMatchmaking);
+    };
+
+    socket.on('auth_ok', onAuthOkMatchmaking);
+
+    socket.emit('auth', { token: token || undefined, guestId, name: playerName, role: 'player' });
   };
 
   const handleCancelSearch = () => {
@@ -112,8 +124,15 @@ const Lobby: React.FC<LobbyProps> = ({ playerName, onJoin }) => {
     if (!socket || !playerName) return;
 
     const guestId = getOrCreateGuestId();
-    socket.emit('auth', { guestId, name: playerName, role: 'player' });
-    socket.emit('create_private_room', { name: playerName });
+    
+    // Wait for auth_ok before creating room to ensure socket.data.identity is set
+    const onAuthOkCreate = () => {
+      socket.emit('create_private_room', { name: playerName });
+      socket.off('auth_ok', onAuthOkCreate);
+    };
+    socket.on('auth_ok', onAuthOkCreate);
+    
+    socket.emit('auth', { token: token || undefined, guestId, name: playerName, role: 'player' });
   };
 
   const handleJoinByCode = () => {
@@ -124,18 +143,31 @@ const Lobby: React.FC<LobbyProps> = ({ playerName, onJoin }) => {
     setJoinError('');
 
     const guestId = getOrCreateGuestId();
-    socket.emit('auth', { guestId, name: playerName, role: 'player' });
-
     const input = joinCode.trim();
     let actualRoomId = '';
-    let isAccessCode = /^[a-z0-9]{6}$/i.test(input);
+    const isAccessCode = /^[a-z0-9]{6}$/i.test(input);
 
-    const handleRoomUpdate = (data: { roomId: string }) => {
-      actualRoomId = data.roomId;
+    let timeoutId: number | null = null;
+
+    const clearJoinTimeout = () => {
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+    };
+
+    const cleanupJoinListeners = () => {
       socket.off('room_update', handleRoomUpdate);
       socket.off('join_error', handleJoinError);
+      socket.off('auth_ok', onAuthOkJoin);
+      clearJoinTimeout();
+    };
+
+    const handleRoomUpdate = (data: { roomId: string }) => {
+      cleanupJoinListeners();
+      actualRoomId = data.roomId;
       setJoinCode('');
-      
+
       if (isAccessCode) {
         onJoin(actualRoomId, playerName, input);
       } else {
@@ -144,26 +176,30 @@ const Lobby: React.FC<LobbyProps> = ({ playerName, onJoin }) => {
     };
 
     const handleJoinError = (err: { reason: string; message?: string }) => {
+      cleanupJoinListeners();
       setJoinError(err.message || 'Failed to join room');
-      socket.off('room_update', handleRoomUpdate);
-      socket.off('join_error', handleJoinError);
+    };
+
+    // Wait for auth_ok before emitting join_room
+    const onAuthOkJoin = () => {
+      if (isAccessCode) {
+        socket.emit('join_room', { code: input, guestId, name: playerName });
+      } else {
+        socket.emit('join_room', { roomId: input, guestId, name: playerName });
+      }
+      socket.off('auth_ok', onAuthOkJoin);
     };
 
     socket.once('room_update', handleRoomUpdate);
     socket.once('join_error', handleJoinError);
+    socket.on('auth_ok', onAuthOkJoin);
 
-    if (isAccessCode) {
-      socket.emit('join_room', { code: input, guestId, name: playerName });
-    } else {
-      socket.emit('join_room', { roomId: input, guestId, name: playerName });
-    }
+    socket.emit('auth', { token: token || undefined, guestId, name: playerName, role: 'player' });
 
-    setTimeout(() => {
-      socket.off('room_update', handleRoomUpdate);
-      socket.off('join_error', handleJoinError);
-      if (!actualRoomId) {
-        setJoinError('Join request timed out. Please try again.');
-      }
+    // Timeout fallback
+    timeoutId = window.setTimeout(() => {
+      setJoinError('Join request timed out. Please try again.');
+      cleanupJoinListeners();
     }, 5000);
   };
 
@@ -173,7 +209,7 @@ const Lobby: React.FC<LobbyProps> = ({ playerName, onJoin }) => {
 
     const guestId = getOrCreateGuestId();
     socket.emit('auth', { guestId, name: playerName, role: 'player' });
-    
+
     setCredentials(null);
     onJoin(credentials.roomId, playerName, undefined, credentials.inviteToken);
   };
@@ -185,12 +221,14 @@ const Lobby: React.FC<LobbyProps> = ({ playerName, onJoin }) => {
   return (
     <div className="lobby container">
       <h1>Zing — Lobby</h1>
-      <p className="player-info">Playing as: <strong>{playerName}</strong></p>
+      <p className="player-info">
+        Playing as: <strong>{playerName}</strong>
+      </p>
 
       {/* MATCHMAKING SECTION */}
       <div className="lobby-section matchmaking-section">
         <h2>Find Game</h2>
-        
+
         {!isSearching ? (
           <>
             <div className="mode-selector">
@@ -243,12 +281,15 @@ const Lobby: React.FC<LobbyProps> = ({ playerName, onJoin }) => {
           <div className="modal-content">
             <h2>Private Room Created!</h2>
             <p>Share these with your friends:</p>
-            
+
             <div className="credential-item">
               <label>Access Code:</label>
               <div className="credential-row">
                 <input type="text" readOnly value={credentials.accessCode || ''} />
-                <button onClick={() => navigator.clipboard.writeText(credentials.accessCode || '')} className="btn-copy">
+                <button
+                  onClick={() => navigator.clipboard.writeText(credentials.accessCode || '')}
+                  className="btn-copy"
+                >
                   Copy
                 </button>
               </div>

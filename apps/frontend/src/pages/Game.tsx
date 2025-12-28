@@ -72,7 +72,7 @@ const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string;
   }, [players]);
 
   useEffect(() => {
-    const s = connect(playerName);
+    const s = connect(playerName, 'player', token || undefined);
     const guestId = getOrCreateGuestId();
     
     // Listen for auth_ok to get the correct ID (either userId or guestId)
@@ -142,15 +142,20 @@ const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string;
       // Rejoin failed, clear the token and try normal join_room
       clearReconnectToken(roomId, guestId);
       
-      // After rejoin fails, we need to authenticate
-      console.log('Sending auth after rejoin failure');
-      s.emit('auth', { token: token || undefined, guestId, name: playerName, role: 'player' });
-      
       const joinPayload: any = { roomId, guestId, name: playerName };
       if (code) joinPayload.code = code;
       if (inviteToken) joinPayload.inviteToken = inviteToken;
-      console.log('Fallback: emitting join_room after rejoin failure');
-      s.emit('join_room', joinPayload);
+      
+      // After rejoin fails, authenticate then wait for auth_ok before joining
+      console.log('Sending auth after rejoin failure');
+      const onAuthOkRejoin = () => {
+        console.log('Fallback: auth_ok received, now emitting join_room');
+        s.emit('join_room', joinPayload);
+        s.off('auth_ok', onAuthOkRejoin);
+      };
+      s.on('auth_ok', onAuthOkRejoin);
+      
+      s.emit('auth', { token: token || undefined, guestId, name: playerName, role: 'player' });
     });
 
     // Try to rejoin with stored token first (if available)
@@ -164,14 +169,22 @@ const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string;
         setHasJoined(true);
       } else {
         // No stored token, do normal auth + join_room
+        // IMPORTANT: Wait for auth_ok before joining to ensure socket.data.identity is set
         console.log('Game.tsx: no reconnect token, doing normal auth + join');
-        s.emit('auth', { token: token || undefined, guestId, name: playerName, role: 'player' });
         
         const joinPayload: any = { roomId, guestId, name: playerName };
         if (code) joinPayload.code = code;
         if (inviteToken) joinPayload.inviteToken = inviteToken;
-        console.log('Game.tsx: emitting join_room with payload:', joinPayload);
-        s.emit('join_room', joinPayload);
+        
+        // Listen for auth_ok once, then emit join_room
+        const onAuthOk = () => {
+          console.log('Game.tsx: auth_ok received, now emitting join_room with payload:', joinPayload);
+          s.emit('join_room', joinPayload);
+          s.off('auth_ok', onAuthOk);
+        };
+        s.on('auth_ok', onAuthOk);
+        
+        s.emit('auth', { token: token || undefined, guestId, name: playerName, role: 'player' });
         setHasJoined(true);
       }
     }
