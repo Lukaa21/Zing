@@ -65,7 +65,7 @@ const App: React.FC = () => {
       setInviteToken(i);
       
       // Use existing name from authenticated user or localStorage
-      const existingName = authUser?.displayName || getGuestName();
+      const existingName = authUser?.username || getGuestName();
       if (existingName) {
         setName(existingName);
         navigate('/game');
@@ -121,7 +121,7 @@ const App: React.FC = () => {
       <Route path="/login" element={
         <>
           <LoginForm onSuccess={(user) => {
-            setName(user.displayName);
+            setName(user.username);
             const pendingRoom = sessionStorage.getItem('zing_pending_invite_room');
             if (!pendingRoom) {
               navigate('/lobby');
@@ -138,7 +138,7 @@ const App: React.FC = () => {
       <Route path="/register" element={
         <>
           <RegisterForm onSuccess={(user) => {
-            setName(user.displayName);
+            setName(user.username);
             const pendingRoom = sessionStorage.getItem('zing_pending_invite_room');
             if (!pendingRoom) {
               navigate('/lobby');
@@ -169,7 +169,7 @@ const App: React.FC = () => {
         <>
           {authUser && (
             <div style={{ textAlign: 'right', padding: 10 }}>
-              <span>{authUser.displayName}</span>
+              <span>{authUser.username}</span>
               <button onClick={() => {
                 logout();
                 navigate('/');

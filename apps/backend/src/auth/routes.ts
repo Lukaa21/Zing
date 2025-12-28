@@ -8,15 +8,21 @@ const router = Router();
 // POST /api/auth/register
 router.post('/register', async (req: Request, res: Response) => {
   try {
-    const { email, password, displayName } = req.body;
+    const { email, password, username } = req.body;
 
     // Validate input
-    if (!email || !password || !displayName) {
-      return res.status(400).json({ error: 'email, password, and displayName are required' });
+    if (!email || !password || !username) {
+      return res.status(400).json({ error: 'email, password, and username are required' });
     }
 
     if (password.length < 8) {
       return res.status(400).json({ error: 'password must be at least 8 characters' });
+    }
+
+    // Validate username format (alphanumeric + underscore, max 30 chars)
+    const usernameRegex = /^[a-zA-Z0-9_]{1,30}$/;
+    if (!usernameRegex.test(username)) {
+      return res.status(400).json({ error: 'username must be 1-30 characters and contain only letters, numbers, and underscores' });
     }
 
     // Check if user already exists (case-insensitive)
@@ -28,6 +34,15 @@ router.post('/register', async (req: Request, res: Response) => {
       return res.status(409).json({ error: 'user with this email already exists' });
     }
 
+    // Check if username is already taken
+    const existingUsername = await prisma.user.findUnique({
+      where: { username },
+    });
+
+    if (existingUsername) {
+      return res.status(409).json({ error: 'username is already taken' });
+    }
+
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
 
@@ -36,8 +51,7 @@ router.post('/register', async (req: Request, res: Response) => {
       data: {
         email: email.toLowerCase(),
         passwordHash,
-        displayName,
-        name: displayName, // Set name to displayName as fallback
+        username,
       },
     });
 
@@ -49,7 +63,7 @@ router.post('/register', async (req: Request, res: Response) => {
       user: {
         id: user.id,
         email: user.email,
-        displayName: user.displayName,
+        username: user.username,
       },
     });
   } catch (error) {
@@ -91,7 +105,7 @@ router.post('/login', async (req: Request, res: Response) => {
       user: {
         id: user.id,
         email: user.email,
-        displayName: user.displayName,
+        username: user.username,
       },
     });
   } catch (error) {
@@ -129,7 +143,7 @@ router.get('/me', async (req: Request, res: Response) => {
       user: {
         id: user.id,
         email: user.email,
-        displayName: user.displayName,
+        username: user.username,
       },
     });
   } catch (error) {

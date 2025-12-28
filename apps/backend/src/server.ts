@@ -77,10 +77,10 @@ app.use('/api/auth', authRoutes);
           });
           if (user) {
             socket.data.identity = { type: 'user', id: user.id };
-            socket.data.displayName = user.displayName;
-            socket.data.user = { id: user.id, email: user.email, displayName: user.displayName, role: role || 'player' };
+            socket.data.displayName = user.username;
+            socket.data.user = { id: user.id, email: user.email, username: user.username, role: role || 'player' };
             socket.join('lobby');
-            socket.emit('auth_ok', { id: user.id, displayName: user.displayName, type: 'user', role });
+            socket.emit('auth_ok', { id: user.id, username: user.username, type: 'user', role });
             io.to('lobby').emit('lobby_update', { time: new Date().toISOString() });
             return;
           }

@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 interface RegisterFormProps {
-  onSuccess: (user: { id: string; email: string; displayName: string }) => void;
+  onSuccess: (user: { id: string; email: string; username: string }) => void;
 }
 
 const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
   const { register } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [displayName, setDisplayName] = useState('');
+  const [username, setUsername] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -19,7 +19,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
     setIsLoading(true);
 
     try {
-      const data = await register(email, password, displayName);
+      const data = await register(email, password, username);
       // Clear old guest name from localStorage
       localStorage.removeItem('zing_guest_name');
       onSuccess(data.user);
@@ -46,12 +46,14 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
           />
         </div>
         <div style={{ marginBottom: 15 }}>
-          <label>Display Name:</label>
+          <label>Username (letters, numbers, underscore only):</label>
           <input
             type="text"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
             required
+            maxLength={30}
+            pattern="[a-zA-Z0-9_]+"
             style={{ width: '100%', padding: 8 }}
           />
         </div>

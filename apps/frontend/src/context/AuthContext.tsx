@@ -3,14 +3,14 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 export interface AuthUser {
   id: string;
   email: string;
-  displayName: string;
+  username: string;
 }
 
 interface AuthContextType {
   authUser: AuthUser | null;
   token: string | null;
   isLoading: boolean;
-  register: (email: string, password: string, displayName: string) => Promise<{ token: string; user: AuthUser }>;
+  register: (email: string, password: string, username: string) => Promise<{ token: string; user: AuthUser }>;
   login: (email: string, password: string) => Promise<{ token: string; user: AuthUser }>;
   logout: () => void;
   bootstrap: () => Promise<void>;
@@ -58,11 +58,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   };
 
-  const register = async (email: string, password: string, displayName: string) => {
+  const register = async (email: string, password: string, username: string) => {
     const res = await fetch(`${BACKEND_URL}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, displayName }),
+      body: JSON.stringify({ email, password, username }),
     });
 
     if (!res.ok) {

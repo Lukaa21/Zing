@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 interface LoginFormProps {
-  onSuccess: (user: { id: string; email: string; displayName: string }) => void;
+  onSuccess: (user: { id: string; email: string; username: string }) => void;
 }
 
 const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
