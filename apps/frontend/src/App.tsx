@@ -5,6 +5,7 @@ import LoginForm from './components/LoginForm';
 import RegisterForm from './components/RegisterForm';
 import Lobby from './pages/Lobby';
 import Game from './pages/Game';
+import FriendsPage from './pages/FriendsPage';
 import { useState } from 'react';
 import { getGuestName } from './utils/guest';
 import { useAuth } from './context/AuthContext';
@@ -173,6 +174,7 @@ const App: React.FC = () => {
           {authUser && (
             <div style={{ textAlign: 'right', padding: 10 }}>
               <span>{authUser.username}</span>
+              <button onClick={() => navigate('/friends')} style={{ marginLeft: 10 }}>Friends</button>
               <button onClick={() => {
                 logout();
                 navigate('/');
@@ -194,6 +196,8 @@ const App: React.FC = () => {
           />
         </>
       } />
+
+      <Route path="/friends" element={<FriendsPage />} />
 
       <Route path="/game" element={
         <Game 

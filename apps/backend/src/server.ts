@@ -9,6 +9,7 @@ import { createRoom, joinRoom, startGame, getRoom, handleIntent, leaveRoom, remo
 import { matchmakingManager } from './game/matchmakingManager';
 import cors from 'cors';
 import authRoutes from './auth/routes';
+import friendRoutes from './friends/routes';
 import { verifyToken } from './auth/jwt';
 import { prisma } from './db/prisma';
 
@@ -35,6 +36,9 @@ app.get('/health', (_req: Request, res: Response) => res.status(200).json({ ok: 
 
 // Auth routes
 app.use('/api/auth', authRoutes);
+
+// Friend routes
+app.use('/api/friends', friendRoutes);
 
 
 (async function bootstrap() {
