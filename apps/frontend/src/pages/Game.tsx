@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { connect } from '../services/socket';
 import { getOrCreateGuestId, getReconnectToken, setReconnectToken, clearReconnectToken } from '../utils/guest';
-import WaitingRoomView from './WaitingRoomView';
+import RoomScreen from './RoomScreen';
 import InGameView from './InGameView';
 import { useAuth } from '../context/AuthContext';
 
@@ -143,8 +143,8 @@ const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string;
       clearReconnectToken(roomId, guestId);
       
       const joinPayload: any = { roomId, guestId, name: playerName };
-      if (code) joinPayload.code = code;
-      if (inviteToken) joinPayload.inviteToken = inviteToken;
+      if (code && typeof code === 'string') joinPayload.code = code;
+      if (inviteToken && typeof inviteToken === 'string') joinPayload.inviteToken = inviteToken;
       
       // After rejoin fails, authenticate then wait for auth_ok before joining
       console.log('Sending auth after rejoin failure');
@@ -173,8 +173,8 @@ const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string;
         console.log('Game.tsx: no reconnect token, doing normal auth + join');
         
         const joinPayload: any = { roomId, guestId, name: playerName };
-        if (code) joinPayload.code = code;
-        if (inviteToken) joinPayload.inviteToken = inviteToken;
+        if (code && typeof code === 'string') joinPayload.code = code;
+        if (inviteToken && typeof inviteToken === 'string') joinPayload.inviteToken = inviteToken;
         
         // Listen for auth_ok once, then emit join_room
         const onAuthOk = () => {
@@ -266,15 +266,13 @@ const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string;
             onPlay={handlePlay}
           />
         ) : (
-          <WaitingRoomView
+          <RoomScreen
             roomId={roomId}
-            players={players}
             myId={myId}
-            ownerId={ownerId}
             playerName={playerName}
-            onStart={handleStart}
-            isOwner={isOwner}
-            isStartEnabled={isStartEnabled}
+            initialPlayers={players}
+            initialOwnerId={ownerId}
+            onLeave={onLeave}
           />
         )}
       </div>

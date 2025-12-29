@@ -21,19 +21,37 @@ function generateReconnectToken(): string {
   return randomUUID().replace(/-/g, '').slice(0, 32);
 }
 
+export type RoomRole = 'PLAYER' | 'SPECTATOR';
+
+export type RoomMember = {
+  userId: string; // User.id or guestId
+  name: string;
+  roleInRoom: RoomRole;
+  joinedAt: Date;
+  socketId?: string; // Current socket connection
+};
+
 export type Room = {
   id: string;
-  players: PlayerState[];
+  players: PlayerState[]; // Game players (for active game state)
+  members: RoomMember[]; // Room members (lobby + game)
   state?: GameState;
   seq: number;
   // id of the room owner (player who created the room)
   ownerId?: string;
+  // id of the current host (can change when host leaves)
+  hostId?: string;
   // room visibility
   visibility?: 'public' | 'private';
   // access code for private rooms (6 chars like "vpq6rc")
   accessCode?: string;
   // invite token for private rooms
   inviteToken?: string;
+  // team assignment for 2v2 party (set by host before game start)
+  teamAssignment?: {
+    team0: string[]; // Array of 2 player userIds
+    team1: string[]; // Array of 2 player userIds
+  };
 };
 
 const rooms: Map<string, Room> = new Map();
@@ -56,13 +74,16 @@ setInterval(() => {
   }
 }, 30000); // Check every 30 seconds
 
-export function createRoom(visibility?: 'public' | 'private'): Room {
+export function createRoom(visibility?: 'public' | 'private', creatorId?: string): Room {
   const id = `room-${Math.random().toString(36).slice(2, 8)}`;
   const room: Room = { 
     id, 
-    players: [], 
+    players: [],
+    members: [],
     seq: 0,
-    visibility: visibility || 'public'
+    visibility: visibility || 'public',
+    hostId: creatorId, // Creator becomes initial host
+    ownerId: creatorId,
   };
   
   // Generate access credentials for private rooms
@@ -75,7 +96,7 @@ export function createRoom(visibility?: 'public' | 'private'): Room {
   return room;
 }
 
-export async function startGame(room: Room) {
+export async function startGame(room: Room, options?: { customTeams?: { team0: string[], team1: string[] } }) {
   // require 2 or 4 players to start
   if (room.players.length !== 2 && room.players.length !== 4) {
     throw new Error('game_start_requires_2_or_4_players');
@@ -83,7 +104,26 @@ export async function startGame(room: Room) {
   const gameId = randomUUID();
   const seed = randomUUID();
   const dealerSeat = 0;
-  const players = room.players.map((p, idx) => ({ ...p, hand: [], taken: [], seat: idx, team: idx % 2 }));
+  
+  // Map players with team assignment
+  let players: PlayerState[];
+  
+  if (options?.customTeams && room.players.length === 4) {
+    // Use custom team assignment for 2v2 party
+    const { team0, team1 } = options.customTeams;
+    
+    players = room.players.map((p, idx) => {
+      // Determine team based on custom assignment
+      const isTeam0 = team0.includes(p.id);
+      const team = isTeam0 ? 0 : 1;
+      
+      return { ...p, hand: [], taken: [], seat: idx, team };
+    });
+  } else {
+    // Default: alternating teams (0, 1, 0, 1)
+    players = room.players.map((p, idx) => ({ ...p, hand: [], taken: [], seat: idx, team: idx % 2 }));
+  }
+  
   const state: GameState = {
     id: gameId,
     players,
@@ -278,13 +318,42 @@ export function joinRoom(room: Room, p: PlayerState) {
   } else {
     room.players.push({ ...p, seat: p.seat ?? room.players.length });
   }
+
+  // Also add to members if not present (for backward compatibility)
+  const memberExists = room.members.some(m => m.userId === p.id);
+  if (!memberExists) {
+    addMemberToRoom(room, p.id, p.name);
+  }
 }
 
 export function leaveRoom(room: Room, playerId: string) {
   room.players = room.players.filter((p) => p.id !== playerId);
+  
+  // Remove from members
+  const memberIndex = room.members.findIndex(m => m.userId === playerId);
+  if (memberIndex !== -1) {
+    room.members.splice(memberIndex, 1);
+  }
+
   // if owner left, reassign owner to first player if any
   if (room.ownerId === playerId) {
-    room.ownerId = room.players[0]?.id;
+    room.ownerId = room.players[0]?.id || room.members[0]?.userId;
+  }
+
+  // if host left, reassign to random remaining member
+  if (room.hostId === playerId) {
+    const remainingMembers = room.members.filter(m => m.userId !== playerId);
+    if (remainingMembers.length > 0) {
+      const randomIndex = Math.floor(Math.random() * remainingMembers.length);
+      room.hostId = remainingMembers[randomIndex].userId;
+    } else {
+      room.hostId = undefined;
+    }
+  }
+
+  // Delete room if empty
+  if (room.members.length === 0 && room.players.length === 0) {
+    deleteRoom(room.id);
   }
 }
 
@@ -346,4 +415,326 @@ export function validateReconnectToken(token: string, roomId: string): string | 
 
 export function getAllRooms(): Room[] {
   return Array.from(rooms.values());
+}
+
+// ============================================
+// TASK 3: Extended Room Management Functions
+// ============================================
+
+/**
+ * Add member to room
+ * Default role: PLAYER
+ */
+export function addMemberToRoom(room: Room, userId: string, name: string, socketId?: string): RoomMember {
+  // Check if already a member
+  const existing = room.members.find(m => m.userId === userId);
+  if (existing) {
+    // Update socket if provided
+    if (socketId) existing.socketId = socketId;
+    return existing;
+  }
+
+  const member: RoomMember = {
+    userId,
+    name,
+    roleInRoom: 'PLAYER',
+    joinedAt: new Date(),
+    socketId,
+  };
+
+  room.members.push(member);
+
+  // If this is the first member and no host, make them host
+  if (!room.hostId) {
+    room.hostId = userId;
+  }
+
+  return member;
+}
+
+/**
+ * Set member role (PLAYER or SPECTATOR)
+ * Only host can change roles
+ */
+export function setMemberRole(
+  roomId: string, 
+  targetUserId: string, 
+  newRole: RoomRole, 
+  requesterId: string
+): RoomMember {
+  const room = rooms.get(roomId);
+  if (!room) {
+    throw new Error('ROOM_NOT_FOUND');
+  }
+
+  // Validate: requester must be host
+  if (room.hostId !== requesterId) {
+    throw new Error('NOT_HOST');
+  }
+
+  const member = room.members.find(m => m.userId === targetUserId);
+  if (!member) {
+    throw new Error('MEMBER_NOT_FOUND');
+  }
+
+  member.roleInRoom = newRole;
+  return member;
+}
+
+/**
+ * Kick member from room
+ * Only host can kick
+ * Host cannot kick themselves (they should leave instead)
+ */
+export function kickMember(
+  roomId: string, 
+  targetUserId: string, 
+  requesterId: string
+): RoomMember {
+  const room = rooms.get(roomId);
+  if (!room) {
+    throw new Error('ROOM_NOT_FOUND');
+  }
+
+  // Validate: requester must be host
+  if (room.hostId !== requesterId) {
+    throw new Error('NOT_HOST');
+  }
+
+  // Validate: host cannot kick themselves
+  if (targetUserId === requesterId) {
+    throw new Error('CANNOT_KICK_SELF');
+  }
+
+  const memberIndex = room.members.findIndex(m => m.userId === targetUserId);
+  if (memberIndex === -1) {
+    throw new Error('MEMBER_NOT_FOUND');
+  }
+
+  const [kickedMember] = room.members.splice(memberIndex, 1);
+
+  // Also remove from players array if present
+  room.players = room.players.filter(p => p.id !== targetUserId);
+
+  // Check if room is now empty -> delete room
+  if (room.members.length === 0) {
+    deleteRoom(roomId);
+  } else {
+    // Clear team assignment when member count changes
+    room.teamAssignment = undefined;
+  }
+
+  return kickedMember;
+}
+
+/**
+ * Member leaves room
+ * If host leaves, transfer host to random remaining member
+ * If room becomes empty, delete room
+ * 
+ * Returns: { wasHost: boolean, newHostId?: string, roomDeleted: boolean }
+ */
+export function leaveMemberRoom(
+  roomId: string, 
+  userId: string
+): { wasHost: boolean; newHostId?: string; roomDeleted: boolean } {
+  const room = rooms.get(roomId);
+  if (!room) {
+    throw new Error('ROOM_NOT_FOUND');
+  }
+
+  const memberIndex = room.members.findIndex(m => m.userId === userId);
+  if (memberIndex === -1) {
+    throw new Error('MEMBER_NOT_FOUND');
+  }
+
+  const wasHost = room.hostId === userId;
+
+  // Remove member
+  room.members.splice(memberIndex, 1);
+
+  // Remove from players array if present
+  room.players = room.players.filter(p => p.id !== userId);
+
+  // Remove from owner if they were owner
+  if (room.ownerId === userId) {
+    room.ownerId = room.members[0]?.userId;
+  }
+
+  let newHostId: string | undefined;
+
+  // Check if room is now empty
+  if (room.members.length === 0) {
+    deleteRoom(roomId);
+    return { wasHost, roomDeleted: true };
+  }
+
+  // Clear team assignment when member count changes
+  room.teamAssignment = undefined;
+
+  // If host left, transfer to random remaining member
+  if (wasHost) {
+    const remainingMembers = room.members.filter(m => m.userId !== userId);
+    if (remainingMembers.length > 0) {
+      const randomIndex = Math.floor(Math.random() * remainingMembers.length);
+      newHostId = remainingMembers[randomIndex].userId;
+      room.hostId = newHostId;
+    } else {
+      room.hostId = undefined;
+    }
+  }
+
+  return { wasHost, newHostId, roomDeleted: false };
+}
+
+/**
+ * Delete room from memory
+ * Called when room becomes empty
+ */
+export function deleteRoom(roomId: string): void {
+  rooms.delete(roomId);
+}
+
+/**
+ * Count PLAYER role members in room
+ */
+export function countPlayers(roomId: string): number {
+  const room = rooms.get(roomId);
+  if (!room) return 0;
+
+  return room.members.filter(m => m.roleInRoom === 'PLAYER').length;
+}
+
+/**
+ * Check if room can start 1v1 game
+ * Requires exactly 2 PLAYER role members
+ */
+export function canStart1v1(roomId: string): boolean {
+  return countPlayers(roomId) === 2;
+}
+
+/**
+ * Check if room can start 2v2 game
+ * Requires exactly 4 PLAYER role members
+ */
+export function canStart2v2(roomId: string): boolean {
+  return countPlayers(roomId) === 4;
+}
+
+/**
+ * Get user's current room (if any)
+ * Returns roomId or null
+ */
+export function getUserCurrentRoom(userId: string): string | null {
+  for (const room of rooms.values()) {
+    if (room.members.some(m => m.userId === userId)) {
+      return room.id;
+    }
+  }
+  return null;
+}
+
+/**
+ * Get all PLAYER role members in room
+ */
+export function getPlayersInRoom(roomId: string): RoomMember[] {
+  const room = rooms.get(roomId);
+  if (!room) return [];
+
+  return room.members.filter(m => m.roleInRoom === 'PLAYER');
+}
+
+/**
+ * Check if user is host of room
+ */
+export function isHost(roomId: string, userId: string): boolean {
+  const room = rooms.get(roomId);
+  if (!room) return false;
+
+  return room.hostId === userId;
+}
+
+/**
+ * Get member by userId
+ */
+export function getMember(roomId: string, userId: string): RoomMember | undefined {
+  const room = rooms.get(roomId);
+  if (!room) return undefined;
+
+  return room.members.find(m => m.userId === userId);
+}
+
+/**
+ * Set team assignment for 2v2 party (host only)
+ * Validates: 4 unique PLAYER members, 2 per team
+ */
+export function setTeamAssignment(
+  roomId: string,
+  team0: string[], // Array of 2 userIds
+  team1: string[], // Array of 2 userIds
+  requesterId: string
+): void {
+  const room = rooms.get(roomId);
+  if (!room) {
+    throw new Error('ROOM_NOT_FOUND');
+  }
+
+  // Validate host
+  if (room.hostId !== requesterId) {
+    throw new Error('NOT_HOST');
+  }
+
+  // Validate arrays
+  if (!Array.isArray(team0) || !Array.isArray(team1)) {
+    throw new Error('INVALID_TEAM_FORMAT');
+  }
+
+  if (team0.length !== 2 || team1.length !== 2) {
+    throw new Error('INVALID_TEAM_SIZE');
+  }
+
+  // Get all PLAYER members
+  const players = room.members.filter(m => m.roleInRoom === 'PLAYER');
+  
+  if (players.length !== 4) {
+    throw new Error('NEED_EXACTLY_4_PLAYERS');
+  }
+
+  // Check all team members are unique
+  const allTeamMembers = [...team0, ...team1];
+  const uniqueMembers = new Set(allTeamMembers);
+  
+  if (uniqueMembers.size !== 4) {
+    throw new Error('DUPLICATE_TEAM_MEMBERS');
+  }
+
+  // Validate all team members are PLAYER in room
+  const playerIds = new Set(players.map(p => p.userId));
+  
+  for (const userId of allTeamMembers) {
+    if (!playerIds.has(userId)) {
+      throw new Error('TEAM_MEMBER_NOT_PLAYER');
+    }
+  }
+
+  // Set team assignment
+  room.teamAssignment = { team0, team1 };
+}
+
+/**
+ * Get current team assignment for room
+ */
+export function getTeamAssignment(roomId: string): { team0: string[]; team1: string[] } | undefined {
+  const room = rooms.get(roomId);
+  return room?.teamAssignment;
+}
+
+/**
+ * Clear team assignment (used when members change)
+ */
+export function clearTeamAssignment(roomId: string): void {
+  const room = rooms.get(roomId);
+  if (room) {
+    room.teamAssignment = undefined;
+  }
 }

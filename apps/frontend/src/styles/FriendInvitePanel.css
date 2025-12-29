@@ -1,0 +1,127 @@
+/* Friend Invite Panel Styles */
+
+.friend-panel-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  z-index: 999;
+  padding: 1rem;
+}
+
+.friend-panel {
+  background-color: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  width: 350px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  margin-top: 60px;
+}
+
+.friend-panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.friend-panel__header h3 {
+  margin: 0;
+  color: #333;
+}
+
+.friend-panel__close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #666;
+}
+
+.friend-panel__close:hover {
+  color: #333;
+}
+
+.friend-panel__loading,
+.friend-panel__empty {
+  padding: 2rem;
+  text-align: center;
+  color: #666;
+}
+
+.friend-panel__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.friend-panel__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #fafafa;
+}
+
+.friend-panel__info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.friend-panel__name {
+  font-weight: 600;
+  color: #333;
+}
+
+.friend-panel__status {
+  font-size: 0.85rem;
+  text-transform: capitalize;
+}
+
+.friend-panel__status--online {
+  color: #4CAF50;
+}
+
+.friend-panel__status--offline {
+  color: #9e9e9e;
+}
+
+.friend-panel__status--in_game {
+  color: #FF9800;
+}
+
+.friend-panel__invite-btn {
+  padding: 0.5rem 1rem;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.friend-panel__invite-btn:hover:not(:disabled) {
+  background-color: #45a049;
+}
+
+.friend-panel__invite-btn:disabled {
+  background-color: #ccc;
+  color: #666;
+  cursor: not-allowed;
+}

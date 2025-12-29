@@ -1,0 +1,168 @@
+/* Invite Modal Styles */
+
+.invite-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.invite-modal {
+  background-color: white;
+  border-radius: 8px;
+  padding: 2rem;
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.invite-modal__header {
+  margin-bottom: 1.5rem;
+}
+
+.invite-modal__header h3 {
+  margin: 0;
+  color: #333;
+}
+
+.invite-modal__list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Invite Item */
+.invite-item {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1rem;
+  background-color: #f9f9f9;
+}
+
+.invite-item__info {
+  margin-bottom: 1rem;
+}
+
+.invite-item__inviter {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
+}
+
+.invite-item__inviter strong {
+  color: #4CAF50;
+}
+
+.invite-item__room,
+.invite-item__expiry {
+  margin: 0.25rem 0;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.invite-item__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.invite-item__btn {
+  flex: 1;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.invite-item__btn--accept {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.invite-item__btn--accept:hover {
+  background-color: #45a049;
+}
+
+.invite-item__btn--decline {
+  background-color: #f44336;
+  color: white;
+}
+
+.invite-item__btn--decline:hover {
+  background-color: #d32f2f;
+}
+
+/* Leave Confirmation Dialog */
+.invite-modal__confirm-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1001;
+}
+
+.invite-modal__confirm {
+  background-color: white;
+  border-radius: 8px;
+  padding: 2rem;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.invite-modal__confirm h4 {
+  margin-top: 0;
+  color: #333;
+}
+
+.invite-modal__confirm p {
+  color: #666;
+  margin-bottom: 1.5rem;
+}
+
+.invite-modal__confirm-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.invite-modal__confirm-btn {
+  flex: 1;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.invite-modal__confirm-btn--yes {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.invite-modal__confirm-btn--yes:hover {
+  background-color: #45a049;
+}
+
+.invite-modal__confirm-btn--no {
+  background-color: #9e9e9e;
+  color: white;
+}
+
+.invite-modal__confirm-btn--no:hover {
+  background-color: #757575;
+}

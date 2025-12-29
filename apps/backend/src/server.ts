@@ -5,8 +5,10 @@ import { Server } from 'socket.io';
 import { createAdapter } from 'socket.io-redis';
 import Redis from 'ioredis';
 import pino from 'pino';
-import { createRoom, joinRoom, startGame, getRoom, handleIntent, leaveRoom, removePlayerFromAllRooms, getRoomByAccessCode, validateRoomAccess, generateAndStoreReconnectToken, validateReconnectToken, getAllRooms } from './game/roomManager';
+import { createRoom, joinRoom, startGame, getRoom, handleIntent, leaveRoom, removePlayerFromAllRooms, getRoomByAccessCode, validateRoomAccess, generateAndStoreReconnectToken, validateReconnectToken, getAllRooms, addMemberToRoom, setMemberRole, kickMember, leaveMemberRoom, countPlayers, canStart1v1, canStart2v2, getUserCurrentRoom, isHost, RoomRole, deleteRoom, setTeamAssignment, getTeamAssignment, getPlayersInRoom } from './game/roomManager';
 import { matchmakingManager } from './game/matchmakingManager';
+import { InviteService } from './services/InviteService';
+import * as inviteRepo from './services/inviteRepository';
 import cors from 'cors';
 import authRoutes from './auth/routes';
 import friendRoutes, { setActiveUsers } from './friends/routes';
@@ -67,6 +69,23 @@ setActiveUsers(activeUsers);
   } catch (e) {
     logger.warn('Could not attach Redis adapter. Running single-node socket server');
   }
+
+  // Initialize InviteService with dependencies
+  const inviteService = new InviteService({
+    roomExists: (roomId) => getRoom(roomId) !== undefined,
+    getUserCurrentRoom: (userId) => getUserCurrentRoom(userId),
+    areFriends: async (userId1, userId2) => {
+      const friendship = await prisma.friendship.findFirst({
+        where: {
+          OR: [
+            { requesterId: userId1, addresseeId: userId2, status: 'ACCEPTED' },
+            { requesterId: userId2, addresseeId: userId1, status: 'ACCEPTED' },
+          ],
+        },
+      });
+      return !!friendship;
+    },
+  });
 
   // Setup basic socket handlers
   io.on('connection', (socket) => {
@@ -213,6 +232,36 @@ setActiveUsers(activeUsers);
       socket.emit('queue_left', {});
     });
 
+    /**
+     * Cancel party matchmaking (for 2v2 random)
+     * Payload: { roomId: string }
+     */
+    socket.on('cancel_party_queue', ({ roomId }: { roomId: string }) => {
+      const userId = socket.data.identity?.id;
+      
+      if (!userId) {
+        socket.emit('room_error', { reason: 'NOT_AUTHENTICATED' });
+        return;
+      }
+
+      // Validate host (only host can cancel matchmaking)
+      if (!isHost(roomId, userId)) {
+        socket.emit('room_error', { reason: 'NOT_HOST', message: 'Only host can cancel matchmaking' });
+        return;
+      }
+
+      const wasInQueue = matchmakingManager.removePartyFromQueue(roomId);
+      
+      if (wasInQueue) {
+        io.to(roomId).emit('queue_left', { 
+          message: 'Matchmaking cancelled by host' 
+        });
+        logger.info({ roomId, hostId: userId }, 'Party matchmaking cancelled by host');
+      } else {
+        socket.emit('room_error', { reason: 'NOT_IN_QUEUE', message: 'Party is not in matchmaking queue' });
+      }
+    });
+
     // PRIVATE ROOM CREATION (keep for invite-based private games)
     socket.on('create_private_room', (payload: any) => {
       const room = createRoom('private');
@@ -341,6 +390,9 @@ setActiveUsers(activeUsers);
             hand: [], 
             taken: [] 
           });
+          
+          // Also add to members array for invite system tracking
+          addMemberToRoom(room, playerId, finalName, socket.id);
         }
         
         logger.info({ roomId: actualRoomId, playersAfterJoin: room.players.map((p: any) => ({ id: p.id, name: p.name })) }, 'join_room: emitting room_update');
@@ -476,8 +528,826 @@ setActiveUsers(activeUsers);
       if (room.state) io.to(roomId).emit('game_state', room.state);
     });
     
+    // ============================================
+    // TASK 4: Invite System Socket Handlers
+    // ============================================
 
-    socket.on('disconnect', () => {
+    /**
+     * Send invite to friend (creates room if sender not in one)
+     * Payload: { friendId: string }
+     */
+    socket.on('send_invite', async ({ friendId }: { friendId: string }) => {
+      const senderId = socket.data.identity?.id;
+      
+      if (!senderId || socket.data.identity?.type !== 'user') {
+        socket.emit('invite_error', { reason: 'NOT_AUTHENTICATED', message: 'Must be logged in to send invites' });
+        return;
+      }
+
+      try {
+        // Check if sender is already in a room
+        let roomId = getUserCurrentRoom(senderId);
+        let isNewRoom = false;
+
+        // If sender not in room, create new private room
+        if (!roomId) {
+          const newRoom = createRoom('private', senderId);
+          roomId = newRoom.id;
+          isNewRoom = true;
+
+          // Add sender as member (host)
+          addMemberToRoom(newRoom, senderId, socket.data.displayName || 'Player', socket.id);
+          
+          // Join socket to room
+          socket.join(roomId);
+
+          // Emit room created to sender
+          socket.emit('room_created', {
+            roomId: newRoom.id,
+            visibility: newRoom.visibility,
+            accessCode: newRoom.accessCode,
+            inviteToken: newRoom.inviteToken,
+          });
+
+          // Emit room update to sender
+          socket.emit('room_update', {
+            roomId: newRoom.id,
+            members: newRoom.members.map(m => ({
+              userId: m.userId,
+              name: m.name,
+              roleInRoom: m.roleInRoom,
+              joinedAt: m.joinedAt,
+            })),
+            hostId: newRoom.hostId,
+            ownerId: newRoom.ownerId,
+          });
+        }
+
+        // Send invite via InviteService
+        const invite = await inviteService.sendInvite({
+          roomId,
+          inviterId: senderId,
+          inviteeId: friendId,
+          metadata: { isNewRoom },
+        });
+
+        // Find receiver's socket
+        const receiverSocket = Array.from(io.sockets.sockets.values()).find(
+          (s) => s.data.identity?.id === friendId
+        );
+
+        // Emit invite to receiver if online
+        if (receiverSocket) {
+          receiverSocket.emit('invite_received', {
+            inviteId: invite.id,
+            roomId: invite.roomId,
+            inviterId: invite.inviterId,
+            inviterUsername: invite.inviter.username,
+            expiresAt: invite.expiresAt.toISOString(),
+            createdAt: invite.createdAt.toISOString(),
+          });
+        }
+
+        // Confirm to sender
+        socket.emit('invite_sent', {
+          inviteId: invite.id,
+          inviteeId: friendId,
+          roomId,
+        });
+
+        logger.info({ senderId, friendId, inviteId: invite.id, roomId }, 'Invite sent successfully');
+
+      } catch (error: any) {
+        logger.error({ senderId, friendId, error: error.message }, 'send_invite error');
+        
+        socket.emit('invite_error', {
+          reason: error.code || 'UNKNOWN_ERROR',
+          message: error.message,
+        });
+      }
+    });
+
+    /**
+     * Accept invite
+     * Payload: { inviteId: string }
+     */
+    socket.on('accept_invite', async ({ inviteId }: { inviteId: string }) => {
+      const userId = socket.data.identity?.id;
+      
+      if (!userId || socket.data.identity?.type !== 'user') {
+        socket.emit('invite_error', { reason: 'NOT_AUTHENTICATED', message: 'Must be logged in' });
+        return;
+      }
+
+      try {
+        // Accept invite via service (validates everything)
+        const acceptedInvite = await inviteService.acceptInvite({
+          inviteId,
+          inviteeId: userId,
+        });
+
+        const room = getRoom(acceptedInvite.roomId);
+        if (!room) {
+          socket.emit('invite_error', { reason: 'ROOM_NOT_FOUND', message: 'Room no longer exists' });
+          return;
+        }
+
+        // Add invitee as member
+        addMemberToRoom(room, userId, socket.data.displayName || 'Player', socket.id);
+
+        // Join socket to room
+        socket.join(acceptedInvite.roomId);
+
+        // Emit acceptance confirmation to invitee
+        socket.emit('invite_accepted', {
+          inviteId,
+          roomId: acceptedInvite.roomId,
+        });
+
+        // Emit room update to all members
+        io.to(acceptedInvite.roomId).emit('room_update', {
+          roomId: room.id,
+          members: room.members.map(m => ({
+            userId: m.userId,
+            name: m.name,
+            roleInRoom: m.roleInRoom,
+            joinedAt: m.joinedAt,
+          })),
+          hostId: room.hostId,
+          ownerId: room.ownerId,
+        });
+
+        // Notify inviter that their invite was accepted
+        const inviterSocket = Array.from(io.sockets.sockets.values()).find(
+          (s) => s.data.identity?.id === acceptedInvite.inviterId
+        );
+        if (inviterSocket) {
+          inviterSocket.emit('invite_was_accepted', {
+            inviteId,
+            inviteeId: userId,
+            inviteeUsername: socket.data.displayName,
+            roomId: acceptedInvite.roomId,
+          });
+        }
+
+        logger.info({ userId, inviteId, roomId: acceptedInvite.roomId }, 'Invite accepted');
+
+      } catch (error: any) {
+        logger.error({ userId, inviteId, error: error.message, code: error.code }, 'accept_invite error');
+        
+        socket.emit('invite_error', {
+          reason: error.code || 'UNKNOWN_ERROR',
+          message: error.message,
+        });
+      }
+    });
+
+    /**
+     * Decline invite
+     * Payload: { inviteId: string }
+     */
+    socket.on('decline_invite', async ({ inviteId }: { inviteId: string }) => {
+      const userId = socket.data.identity?.id;
+      
+      if (!userId || socket.data.identity?.type !== 'user') {
+        socket.emit('invite_error', { reason: 'NOT_AUTHENTICATED', message: 'Must be logged in' });
+        return;
+      }
+
+      try {
+        const declinedInvite = await inviteService.declineInvite({
+          inviteId,
+          inviteeId: userId,
+        });
+
+        // Confirm to decliner
+        socket.emit('invite_declined', { inviteId });
+
+        // Notify inviter
+        const inviterSocket = Array.from(io.sockets.sockets.values()).find(
+          (s) => s.data.identity?.id === declinedInvite.inviterId
+        );
+        if (inviterSocket) {
+          inviterSocket.emit('invite_was_declined', {
+            inviteId,
+            inviteeId: userId,
+            inviteeUsername: socket.data.displayName,
+          });
+        }
+
+        logger.info({ userId, inviteId }, 'Invite declined');
+
+      } catch (error: any) {
+        logger.error({ userId, inviteId, error: error.message }, 'decline_invite error');
+        
+        socket.emit('invite_error', {
+          reason: error.code || 'UNKNOWN_ERROR',
+          message: error.message,
+        });
+      }
+    });
+
+    /**
+     * Get pending invites for current user
+     */
+    socket.on('get_pending_invites', async () => {
+      const userId = socket.data.identity?.id;
+      
+      if (!userId || socket.data.identity?.type !== 'user') {
+        socket.emit('pending_invites', { invites: [] });
+        return;
+      }
+
+      try {
+        const invites = await inviteService.getPendingInvitesForUser(userId);
+        
+        socket.emit('pending_invites', {
+          invites: invites.map(inv => ({
+            inviteId: inv.id,
+            roomId: inv.roomId,
+            inviterId: inv.inviterId,
+            inviterUsername: inv.inviter.username,
+            expiresAt: inv.expiresAt.toISOString(),
+            createdAt: inv.createdAt.toISOString(),
+          })),
+        });
+
+      } catch (error: any) {
+        logger.error({ userId, error: error.message }, 'get_pending_invites error');
+        socket.emit('pending_invites', { invites: [] });
+      }
+    });
+
+    /**
+     * Set member role (host only)
+     * Payload: { roomId: string, targetUserId: string, role: 'PLAYER' | 'SPECTATOR' }
+     */
+    socket.on('set_member_role', ({ roomId, targetUserId, role }: { roomId: string; targetUserId: string; role: RoomRole }) => {
+      const requesterId = socket.data.identity?.id;
+      
+      if (!requesterId) {
+        socket.emit('room_error', { reason: 'NOT_AUTHENTICATED' });
+        return;
+      }
+
+      try {
+        const updatedMember = setMemberRole(roomId, targetUserId, role, requesterId);
+
+        // Emit role change to all room members
+        io.to(roomId).emit('role_changed', {
+          userId: updatedMember.userId,
+          newRole: updatedMember.roleInRoom,
+        });
+
+        logger.info({ roomId, targetUserId, role, requesterId }, 'Member role changed');
+
+      } catch (error: any) {
+        logger.error({ roomId, targetUserId, role, error: error.message }, 'set_member_role error');
+        socket.emit('room_error', { reason: error.message });
+      }
+    });
+
+    /**
+     * Kick member from room (host only)
+     * Payload: { roomId: string, targetUserId: string }
+     */
+    socket.on('kick_member', async ({ roomId, targetUserId }: { roomId: string; targetUserId: string }) => {
+      const requesterId = socket.data.identity?.id;
+      
+      if (!requesterId) {
+        socket.emit('room_error', { reason: 'NOT_AUTHENTICATED' });
+        return;
+      }
+
+      try {
+        const kickedMember = kickMember(roomId, targetUserId, requesterId);
+
+        // Find kicked user's socket and notify them
+        const kickedSocket = Array.from(io.sockets.sockets.values()).find(
+          (s) => s.data.identity?.id === targetUserId
+        );
+        if (kickedSocket) {
+          kickedSocket.leave(roomId);
+          kickedSocket.emit('you_were_kicked', { roomId });
+        }
+
+        // Notify room about kick
+        io.to(roomId).emit('member_kicked', {
+          userId: kickedMember.userId,
+          name: kickedMember.name,
+        });
+
+        // Remove party from matchmaking queue (kicked member means party is incomplete)
+        const wasInQueue = matchmakingManager.removePartyFromQueue(roomId);
+        if (wasInQueue) {
+          // Notify remaining members that matchmaking was cancelled
+          io.to(roomId).emit('queue_cancelled', { 
+            reason: 'MEMBER_KICKED',
+            message: 'Matchmaking cancelled - a member was kicked from the party'
+          });
+        }
+
+        // Check if room was deleted (no members left)
+        const room = getRoom(roomId);
+        if (!room) {
+          // Room was deleted, cancel all pending invites
+          const cancelledInvites = await inviteService.cancelInvitesByRoomDeletion(roomId);
+          
+          // Notify invitees that room was deleted
+          for (const inv of cancelledInvites) {
+            const inviteeSocket = Array.from(io.sockets.sockets.values()).find(
+              (s) => s.data.identity?.id === inv.inviteeId
+            );
+            if (inviteeSocket) {
+              inviteeSocket.emit('invite_cancelled', {
+                inviteId: inv.id,
+                reason: 'ROOM_DELETED',
+              });
+            }
+          }
+
+          logger.info({ roomId }, 'Room deleted after kick (no members left)');
+        }
+
+        logger.info({ roomId, targetUserId, requesterId }, 'Member kicked');
+
+      } catch (error: any) {
+        logger.error({ roomId, targetUserId, error: error.message }, 'kick_member error');
+        socket.emit('room_error', { reason: error.message });
+      }
+    });
+
+    /**
+     * Leave room
+     * Payload: { roomId: string }
+     */
+    socket.on('leave_room_member', async ({ roomId }: { roomId: string }) => {
+      const userId = socket.data.identity?.id;
+      
+      if (!userId) {
+        socket.emit('room_error', { reason: 'NOT_AUTHENTICATED' });
+        return;
+      }
+
+      try {
+        const result = leaveMemberRoom(roomId, userId);
+
+        // Leave socket room
+        socket.leave(roomId);
+
+        // Confirm to leaver
+        socket.emit('room_left', { roomId });
+
+        // Remove party from matchmaking queue if in queue
+        const wasInQueue = matchmakingManager.removePartyFromQueue(roomId);
+        if (wasInQueue) {
+          // Notify remaining members that matchmaking was cancelled
+          io.to(roomId).emit('queue_cancelled', { 
+            reason: 'MEMBER_LEFT',
+            message: 'Matchmaking cancelled - a member left the party'
+          });
+        }
+
+        if (result.roomDeleted) {
+          // Room was deleted, cancel all pending invites
+          const cancelledInvites = await inviteService.cancelInvitesByRoomDeletion(roomId);
+          
+          // Notify invitees
+          for (const inv of cancelledInvites) {
+            const inviteeSocket = Array.from(io.sockets.sockets.values()).find(
+              (s) => s.data.identity?.id === inv.inviteeId
+            );
+            if (inviteeSocket) {
+              inviteeSocket.emit('invite_cancelled', {
+                inviteId: inv.id,
+                reason: 'ROOM_DELETED',
+              });
+            }
+          }
+
+          logger.info({ roomId, userId }, 'Room deleted after leave (no members left)');
+        } else {
+          // Notify remaining members
+          io.to(roomId).emit('member_left', { userId });
+
+          // If host changed, notify room
+          if (result.wasHost && result.newHostId) {
+            io.to(roomId).emit('host_changed', {
+              newHostId: result.newHostId,
+            });
+          }
+
+          // Emit updated room state
+          const room = getRoom(roomId);
+          if (room) {
+            io.to(roomId).emit('room_update', {
+              roomId: room.id,
+              members: room.members.map(m => ({
+                userId: m.userId,
+                name: m.name,
+                roleInRoom: m.roleInRoom,
+                joinedAt: m.joinedAt,
+              })),
+              hostId: room.hostId,
+              ownerId: room.ownerId,
+            });
+          }
+        }
+
+        logger.info({ roomId, userId, wasHost: result.wasHost, newHostId: result.newHostId }, 'Member left room');
+
+      } catch (error: any) {
+        logger.error({ roomId, userId, error: error.message }, 'leave_room_member error');
+        socket.emit('room_error', { reason: error.message });
+      }
+    });
+
+    // ============================================
+    // TASK 6: Host Start Game Actions
+    // ============================================
+
+    /**
+     * Start 1v1 game (host only, requires exactly 2 PLAYERS)
+     * Payload: { roomId: string }
+     */
+    socket.on('start_1v1', async ({ roomId }: { roomId: string }) => {
+      const userId = socket.data.identity?.id;
+      
+      if (!userId) {
+        socket.emit('start_error', { reason: 'NOT_AUTHENTICATED', message: 'User ID not found' });
+        return;
+      }
+
+      try {
+        const room = getRoom(roomId);
+        if (!room) {
+          socket.emit('start_error', { reason: 'ROOM_NOT_FOUND', message: 'Room not found' });
+          return;
+        }
+
+        // Validate host
+        if (!isHost(roomId, userId)) {
+          socket.emit('start_error', { reason: 'NOT_HOST', message: 'Only host can start the game' });
+          return;
+        }
+
+        // Validate player count
+        if (!canStart1v1(roomId)) {
+          const playerCount = countPlayers(roomId);
+          socket.emit('start_error', { 
+            reason: 'INVALID_PLAYER_COUNT', 
+            message: `Need exactly 2 players to start 1v1 (currently ${playerCount} players)` 
+          });
+          return;
+        }
+
+        // Start game using existing logic
+        const state = await startGame(room);
+        
+        // Emit hands_dealt event
+        const dealt: Record<string, string[]> = {};
+        for (const p of state.players) dealt[p.id] = [...p.hand];
+        io.to(roomId).emit('game_event', { 
+          type: 'hands_dealt', 
+          actor: undefined, 
+          payload: { dealt, handNumber: state.handNumber } 
+        });
+
+        // Emit game state
+        io.to(roomId).emit('game_state', state);
+        
+        // Emit game started event
+        io.to(roomId).emit('game_started', { 
+          mode: '1v1',
+          roomId 
+        });
+
+        logger.info({ roomId, hostId: userId }, '1v1 game started');
+
+      } catch (error: any) {
+        logger.error({ roomId, error: error.message }, 'start_1v1 error');
+        socket.emit('start_error', { 
+          reason: 'START_FAILED', 
+          message: error.message 
+        });
+      }
+    });
+
+    /**
+     * Start 2v2 random matchmaking (host only, requires exactly 2 PLAYERS)
+     * Duo party enters regular 2v2 matchmaking queue
+     * Payload: { roomId: string }
+     */
+    socket.on('start_2v2_random', async ({ roomId }: { roomId: string }) => {
+      const userId = socket.data.identity?.id;
+      
+      if (!userId) {
+        socket.emit('start_error', { reason: 'NOT_AUTHENTICATED', message: 'User ID not found' });
+        return;
+      }
+
+      try {
+        const room = getRoom(roomId);
+        if (!room) {
+          socket.emit('start_error', { reason: 'ROOM_NOT_FOUND', message: 'Room not found' });
+          return;
+        }
+
+        // Validate host
+        if (!isHost(roomId, userId)) {
+          socket.emit('start_error', { reason: 'NOT_HOST', message: 'Only host can start matchmaking' });
+          return;
+        }
+
+        // Validate player count (need exactly 2 PLAYERS)
+        const playerCount = countPlayers(roomId);
+        if (playerCount !== 2) {
+          socket.emit('start_error', { 
+            reason: 'INVALID_PLAYER_COUNT', 
+            message: `Need exactly 2 players for 2v2 random (currently ${playerCount} players)` 
+          });
+          return;
+        }
+
+        // Get PLAYER members only (not spectators)
+        const players = room.members?.filter(m => m.roleInRoom === 'PLAYER') || [];
+
+        if (players.length !== 2) {
+          socket.emit('start_error', { 
+            reason: 'INVALID_PLAYER_COUNT', 
+            message: 'Could not find 2 players in room' 
+          });
+          return;
+        }
+
+        // Ensure all players have active socket connections
+        const activePlayers = players.filter(p => p.socketId !== undefined);
+        if (activePlayers.length !== 2) {
+          socket.emit('start_error', { 
+            reason: 'PLAYERS_NOT_CONNECTED', 
+            message: 'All players must be connected to start matchmaking' 
+          });
+          return;
+        }
+
+        // Add party to matchmaking queue
+        const result = await matchmakingManager.addPartyToQueue(
+          '2v2',
+          activePlayers.map(p => ({
+            playerId: p.userId,
+            playerName: p.name,
+            socketId: p.socketId!, // Now guaranteed to be defined
+          })),
+          roomId
+        );
+
+        if (result.matched && result.room && result.players) {
+          // Match found immediately! Delete current room and move to matchmaking room
+          logger.info({ 
+            oldRoomId: roomId,
+            newRoomId: result.room.id,
+            players: result.players.map(p => p.playerName) 
+          }, '2v2 random: match found immediately');
+
+          // Cancel all pending invites for the old room
+          const cancelledInvites = await inviteService.cancelInvitesByRoomDeletion(roomId);
+          
+          // Notify invitees that room was deleted
+          for (const inv of cancelledInvites) {
+            const inviteeSocket = Array.from(io.sockets.sockets.values()).find(
+              (s) => s.data.identity?.id === inv.inviteeId
+            );
+            if (inviteeSocket) {
+              inviteeSocket.emit('invite_cancelled', {
+                inviteId: inv.id,
+                reason: 'ROOM_DELETED',
+              });
+            }
+          }
+
+          // Notify all matched players
+          for (const player of result.players) {
+            const playerSocket = io.sockets.sockets.get(player.socketId);
+            if (playerSocket) {
+              // Leave old room
+              playerSocket.leave(roomId);
+              // Join new matchmaking room
+              playerSocket.join(result.room.id);
+              
+              playerSocket.emit('match_found', {
+                roomId: result.room.id,
+                mode: '2v2',
+                players: result.room.players.map((p: any) => ({ 
+                  id: p.id, 
+                  name: p.name, 
+                  team: p.team 
+                }))
+              });
+            }
+          }
+
+          // Emit game state to new room
+          if (result.room.state) {
+            io.to(result.room.id).emit('game_state', { state: result.room.state });
+            
+            const dealt: Record<string, string[]> = {};
+            for (const p of result.room.state.players) {
+              dealt[p.id] = [...p.hand];
+            }
+            io.to(result.room.id).emit('game_event', { 
+              type: 'hands_dealt', 
+              actor: undefined, 
+              payload: { dealt, handNumber: result.room.state.handNumber } 
+            });
+            
+            io.to(result.room.id).emit('room_update', { 
+              roomId: result.room.id, 
+              players: result.room.players.map((p: any) => ({ 
+                id: p.id, 
+                name: p.name, 
+                role: p.role, 
+                taken: p.taken 
+              })), 
+              ownerId: result.room.ownerId 
+            });
+          }
+
+          // Delete the old room manually (since members aren't leaving normally)
+          deleteRoom(roomId);
+          
+        } else {
+          // Added to queue, waiting for another party
+          io.to(roomId).emit('queue_joined', { 
+            mode: '2v2',
+            message: 'Searching for another team...'
+          });
+        }
+
+        logger.info({ roomId, hostId: userId, playerCount }, '2v2 random matchmaking initiated');
+
+      } catch (error: any) {
+        logger.error({ roomId, error: error.message }, 'start_2v2_random error');
+        socket.emit('start_error', { 
+          reason: 'MATCHMAKING_FAILED', 
+          message: error.message 
+        });
+      }
+    });
+
+    // ============================================
+    // TASK 7: 2v2 Party (Manual Team Selection)
+    // ============================================
+
+    /**
+     * Set team assignment for 2v2 party (host only)
+     * Payload: { roomId: string, team0: string[], team1: string[] }
+     */
+    socket.on('set_team_assignment', ({ roomId, team0, team1 }: { roomId: string; team0: string[]; team1: string[] }) => {
+      const userId = socket.data.identity?.id;
+      
+      if (!userId) {
+        socket.emit('team_error', { reason: 'NOT_AUTHENTICATED', message: 'User ID not found' });
+        return;
+      }
+
+      try {
+        // Validate and set team assignment
+        setTeamAssignment(roomId, team0, team1, userId);
+
+        // Emit team assignment update to all room members
+        io.to(roomId).emit('teams_updated', {
+          roomId,
+          teams: {
+            team0,
+            team1
+          }
+        });
+
+        logger.info({ roomId, hostId: userId, team0, team1 }, 'Team assignment set');
+
+      } catch (error: any) {
+        logger.error({ roomId, error: error.message }, 'set_team_assignment error');
+        socket.emit('team_error', { 
+          reason: error.message || 'TEAM_ASSIGNMENT_FAILED', 
+          message: error.message 
+        });
+      }
+    });
+
+    /**
+     * Start 2v2 party game with custom team assignment (host only)
+     * Requires exactly 4 PLAYERS and valid team assignment
+     * Payload: { roomId: string }
+     */
+    socket.on('start_2v2_party', async ({ roomId }: { roomId: string }) => {
+      const userId = socket.data.identity?.id;
+      
+      if (!userId) {
+        socket.emit('start_error', { reason: 'NOT_AUTHENTICATED', message: 'User ID not found' });
+        return;
+      }
+
+      try {
+        const room = getRoom(roomId);
+        if (!room) {
+          socket.emit('start_error', { reason: 'ROOM_NOT_FOUND', message: 'Room not found' });
+          return;
+        }
+
+        // Validate host
+        if (!isHost(roomId, userId)) {
+          socket.emit('start_error', { reason: 'NOT_HOST', message: 'Only host can start the game' });
+          return;
+        }
+
+        // Validate player count (need exactly 4 PLAYERS)
+        if (!canStart2v2(roomId)) {
+          const playerCount = countPlayers(roomId);
+          socket.emit('start_error', { 
+            reason: 'INVALID_PLAYER_COUNT', 
+            message: `Need exactly 4 players to start 2v2 party (currently ${playerCount} players)` 
+          });
+          return;
+        }
+
+        // Get team assignment
+        const teamAssignment = getTeamAssignment(roomId);
+        
+        if (!teamAssignment) {
+          socket.emit('start_error', { 
+            reason: 'NO_TEAM_ASSIGNMENT', 
+            message: 'Teams must be assigned before starting 2v2 party game' 
+          });
+          return;
+        }
+
+        // Get PLAYER members
+        const players = getPlayersInRoom(roomId);
+        
+        if (players.length !== 4) {
+          socket.emit('start_error', { 
+            reason: 'INVALID_PLAYER_COUNT', 
+            message: 'Need exactly 4 PLAYER members' 
+          });
+          return;
+        }
+
+        // Ensure room.players array is populated with the 4 PLAYER members
+        // (for game start logic)
+        room.players = players.map((member, idx) => ({
+          id: member.userId,
+          name: member.name,
+          seat: idx,
+          role: 'player',
+          team: 0, // Will be overridden by startGame with customTeams
+          hand: [],
+          taken: [],
+          socketId: member.socketId,
+        }));
+
+        // Start game with custom team assignment
+        const state = await startGame(room, { 
+          customTeams: teamAssignment 
+        });
+
+        // Emit hands_dealt event
+        const dealt: Record<string, string[]> = {};
+        for (const p of state.players) dealt[p.id] = [...p.hand];
+        io.to(roomId).emit('game_event', { 
+          type: 'hands_dealt', 
+          actor: undefined, 
+          payload: { dealt, handNumber: state.handNumber } 
+        });
+
+        // Emit game state
+        io.to(roomId).emit('game_state', state);
+        
+        // Emit game started event with team info
+        io.to(roomId).emit('game_started', { 
+          mode: '2v2_party',
+          roomId,
+          teams: {
+            team0: teamAssignment.team0,
+            team1: teamAssignment.team1
+          }
+        });
+
+        logger.info({ 
+          roomId, 
+          hostId: userId, 
+          teams: teamAssignment 
+        }, '2v2 party game started with custom teams');
+
+      } catch (error: any) {
+        logger.error({ roomId, error: error.message }, 'start_2v2_party error');
+        socket.emit('start_error', { 
+          reason: 'START_FAILED', 
+          message: error.message 
+        });
+      }
+    });
+
+    socket.on('disconnect', async () => {
       logger.info({ clientId: id }, 'Client disconnected');
       const playerId = socket.data.identity?.id ?? id;
       const changedRooms: string[] = [];
@@ -508,7 +1378,7 @@ setActiveUsers(activeUsers);
       }
       
       // Set a timer to fully remove player if not reconnected within 120 seconds
-      setTimeout(() => {
+      setTimeout(async () => {
         const stillDisconnected = changedRooms.some((roomId) => {
           const room = getRoom(roomId);
           const player = room?.players.find((p) => p.id === playerId);
@@ -517,14 +1387,62 @@ setActiveUsers(activeUsers);
         
         if (stillDisconnected) {
           logger.info({ playerId }, 'disconnect: timeout - fully removing disconnected player');
+          
+          // Remove from old player tracking
           removePlayerFromAllRooms(playerId);
+          
+          // Also remove from member tracking and handle room deletion
           for (const roomId of changedRooms) {
             const room = getRoom(roomId);
             if (!room) continue;
-            io.to(roomId).emit('room_update', { 
-              roomId, 
-              players: room.players.map((p) => ({ id: p.id, name: p.name, role: p.role, taken: p.taken, connected: p.connected ?? true })) 
-            });
+            
+            try {
+              // Use leaveMemberRoom for proper cleanup
+              const result = leaveMemberRoom(roomId, playerId);
+              
+              if (result.roomDeleted) {
+                // Room was deleted, cancel all pending invites
+                const cancelledInvites = await inviteService.cancelInvitesByRoomDeletion(roomId);
+                
+                // Notify invitees that room was deleted
+                for (const inv of cancelledInvites) {
+                  const inviteeSocket = Array.from(io.sockets.sockets.values()).find(
+                    (s) => s.data.identity?.id === inv.inviteeId
+                  );
+                  if (inviteeSocket) {
+                    inviteeSocket.emit('invite_cancelled', {
+                      inviteId: inv.id,
+                      reason: 'ROOM_DELETED',
+                    });
+                  }
+                }
+                
+                logger.info({ roomId, playerId }, 'disconnect: room deleted (no members left)');
+              } else {
+                // Emit update to remaining members
+                io.to(roomId).emit('room_update', { 
+                  roomId, 
+                  players: room.players.map((p) => ({ id: p.id, name: p.name, role: p.role, taken: p.taken, connected: p.connected ?? true })),
+                  members: room.members?.map(m => ({
+                    userId: m.userId,
+                    name: m.name,
+                    roleInRoom: m.roleInRoom,
+                    joinedAt: m.joinedAt,
+                  })),
+                  hostId: room.hostId,
+                  ownerId: room.ownerId
+                });
+                
+                // If host changed, notify
+                if (result.wasHost && result.newHostId) {
+                  io.to(roomId).emit('host_changed', {
+                    newHostId: result.newHostId,
+                  });
+                }
+              }
+            } catch (error: any) {
+              logger.error({ roomId, playerId, error: error.message }, 'disconnect: error during member leave');
+            }
           }
         }
       }, 120000);

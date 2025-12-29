@@ -1,0 +1,225 @@
+import React, { useState } from 'react';
+import { useRoomState } from '../hooks/useRoomState';
+import { getSocket } from '../services/socket';
+import InviteModal from '../components/InviteModal';
+import TeamSelectionModal from '../components/TeamSelectionModal';
+import FriendInvitePanel from '../components/FriendInvitePanel';
+import '../styles/RoomScreen.css';
+
+interface RoomScreenProps {
+  roomId: string;
+  myId: string | null;
+  playerName: string;
+  initialPlayers?: any[];
+  initialOwnerId?: string | null;
+  onLeave?: () => void;
+}
+
+const RoomScreen: React.FC<RoomScreenProps> = ({ roomId, myId, playerName, initialPlayers, initialOwnerId, onLeave }) => {
+  const socket = getSocket();
+  const { roomState, pendingInvites, error, inMatchmaking, actions } = useRoomState({
+    socket,
+    currentUserId: myId,
+    initialRoomId: roomId,
+    initialPlayers,
+    initialOwnerId,
+    onLeave,
+  });
+
+  const [showTeamSelection, setShowTeamSelection] = useState(false);
+  const [showInvitePanel, setShowInvitePanel] = useState(false);
+
+  const canStart1v1 = roomState.isHost && roomState.playerCount === 2 && !inMatchmaking;
+  const canStart2v2Random = roomState.isHost && roomState.playerCount === 2 && !inMatchmaking;
+  const canStart2v2Party = roomState.isHost && roomState.playerCount === 4 && !inMatchmaking;
+
+  const handleStart1v1 = () => {
+    actions.start1v1();
+  };
+
+  const handleStart2v2Random = () => {
+    actions.start2v2Random();
+  };
+
+  const handleStart2v2Party = () => {
+    // If teams not assigned yet, open team selection modal
+    if (!roomState.teamAssignment) {
+      setShowTeamSelection(true);
+    } else {
+      // Teams already assigned, start the game
+      actions.start2v2Party();
+    }
+  };
+
+  const handleTeamsConfirmed = (team0: string[], team1: string[]) => {
+    actions.setTeamAssignment(team0, team1);
+    setShowTeamSelection(false);
+    // Don't auto-start here - let user click start button after teams are set
+    // The teams_updated event will be received and state will update
+  };
+
+  return (
+    <div className="room-screen">
+      {/* Error Display */}
+      {error && (
+        <div className="room-screen__error">
+          <span>{error}</span>
+          <button onClick={actions.clearError}>✕</button>
+        </div>
+      )}
+
+      {/* Matchmaking Status */}
+      {inMatchmaking && (
+        <div className="room-screen__matchmaking">
+          <p>Searching for match...</p>
+          {roomState.isHost && (
+            <button onClick={actions.cancelMatchmaking}>Cancel</button>
+          )}
+        </div>
+      )}
+
+      {/* Room Header */}
+      <div className="room-screen__header">
+        <h2>Room {roomId}</h2>
+        <button 
+          className="room-screen__invite-btn"
+          onClick={() => setShowInvitePanel(!showInvitePanel)}
+        >
+          Invite Friends
+        </button>
+      </div>
+
+      {/* Member List */}
+      <div className="room-screen__members">
+        <h3>Members ({roomState.members.length})</h3>
+        <ul className="member-list">
+          {roomState.members.map(member => (
+            <li key={member.userId} className="member-list__item">
+              <div className="member-list__info">
+                <span className="member-list__name">{member.name}</span>
+                {member.userId === roomState.hostId && (
+                  <span className="member-list__badge member-list__badge--host">HOST</span>
+                )}
+                <span className={`member-list__badge member-list__badge--${member.roleInRoom.toLowerCase()}`}>
+                  {member.roleInRoom}
+                </span>
+              </div>
+              
+              {/* Host Controls */}
+              {roomState.isHost && member.userId !== myId && (
+                <div className="member-list__controls">
+                  <button
+                    className="member-list__btn member-list__btn--role"
+                    onClick={() => actions.setMemberRole(
+                      member.userId,
+                      member.roleInRoom === 'PLAYER' ? 'SPECTATOR' : 'PLAYER'
+                    )}
+                  >
+                    {member.roleInRoom === 'PLAYER' ? 'Make Spectator' : 'Make Player'}
+                  </button>
+                  <button
+                    className="member-list__btn member-list__btn--kick"
+                    onClick={() => {
+                      if (window.confirm(`Kick ${member.name}?`)) {
+                        actions.kickMember(member.userId);
+                      }
+                    }}
+                  >
+                    Kick
+                  </button>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* Host Start Controls */}
+      {roomState.isHost && (
+        <div className="room-screen__start-controls">
+          <h3>Start Game</h3>
+          <div className="start-controls__buttons">
+            <button
+              className="start-controls__btn"
+              disabled={!canStart1v1}
+              onClick={handleStart1v1}
+              title={!canStart1v1 ? 'Need exactly 2 players' : ''}
+            >
+              1v1
+            </button>
+            <button
+              className="start-controls__btn"
+              disabled={!canStart2v2Random}
+              onClick={handleStart2v2Random}
+              title={!canStart2v2Random ? 'Need exactly 2 players' : ''}
+            >
+              2v2 Random
+            </button>
+            <button
+              className="start-controls__btn"
+              disabled={!canStart2v2Party}
+              onClick={handleStart2v2Party}
+              title={!canStart2v2Party ? 'Need exactly 4 players' : ''}
+            >
+              {roomState.teamAssignment ? 'Start 2v2 Party' : '2v2 Party (Set Teams)'}
+            </button>
+          </div>
+          {roomState.playerCount !== 2 && roomState.playerCount !== 4 && (
+            <p className="start-controls__hint">
+              Need 2 or 4 players to start. Current: {roomState.playerCount}
+            </p>
+          )}
+          {roomState.teamAssignment && (
+            <p className="start-controls__hint" style={{ color: '#4CAF50' }}>
+              ✓ Teams assigned: Team 0 ({roomState.teamAssignment.team0.length}) vs Team 1 ({roomState.teamAssignment.team1.length})
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Leave Room Button */}
+      <div className="room-screen__actions">
+        <button
+          className="room-screen__leave-btn"
+          onClick={() => {
+            if (window.confirm('Leave this room?')) {
+              actions.leaveRoom(roomId);
+            }
+          }}
+        >
+          Leave Room
+        </button>
+      </div>
+
+      {/* Invite Modal */}
+      {pendingInvites.length > 0 && (
+        <InviteModal
+          invites={pendingInvites}
+          currentRoomId={roomId}
+          onAccept={actions.acceptInvite}
+          onDecline={actions.declineInvite}
+        />
+      )}
+
+      {/* Team Selection Modal */}
+      {showTeamSelection && (
+        <TeamSelectionModal
+          members={roomState.members.filter(m => m.roleInRoom === 'PLAYER')}
+          onConfirm={handleTeamsConfirmed}
+          onCancel={() => setShowTeamSelection(false)}
+        />
+      )}
+
+      {/* Friend Invite Panel */}
+      {showInvitePanel && (
+        <FriendInvitePanel
+          currentRoomId={roomId}
+          onSendInvite={actions.sendInvite}
+          onClose={() => setShowInvitePanel(false)}
+        />
+      )}
+    </div>
+  );
+};
+
+export default RoomScreen;

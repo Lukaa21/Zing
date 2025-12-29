@@ -42,7 +42,7 @@ const App: React.FC = () => {
     // Initialize name from authUser or localStorage if no pending invite
     // This prevents invited players from inheriting the room creator's guest name
     if (!name && !pendingRoom && !r) {
-      const existingName = authUser?.displayName || getGuestName();
+      const existingName = authUser?.username || getGuestName();
       if (existingName) {
         setName(existingName);
       }
