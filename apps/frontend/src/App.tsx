@@ -206,6 +206,10 @@ const App: React.FC = () => {
           playerName={name}
           inviteToken={inviteToken || undefined}
           code={code || undefined}
+          onRoomChange={(newRoomId) => {
+            setRoomId(newRoomId);
+            sessionStorage.setItem('zing_current_room', newRoomId);
+          }}
           onLeave={() => {
             // Clear stored roomId when leaving game
             sessionStorage.removeItem('zing_current_room');
@@ -221,6 +225,10 @@ const App: React.FC = () => {
           inviteToken={inviteToken || undefined}
           code={code || undefined}
           initialRoute="room"
+          onRoomChange={(newRoomId) => {
+            setRoomId(newRoomId);
+            sessionStorage.setItem('zing_current_room', newRoomId);
+          }}
           onLeave={() => {
             sessionStorage.removeItem('zing_current_room');
             navigate('/lobby');

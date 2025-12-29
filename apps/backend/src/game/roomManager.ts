@@ -322,7 +322,16 @@ export function joinRoom(room: Room, p: PlayerState) {
   // Also add to members if not present (for backward compatibility)
   const memberExists = room.members.some(m => m.userId === p.id);
   if (!memberExists) {
-    addMemberToRoom(room, p.id, p.name);
+    // Pass socketId if available in PlayerState
+    addMemberToRoom(room, p.id, p.name, (p as any).socketId);
+  } else {
+    // Update socketId for existing member if provided
+    if ((p as any).socketId) {
+      const member = room.members.find(m => m.userId === p.id);
+      if (member) {
+        member.socketId = (p as any).socketId;
+      }
+    }
   }
 }
 
@@ -411,6 +420,23 @@ export function validateReconnectToken(token: string, roomId: string): string | 
   }
   if (entry.roomId !== roomId) return null;
   return entry.playerId; // Return the playerId (identityId)
+}
+
+/**
+ * Clear all reconnect tokens for a specific room
+ */
+function clearReconnectTokensForRoom(roomId: string): void {
+  const tokensToDelete: string[] = [];
+  
+  for (const [token, entry] of reconnectTokens.entries()) {
+    if (entry.roomId === roomId) {
+      tokensToDelete.push(token);
+    }
+  }
+  
+  for (const token of tokensToDelete) {
+    reconnectTokens.delete(token);
+  }
 }
 
 export function getAllRooms(): Room[] {
@@ -593,6 +619,8 @@ export function leaveMemberRoom(
  */
 export function deleteRoom(roomId: string): void {
   rooms.delete(roomId);
+  // Also clear all reconnect tokens for this room
+  clearReconnectTokensForRoom(roomId);
 }
 
 /**

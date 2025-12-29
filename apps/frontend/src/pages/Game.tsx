@@ -52,7 +52,17 @@ function formatEvent(ev: any, actorName?: string) {
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
 
-const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string; code?: string; onLeave?: () => void; initialRoute?: 'room' | 'game' }> = ({ roomId, playerName, inviteToken, code, onLeave, initialRoute }) => {
+interface GameProps {
+  roomId: string;
+  playerName: string;
+  inviteToken?: string;
+  code?: string;
+  onLeave?: () => void;
+  onRoomChange?: (newRoomId: string) => void;
+  initialRoute?: 'room' | 'game';
+}
+
+const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLeave, onRoomChange, initialRoute }) => {
   const { token } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -66,6 +76,7 @@ const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string;
   const [hasJoined, setHasJoined] = useState<boolean>(false);
   const [controlAs, setControlAs] = useState<string | null>(null);
   const [joinError, setJoinError] = useState<string | null>(null);
+  const [isMatchmakingTransition, setIsMatchmakingTransition] = useState<boolean>(false);
   const playersRef = React.useRef(players);
   React.useEffect(() => {
     playersRef.current = players;
@@ -113,7 +124,16 @@ const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string;
       setPlayers(u.players || []);
       setOwnerId(u.ownerId || null);
       // Store current room in sessionStorage for reconnect on refresh
-      sessionStorage.setItem('zing_current_room', roomId);
+      // Use roomId from the event, not from props (props may be stale during transitions)
+      if (u.roomId) {
+        sessionStorage.setItem('zing_current_room', u.roomId);
+        // Also update App state if roomId changed
+        if (onRoomChange && u.roomId !== roomId) {
+          onRoomChange(u.roomId);
+        }
+        // Reset matchmaking transition flag once we receive room_update for new room
+        setIsMatchmakingTransition(false);
+      }
       // Only match by guestId, don't use playerName (can be outdated)
       if (!myId) {
         const meByGuestId = (u.players || []).find((p: any) => p.id === guestId);
@@ -134,6 +154,28 @@ const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string;
       // Store token with guestId as part of the key to avoid conflicts between different players
       // guestId is per-tab unique, so each player has their own token key
       setReconnectToken(data.roomId, data.token, guestId);
+    });
+
+    s.on('match_found', (data: { roomId: string; mode: string; players: any[] }) => {
+      console.log('match_found: transitioning from old room to new matchmaking room', data.roomId);
+      
+      // Set flag to prevent auto-navigation during transition
+      setIsMatchmakingTransition(true);
+      
+      // Clear reconnect token for old room
+      clearReconnectToken(roomId, guestId);
+      
+      // Update current room in sessionStorage
+      sessionStorage.setItem('zing_current_room', data.roomId);
+      
+      // Update App state with new roomId
+      if (onRoomChange) {
+        onRoomChange(data.roomId);
+      }
+      
+      // Join the new matchmaking room to sync state
+      // The room_update event will automatically update the UI with new room data
+      s.emit('join_room', { roomId: data.roomId, guestId, name: playerName });
     });
 
     s.on('rejoin_error', (err: { reason: string; message?: string }) => {
@@ -235,12 +277,15 @@ const Game: React.FC<{ roomId: string; playerName: string; inviteToken?: string;
 
   // Auto-navigate from /room to /game when game starts
   useEffect(() => {
-    // Only navigate if we're on /room and the game has actually started
-    if (location.pathname === '/room' && computedInGame) {
+    // Only navigate if:
+    // 1. We're on /room path
+    // 2. Game has actually started (computedInGame)
+    // 3. NOT during matchmaking transition (which will handle navigation differently)
+    if (location.pathname === '/room' && computedInGame && !isMatchmakingTransition) {
       console.log('Game started detected (handNumber:', state?.handNumber, '), navigating to /game');
       navigate('/game', { replace: true });
     }
-  }, [computedInGame, location.pathname, navigate, state?.handNumber]);
+  }, [computedInGame, location.pathname, navigate, state?.handNumber, isMatchmakingTransition]);
 
   // Calculate owner status - only use myId comparison to avoid name conflicts
   const isOwner = !!(ownerId && myId && ownerId === myId);

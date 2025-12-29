@@ -174,6 +174,14 @@ class MatchmakingManager {
     const requiredPlayers = mode === '1v1' ? 2 : 4;
     const queue = this.queues[mode];
 
+    // For 2v2, try to match with party + singles first
+    if (mode === '2v2' && this.partyQueues['2v2'].length > 0 && queue.length >= 2) {
+      const partyResult = await this.tryFormPartyWithSingles();
+      if (partyResult.matched) {
+        return partyResult;
+      }
+    }
+
     if (queue.length < requiredPlayers) {
       return { matched: false };
     }
@@ -207,8 +215,9 @@ class MatchmakingManager {
         team: team,
         role: 'player',
         hand: [],
-        taken: []
-      });
+        taken: [],
+        socketId: player.socketId
+      } as any);
     }
 
     // Auto-start the game immediately
@@ -234,6 +243,14 @@ class MatchmakingManager {
    */
   private async tryFormPartyMatch(): Promise<{ matched: boolean; room?: Room; players?: QueueEntry[] }> {
     const partyQueue = this.partyQueues['2v2'];
+
+    // Try party + singles first if available
+    if (partyQueue.length >= 1 && this.queues['2v2'].length >= 2) {
+      const partyWithSinglesResult = await this.tryFormPartyWithSingles();
+      if (partyWithSinglesResult.matched) {
+        return partyWithSinglesResult;
+      }
+    }
 
     if (partyQueue.length < 2) {
       return { matched: false };
@@ -274,8 +291,9 @@ class MatchmakingManager {
         team: player.team,
         role: 'player',
         hand: [],
-        taken: []
-      });
+        taken: [],
+        socketId: player.socketId
+      } as any);
     }
 
     // Auto-start the game
@@ -296,6 +314,83 @@ class MatchmakingManager {
 
     // Return all players from both parties
     const allPlayerEntries = [...party1.players, ...party2.players];
+    return { matched: true, room, players: allPlayerEntries };
+  }
+
+  /**
+   * Try to match 1 party (2 players) with 2 single players for 2v2
+   * Returns { matched: true, room, players } if party + 2 singles found, otherwise { matched: false }
+   */
+  private async tryFormPartyWithSingles(): Promise<{ matched: boolean; room?: Room; players?: QueueEntry[] }> {
+    const partyQueue = this.partyQueues['2v2'];
+    const singlesQueue = this.queues['2v2'];
+
+    if (partyQueue.length < 1 || singlesQueue.length < 2) {
+      return { matched: false };
+    }
+
+    // Take first party and first 2 singles (FIFO)
+    const party = partyQueue.shift()!;
+    const single1 = singlesQueue.shift()!;
+    const single2 = singlesQueue.shift()!;
+
+    // Remove from tracking
+    this.roomInPartyQueue.delete(party.roomId);
+    for (const player of party.players) {
+      this.playerInQueue.delete(player.playerId);
+    }
+    this.playerInQueue.delete(single1.playerId);
+    this.playerInQueue.delete(single2.playerId);
+
+    console.log(`[Matchmaking] 2v2 mixed match formed! Party: ${party.players.map(p => p.playerName).join(', ')}, Singles: ${single1.playerName}, ${single2.playerName}`);
+
+    // Create new matchmaking room
+    const room = createRoom('public');
+    room.ownerId = party.players[0].playerId;
+
+    // Add all 4 players to room
+    // Party players = Team 0, Single players = Team 1
+    const allPlayers = [
+      ...party.players.map(p => ({ ...p, team: 0 })),
+      { ...single1, team: 1 },
+      { ...single2, team: 1 },
+    ];
+
+    for (let i = 0; i < allPlayers.length; i++) {
+      const player = allPlayers[i];
+      
+      joinRoom(room, {
+        id: player.playerId,
+        name: player.playerName,
+        seat: i,
+        team: player.team,
+        role: 'player',
+        hand: [],
+        taken: [],
+        socketId: player.socketId
+      } as any);
+    }
+
+    // Auto-start the game
+    try {
+      await startGame(room);
+      console.log(`[Matchmaking] 2v2 mixed game auto-started for room ${room.id}`);
+    } catch (error) {
+      console.error(`[Matchmaking] Failed to start 2v2 mixed game for room ${room.id}:`, error);
+      // If game start fails, re-queue party and singles
+      partyQueue.push(party);
+      singlesQueue.push(single1, single2);
+      this.roomInPartyQueue.set(party.roomId, party.partyId);
+      for (const player of party.players) {
+        this.playerInQueue.set(player.playerId, '2v2');
+      }
+      this.playerInQueue.set(single1.playerId, '2v2');
+      this.playerInQueue.set(single2.playerId, '2v2');
+      return { matched: false };
+    }
+
+    // Return all players
+    const allPlayerEntries = [...party.players, single1, single2];
     return { matched: true, room, players: allPlayerEntries };
   }
 

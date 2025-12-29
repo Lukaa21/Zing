@@ -176,6 +176,10 @@ setActiveUsers(activeUsers);
             const playerSocket = io.sockets.sockets.get(player.socketId);
             if (playerSocket) {
               playerSocket.join(result.room.id);
+              
+              // Generate reconnect token for the new matchmaking room
+              const reconnectToken = generateAndStoreReconnectToken(result.room.id, player.playerId);
+              
               playerSocket.emit('match_found', {
                 roomId: result.room.id,
                 mode,
@@ -185,6 +189,9 @@ setActiveUsers(activeUsers);
                   team: p.team 
                 }))
               });
+              
+              // Send reconnect token for the matchmaking room
+              playerSocket.emit('reconnect_token', { roomId: result.room.id, token: reconnectToken });
             }
           }
 
@@ -368,6 +375,9 @@ setActiveUsers(activeUsers);
             existingPlayer.name = useName;
           }
           // If names differ, it means this player was given a suffix (like #2), so keep that
+          
+          // Also update member in members array to ensure socketId is synced
+          addMemberToRoom(room, playerId, existingPlayer.name, socket.id);
         } else {
           // Ensure unique name in room
           let finalName = useName;
@@ -1127,12 +1137,19 @@ setActiveUsers(activeUsers);
 
           // Notify all matched players
           for (const player of result.players) {
-            const playerSocket = io.sockets.sockets.get(player.socketId);
+            // Find current active socket for this player by playerId (not using cached socketId)
+            const playerSocket = Array.from(io.sockets.sockets.values()).find(
+              (s) => s.data.identity?.id === player.playerId
+            );
+            
             if (playerSocket) {
               // Leave old room
               playerSocket.leave(roomId);
               // Join new matchmaking room
               playerSocket.join(result.room.id);
+              
+              // Generate new reconnect token for the new room
+              const reconnectToken = generateAndStoreReconnectToken(result.room.id, player.playerId);
               
               playerSocket.emit('match_found', {
                 roomId: result.room.id,
@@ -1143,6 +1160,9 @@ setActiveUsers(activeUsers);
                   team: p.team 
                 }))
               });
+              
+              // Send new reconnect token for the matchmaking room
+              playerSocket.emit('reconnect_token', { roomId: result.room.id, token: reconnectToken });
             }
           }
 
