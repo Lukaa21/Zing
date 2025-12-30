@@ -97,22 +97,23 @@ export function createRoom(visibility?: 'public' | 'private', creatorId?: string
 }
 
 export async function startGame(room: Room, options?: { customTeams?: { team0: string[], team1: string[] } }) {
-  // require 2 or 4 players to start
-  if (room.players.length !== 2 && room.players.length !== 4) {
+  // require 2 or 4 players to start (filter only PLAYER roles, not spectators)
+  const activePlayers = room.players.filter(p => p.role === 'player');
+  if (activePlayers.length !== 2 && activePlayers.length !== 4) {
     throw new Error('game_start_requires_2_or_4_players');
   }
   const gameId = randomUUID();
   const seed = randomUUID();
   const dealerSeat = 0;
   
-  // Map players with team assignment
+  // Map players with team assignment (use only active players, exclude spectators)
   let players: PlayerState[];
   
-  if (options?.customTeams && room.players.length === 4) {
+  if (options?.customTeams && activePlayers.length === 4) {
     // Use custom team assignment for 2v2 party
     const { team0, team1 } = options.customTeams;
     
-    players = room.players.map((p, idx) => {
+    players = activePlayers.map((p, idx) => {
       // Determine team based on custom assignment
       const isTeam0 = team0.includes(p.id);
       const team = isTeam0 ? 0 : 1;
@@ -121,7 +122,7 @@ export async function startGame(room: Room, options?: { customTeams?: { team0: s
     });
   } else {
     // Default: alternating teams (0, 1, 0, 1)
-    players = room.players.map((p, idx) => ({ ...p, hand: [], taken: [], seat: idx, team: idx % 2 }));
+    players = activePlayers.map((p, idx) => ({ ...p, hand: [], taken: [], seat: idx, team: idx % 2 }));
   }
   
   const state: GameState = {
@@ -504,6 +505,13 @@ export function setMemberRole(
   }
 
   member.roleInRoom = newRole;
+  
+  // Sync with legacy room.players array
+  const legacyPlayer = room.players.find(p => p.id === targetUserId);
+  if (legacyPlayer) {
+    legacyPlayer.role = newRole === 'PLAYER' ? 'player' : 'spectator';
+  }
+  
   return member;
 }
 

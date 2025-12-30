@@ -14,6 +14,7 @@ interface InGameViewProps {
   playerName: string;
   logs: string[];
   devMode: boolean;
+  isSpectator?: boolean;
   controlAs: string | null;
   setDevMode: (v: boolean) => void;
   setControlAs: (id: string | null) => void;
@@ -27,6 +28,7 @@ const InGameView: React.FC<InGameViewProps> = ({
   playerName,
   logs,
   devMode,
+  isSpectator = false,
   controlAs,
   setDevMode,
   setControlAs,
@@ -118,6 +120,20 @@ const InGameView: React.FC<InGameViewProps> = ({
                     {p.name} {p.id === state?.currentTurnPlayerId ? '← turn' : ''}
                   </div>
                   <Hand cards={p.hand || []} onPlay={(id) => onPlay(id, p.id)} disabled={!(controlAs === p.id)} />
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : isSpectator ? (
+          <div>
+            <h3>All Hands (Spectator View)</h3>
+            <div>
+              {state?.players?.filter((p: any) => p.role !== 'spectator').map((p: any) => (
+                <div key={p.id} style={{ marginBottom: 12 }}>
+                  <div style={{ fontWeight: 'bold' }}>
+                    {p.name} {p.id === state?.currentTurnPlayerId ? '← turn' : ''}
+                  </div>
+                  <Hand cards={p.hand || []} onPlay={(id) => onPlay(id, p.id)} disabled={true} />
                 </div>
               ))}
             </div>

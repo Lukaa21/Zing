@@ -802,12 +802,27 @@ setActiveUsers(activeUsers);
 
       try {
         const updatedMember = setMemberRole(roomId, targetUserId, role, requesterId);
+        const room = getRoom(roomId);
 
         // Emit role change to all room members
         io.to(roomId).emit('role_changed', {
           userId: updatedMember.userId,
           newRole: updatedMember.roleInRoom,
         });
+        
+        // Emit room_update to sync frontend state with updated roles
+        if (room) {
+          io.to(roomId).emit('room_update', {
+            roomId: room.id,
+            players: room.players.map(p => ({
+              id: p.id,
+              name: p.name,
+              role: p.role,
+              taken: p.taken || []
+            })),
+            ownerId: room.ownerId
+          });
+        }
 
         logger.info({ roomId, targetUserId, role, requesterId }, 'Member role changed');
 

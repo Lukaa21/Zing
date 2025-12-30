@@ -103,7 +103,12 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
     s.off('game_event');
     s.off('room_update');
     s.off('join_error');
-    s.on('game_state', (sState: any) => { const st = sState?.state || sState; setState(st); setPlayers(st?.players || []);
+    s.on('game_state', (sState: any) => { 
+      const st = sState?.state || sState; 
+      console.log('game_state received:', st);
+      setState(st); 
+      // DON'T overwrite players from room_update - it contains spectators which game_state doesn't have
+      // setPlayers(st?.players || []);
       // Only try to infer myId from game_state if we don't have it yet
       // Match by guestId only, don't use playerName as it can be outdated
       if (!myId) {
@@ -292,6 +297,10 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
 
   // Calculate start-enabled (2 or 4 players)
   const isStartEnabled = players.length === 2 || players.length === 4;
+  
+  // Check if current user is a spectator (only check room players, not game state players)
+  // Game state players only contains active players, not spectators
+  const isSpectator = players.find(p => p.id === myId)?.role === 'spectator';
 
   return (
     <div className="game container">
@@ -305,6 +314,7 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
             playerName={playerName}
             logs={logs}
             devMode={devMode}
+            isSpectator={isSpectator}
             controlAs={controlAs}
             setDevMode={setDevMode}
             setControlAs={setControlAs}

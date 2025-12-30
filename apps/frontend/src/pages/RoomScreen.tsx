@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useRoomState } from '../hooks/useRoomState';
 import { getSocket } from '../services/socket';
+import { useAuth } from '../context/AuthContext';
 import InviteModal from '../components/InviteModal';
 import TeamSelectionModal from '../components/TeamSelectionModal';
 import FriendInvitePanel from '../components/FriendInvitePanel';
@@ -17,6 +18,7 @@ interface RoomScreenProps {
 
 const RoomScreen: React.FC<RoomScreenProps> = ({ roomId, myId, playerName, initialPlayers, initialOwnerId, onLeave }) => {
   const socket = getSocket();
+  const { authUser } = useAuth();
   const { roomState, pendingInvites, error, inMatchmaking, actions } = useRoomState({
     socket,
     currentUserId: myId,
@@ -80,13 +82,18 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomId, myId, playerName, initi
 
       {/* Room Header */}
       <div className="room-screen__header">
-        <h2>Room {roomId}</h2>
-        <button 
-          className="room-screen__invite-btn"
-          onClick={() => setShowInvitePanel(!showInvitePanel)}
-        >
-          Invite Friends
-        </button>
+        <div>
+          <h2>Room {roomId}</h2>
+          <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#666' }}>Playing as: {playerName}</p>
+        </div>
+        {authUser && (
+          <button 
+            className="room-screen__invite-btn"
+            onClick={() => setShowInvitePanel(!showInvitePanel)}
+          >
+            Invite Friends
+          </button>
+        )}
       </div>
 
       {/* Member List */}
