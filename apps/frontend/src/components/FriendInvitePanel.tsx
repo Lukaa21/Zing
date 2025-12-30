@@ -6,12 +6,14 @@ import '../styles/FriendInvitePanel.css';
 
 interface FriendInvitePanelProps {
   currentRoomId: string;
+  currentMembers?: Array<{ userId: string }>; // Members already in the room
   onSendInvite: (friendId: string) => void;
   onClose: () => void;
 }
 
 const FriendInvitePanel: React.FC<FriendInvitePanelProps> = ({
   currentRoomId,
+  currentMembers = [],
   onSendInvite,
   onClose,
 }) => {
@@ -67,7 +69,9 @@ const FriendInvitePanel: React.FC<FriendInvitePanelProps> = ({
     setSentInvites(prev => new Set(prev).add(friendId));
   };
 
-  const onlineFriends = friends.filter(f => f.isOnline);
+  // Filter online friends, excluding those already in the room
+  const memberIds = new Set(currentMembers.map(m => m.userId));
+  const onlineFriends = friends.filter(f => f.isOnline && !memberIds.has(f.friendId));
 
   return (
     <div className="friend-panel-overlay" onClick={onClose}>

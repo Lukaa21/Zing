@@ -16,6 +16,7 @@ import {
   SentRequest,
 } from '../services/friends';
 import { getSocket } from '../services/socket';
+import { setReconnectToken } from '../utils/guest';
 
 export default function FriendsPage() {
   const { authUser, token } = useAuth();
@@ -24,6 +25,7 @@ export default function FriendsPage() {
   const [friends, setFriends] = useState<FriendWithStatus[]>([]);
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [sentRequests, setSentRequests] = useState<SentRequest[]>([]);
+  const [gameInvites, setGameInvites] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,7 +33,7 @@ export default function FriendsPage() {
   const [addFriendError, setAddFriendError] = useState<string | null>(null);
   const [addFriendSuccess, setAddFriendSuccess] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<'friends' | 'requests' | 'sent'>('friends');
+  const [activeTab, setActiveTab] = useState<'friends' | 'requests' | 'sent' | 'invites'>('friends');
 
   // Redirect if not logged in
   useEffect(() => {
@@ -47,7 +49,7 @@ export default function FriendsPage() {
     }
   }, [token]);
 
-  // Listen for online/offline events
+  // Listen for online/offline events and game invites
   useEffect(() => {
     const s = getSocket();
     if (!s) return;
@@ -68,14 +70,51 @@ export default function FriendsPage() {
       );
     };
 
+    const handleInviteReceived = (data: any) => {
+      setGameInvites((prev) => [data, ...prev]);
+    };
+
+    const handlePendingInvites = (data: { invites: any[] }) => {
+      setGameInvites(data.invites);
+    };
+
+    const handleInviteAccepted = (data: { inviteId: string; roomId: string; reconnectToken?: string }) => {
+      // Remove from local list
+      setGameInvites((prev) => prev.filter(inv => inv.inviteId !== data.inviteId));
+      // Save room ID
+      sessionStorage.setItem('zing_current_room', data.roomId);
+      // Save reconnect token using playerId
+      if (data.reconnectToken && authUser?.id) {
+        setReconnectToken(data.roomId, data.reconnectToken, authUser.id);
+      }
+      // Navigate to room
+      navigate('/room');
+    };
+
+    const handleInviteDeclined = (data: { inviteId: string }) => {
+      // Remove from local list
+      setGameInvites((prev) => prev.filter(inv => inv.inviteId !== data.inviteId));
+    };
+
     s.on('user_online', handleUserOnline);
     s.on('user_offline', handleUserOffline);
+    s.on('invite_received', handleInviteReceived);
+    s.on('pending_invites', handlePendingInvites);
+    s.on('invite_accepted', handleInviteAccepted);
+    s.on('invite_declined', handleInviteDeclined);
+
+    // Request pending invites on mount
+    s.emit('get_pending_invites');
 
     return () => {
       s.off('user_online', handleUserOnline);
       s.off('user_offline', handleUserOffline);
+      s.off('invite_received', handleInviteReceived);
+      s.off('pending_invites', handlePendingInvites);
+      s.off('invite_accepted', handleInviteAccepted);
+      s.off('invite_declined', handleInviteDeclined);
     };
-  }, []);
+  }, [navigate]);
 
   const loadData = async () => {
     if (!token) return;
@@ -156,6 +195,18 @@ export default function FriendsPage() {
     } catch (err: any) {
       setError(err.message || 'Failed to remove friend');
     }
+  };
+
+  const handleAcceptInvite = (inviteId: string) => {
+    const s = getSocket();
+    if (!s) return;
+    s.emit('accept_invite', { inviteId });
+  };
+
+  const handleDeclineInvite = (inviteId: string) => {
+    const s = getSocket();
+    if (!s) return;
+    s.emit('decline_invite', { inviteId });
   };
 
   if (!authUser || !token) {
@@ -278,6 +329,20 @@ export default function FriendsPage() {
           }}
         >
           Sent ({sentRequests.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('invites')}
+          style={{
+            padding: '0.5rem 1rem',
+            fontSize: '1rem',
+            cursor: 'pointer',
+            borderRadius: '4px',
+            border: '1px solid #ccc',
+            backgroundColor: activeTab === 'invites' ? '#007bff' : '#fff',
+            color: activeTab === 'invites' ? '#fff' : '#000',
+          }}
+        >
+          Game Invites ({gameInvites.length})
         </button>
       </div>
 
@@ -449,6 +514,70 @@ export default function FriendsPage() {
                   <p style={{ color: '#999', fontSize: '0.8rem', fontStyle: 'italic', margin: '0.25rem 0 0 0' }}>
                     Waiting for response...
                   </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Game Invites */}
+      {!loading && activeTab === 'invites' && (
+        <div>
+          <h2 style={{ marginBottom: '1rem' }}>Game Invites</h2>
+          {gameInvites.length === 0 ? (
+            <p style={{ color: '#666' }}>No pending game invites.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {gameInvites.map((invite) => (
+                <div
+                  key={invite.inviteId}
+                  style={{
+                    backgroundColor: '#fff',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    padding: '1rem',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <div>
+                    <strong style={{ fontSize: '1.1rem' }}>{invite.inviterUsername}</strong>
+                    <p style={{ color: '#666', fontSize: '0.85rem', margin: '0.25rem 0 0 0' }}>
+                      Invited you to play • {new Date(invite.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      onClick={() => handleAcceptInvite(invite.inviteId)}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        fontSize: '0.9rem',
+                        cursor: 'pointer',
+                        borderRadius: '4px',
+                        border: 'none',
+                        backgroundColor: '#28a745',
+                        color: '#fff',
+                      }}
+                    >
+                      Accept
+                    </button>
+                    <button
+                      onClick={() => handleDeclineInvite(invite.inviteId)}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        fontSize: '0.9rem',
+                        cursor: 'pointer',
+                        borderRadius: '4px',
+                        border: '1px solid #dc3545',
+                        backgroundColor: '#fff',
+                        color: '#dc3545',
+                      }}
+                    >
+                      Decline
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

@@ -221,6 +221,7 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomId, myId, playerName, initi
       {showInvitePanel && (
         <FriendInvitePanel
           currentRoomId={roomId}
+          currentMembers={roomState.members}
           onSendInvite={actions.sendInvite}
           onClose={() => setShowInvitePanel(false)}
         />

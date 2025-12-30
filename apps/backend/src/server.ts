@@ -421,7 +421,7 @@ setActiveUsers(activeUsers);
       }
     });
 
-    socket.on('rejoin_room', ({ roomId, reconnectToken }: any) => {
+    socket.on('rejoin_room', async ({ roomId, reconnectToken }: any) => {
       logger.info({ clientId: socket.id, roomId, reconnectToken: reconnectToken?.slice(0, 8) + '...' }, 'rejoin_room: attempting rejoin');
       
       const room = getRoom(roomId);
@@ -439,27 +439,51 @@ setActiveUsers(activeUsers);
         return;
       }
 
-      // Find player by playerId in the room
+      // Find member by playerId in the room (check members first, fallback to legacy players)
+      let member = room.members?.find((m: any) => m.userId === playerId);
       const player = room.players.find((p: any) => p.id === playerId);
-      if (!player) {
+      
+      if (!member && !player) {
         logger.error({ roomId, playerId }, 'rejoin_room: player not found in room');
         socket.emit('rejoin_error', { reason: 'player_not_found' });
         return;
       }
 
-      // Update player connection
+      // Update member/player connection
       logger.info({ roomId, playerId, newSocketId: socket.id }, 'rejoin_room: reconnecting player');
-      player.socketId = socket.id;
-      player.connected = true;
+      
+      if (member) {
+        member.socketId = socket.id;
+      }
+      if (player) {
+        player.socketId = socket.id;
+        player.connected = true;
+      }
+      
       socket.join(roomId);
       
-      // Set socket identity to the rejoined player (guest identity)
-      socket.data.identity = { type: 'guest', id: playerId };
-      socket.data.displayName = player.name;
-      socket.data.user = { id: playerId, name: player.name, role: player.role || 'player' };
+      // Get name from member or player
+      const playerName = member?.name || player?.name || 'Player';
+      const playerRole = player?.role || 'player';
+      
+      // Determine identity type: check if this playerId corresponds to an authenticated user
+      let identityType: 'user' | 'guest' = 'guest';
+      try {
+        const user = await prisma.user.findUnique({ where: { id: playerId } });
+        if (user) {
+          identityType = 'user';
+        }
+      } catch (err) {
+        // If lookup fails, default to 'guest'
+      }
+      
+      // Set socket identity to the rejoined player
+      socket.data.identity = { type: identityType, id: playerId };
+      socket.data.displayName = playerName;
+      socket.data.user = { id: playerId, name: playerName, role: playerRole };
       
       // Send auth_ok to confirm identity
-      socket.emit('auth_ok', { id: playerId, name: player.name, role: player.role, type: 'guest' });
+      socket.emit('auth_ok', { id: playerId, name: playerName, role: playerRole, type: identityType });
 
       // Send reconnect token again for next refresh
       const newReconnectToken = generateAndStoreReconnectToken(roomId, playerId);
@@ -470,10 +494,17 @@ setActiveUsers(activeUsers);
         socket.emit('game_state', room.state);
       }
 
-      // Notify all players in room
+      // Notify all players in room (include both members and legacy players)
       io.to(roomId).emit('room_update', { 
         roomId, 
-        players: room.players.map((p: any) => ({ id: p.id, name: p.name ?? p.id, role: p.role, taken: p.taken, connected: p.connected ?? true })), 
+        players: room.players.map((p: any) => ({ id: p.id, name: p.name ?? p.id, role: p.role, taken: p.taken, connected: p.connected ?? true })),
+        members: room.members?.map(m => ({
+          userId: m.userId,
+          name: m.name,
+          roleInRoom: m.roleInRoom,
+          joinedAt: m.joinedAt,
+        })) || [],
+        hostId: room.hostId,
         ownerId: room.ownerId 
       });
 
@@ -664,19 +695,40 @@ setActiveUsers(activeUsers);
 
         // Add invitee as member
         addMemberToRoom(room, userId, socket.data.displayName || 'Player', socket.id);
+        
+        // Debug: log room state after adding member
+        logger.info({ 
+          roomId: acceptedInvite.roomId, 
+          userId,
+          membersCount: room.members.length,
+          playersCount: room.players.length,
+          members: room.members.map(m => m.userId),
+          players: room.players.map(p => p.id)
+        }, 'accept_invite: added member to room');
 
         // Join socket to room
         socket.join(acceptedInvite.roomId);
+
+        // Generate reconnect token for the invitee
+        const reconnectToken = generateAndStoreReconnectToken(acceptedInvite.roomId, userId);
 
         // Emit acceptance confirmation to invitee
         socket.emit('invite_accepted', {
           inviteId,
           roomId: acceptedInvite.roomId,
+          reconnectToken,
         });
 
         // Emit room update to all members
         io.to(acceptedInvite.roomId).emit('room_update', {
           roomId: room.id,
+          players: room.players.map((p: any) => ({ 
+            id: p.id, 
+            name: p.name ?? p.id, 
+            role: p.role, 
+            taken: p.taken,
+            connected: p.connected ?? true 
+          })),
           members: room.members.map(m => ({
             userId: m.userId,
             name: m.name,

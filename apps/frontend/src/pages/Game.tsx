@@ -85,10 +85,12 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
   useEffect(() => {
     const s = connect(playerName, 'player', token || undefined);
     const guestId = getOrCreateGuestId();
+    let actualPlayerId: string | null = null;
     
     // Listen for auth_ok to get the correct ID (either userId or guestId)
     const authOkHandler = (auth: any) => {
       console.log('auth_ok received:', auth);
+      actualPlayerId = auth.id;
       setMyId(auth.id);
     };
     
@@ -167,8 +169,9 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
       // Set flag to prevent auto-navigation during transition
       setIsMatchmakingTransition(true);
       
-      // Clear reconnect token for old room
-      clearReconnectToken(roomId, guestId);
+      // Clear reconnect token for old room (use actualPlayerId if available)
+      const playerId = actualPlayerId || guestId;
+      clearReconnectToken(roomId, playerId);
       
       // Update current room in sessionStorage
       sessionStorage.setItem('zing_current_room', data.roomId);
@@ -187,7 +190,8 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
       const errorMsg = err.message || `Failed to rejoin room: ${err.reason}`;
       console.warn('rejoin_error', err);
       // Rejoin failed, clear the token and try normal join_room
-      clearReconnectToken(roomId, guestId);
+      const playerId = actualPlayerId || guestId;
+      clearReconnectToken(roomId, playerId);
       
       const joinPayload: any = { roomId, guestId, name: playerName };
       if (code && typeof code === 'string') joinPayload.code = code;
@@ -205,19 +209,19 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
       s.emit('auth', { token: token || undefined, guestId, name: playerName, role: 'player' });
     });
 
-    // Try to rejoin with stored token first (if available)
-    // If rejoin succeeds, auth will be handled by the server
-    // If rejoin fails, rejoin_error handler will emit auth + join_room
+    // Wait a bit for auth_ok to arrive, then try to rejoin or join normally
     if (!hasJoined) {
-      const storedToken = getReconnectToken(roomId, guestId);
-      if (storedToken) {
-        console.log('Game.tsx: attempting rejoin with stored token for guestId', guestId);
-        s.emit('rejoin_room', { roomId, guestId, reconnectToken: storedToken });
-        setHasJoined(true);
-      } else {
-        // No stored token, do normal auth + join_room
-        // IMPORTANT: Wait for auth_ok before joining to ensure socket.data.identity is set
-        console.log('Game.tsx: no reconnect token, doing normal auth + join');
+      setTimeout(() => {
+        const playerId = actualPlayerId || guestId;
+        const storedToken = getReconnectToken(roomId, playerId);
+        if (storedToken) {
+          console.log('Game.tsx: attempting rejoin with stored token for playerId', playerId);
+          s.emit('rejoin_room', { roomId, guestId, reconnectToken: storedToken });
+          setHasJoined(true);
+        } else {
+          // No stored token, do normal auth + join_room
+          // IMPORTANT: Wait for auth_ok before joining to ensure socket.data.identity is set
+          console.log('Game.tsx: no reconnect token, doing normal auth + join');
         
         const joinPayload: any = { roomId, guestId, name: playerName };
         if (code && typeof code === 'string') joinPayload.code = code;
@@ -233,7 +237,8 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
         
         s.emit('auth', { token: token || undefined, guestId, name: playerName, role: 'player' });
         setHasJoined(true);
-      }
+        }
+      }, 100); // Wait 100ms for auth_ok
     }
     setSocket(s);
     // Do not disconnect here; socket is shared across views

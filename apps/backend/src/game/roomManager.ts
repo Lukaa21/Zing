@@ -458,6 +458,14 @@ export function addMemberToRoom(room: Room, userId: string, name: string, socket
   if (existing) {
     // Update socket if provided
     if (socketId) existing.socketId = socketId;
+    
+    // Also update legacy players array if exists
+    const legacyPlayer = room.players.find(p => p.id === userId);
+    if (legacyPlayer && socketId) {
+      legacyPlayer.socketId = socketId;
+      legacyPlayer.connected = true;
+    }
+    
     return existing;
   }
 
@@ -470,6 +478,25 @@ export function addMemberToRoom(room: Room, userId: string, name: string, socket
   };
 
   room.members.push(member);
+
+  // Sync to legacy players array (for backwards compatibility)
+  const existingLegacyPlayer = room.players.find(p => p.id === userId);
+  if (!existingLegacyPlayer) {
+    room.players.push({
+      id: userId,
+      name,
+      role: 'player',
+      hand: [],
+      taken: [],
+      socketId,
+      connected: true,
+    });
+  } else {
+    // Update existing legacy player
+    existingLegacyPlayer.name = name;
+    existingLegacyPlayer.socketId = socketId;
+    existingLegacyPlayer.connected = true;
+  }
 
   // If this is the first member and no host, make them host
   if (!room.hostId) {
