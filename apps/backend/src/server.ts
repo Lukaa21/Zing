@@ -12,6 +12,7 @@ import * as inviteRepo from './services/inviteRepository';
 import cors from 'cors';
 import authRoutes from './auth/routes';
 import friendRoutes, { setActiveUsers } from './friends/routes';
+import matchRoutes from './matches/routes';
 import { verifyToken } from './auth/jwt';
 import { prisma } from './db/prisma';
 
@@ -41,6 +42,9 @@ app.use('/api/auth', authRoutes);
 
 // Friend routes
 app.use('/api/friends', friendRoutes);
+
+// Match history routes
+app.use('/api/matches', matchRoutes);
 
 // Track active users globally
 const activeUsers = new Set<string>();
@@ -438,7 +442,8 @@ setActiveUsers(activeUsers);
           // If names differ, it means this player was given a suffix (like #2), so keep that
           
           // Also update member in members array to ensure socketId is synced
-          addMemberToRoom(room, playerId, existingPlayer.name, socket.id);
+          const isAuthenticated = socket.data.identity?.type === 'user';
+          addMemberToRoom(room, playerId, existingPlayer.name, socket.id, isAuthenticated);
         } else {
           // Ensure unique name in room
           let finalName = useName;
@@ -463,7 +468,8 @@ setActiveUsers(activeUsers);
           });
           
           // Also add to members array for invite system tracking
-          addMemberToRoom(room, playerId, finalName, socket.id);
+          const isAuthenticated = socket.data.identity?.type === 'user';
+          addMemberToRoom(room, playerId, finalName, socket.id, isAuthenticated);
         }
         
         logger.info({ roomId: actualRoomId, playersAfterJoin: room.players.map((p: any) => ({ id: p.id, name: p.name })) }, 'join_room: emitting room_update');
@@ -663,7 +669,8 @@ setActiveUsers(activeUsers);
           isNewRoom = true;
 
           // Add sender as member (host)
-          addMemberToRoom(newRoom, senderId, socket.data.displayName || 'Player', socket.id);
+          const isAuthenticated = socket.data.identity?.type === 'user';
+          addMemberToRoom(newRoom, senderId, socket.data.displayName || 'Player', socket.id, isAuthenticated);
           
           // Join socket to room
           socket.join(roomId);
@@ -760,7 +767,8 @@ setActiveUsers(activeUsers);
         }
 
         // Add invitee as member
-        addMemberToRoom(room, userId, socket.data.displayName || 'Player', socket.id);
+        const isAuthenticated = socket.data.identity?.type === 'user';
+        addMemberToRoom(room, userId, socket.data.displayName || 'Player', socket.id, isAuthenticated);
         
         // Debug: log room state after adding member
         logger.info({ 
@@ -1189,6 +1197,7 @@ setActiveUsers(activeUsers);
         }
 
         // Start game using existing logic
+        room.mode = '1v1';
         const state = await startGame(room);
         
         // Emit hands_dealt event
@@ -1515,6 +1524,7 @@ setActiveUsers(activeUsers);
         }));
 
         // Start game with custom team assignment
+        room.mode = '2v2';
         const state = await startGame(room, { 
           customTeams: teamAssignment 
         });

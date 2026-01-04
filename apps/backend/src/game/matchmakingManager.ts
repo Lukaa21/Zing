@@ -198,6 +198,7 @@ class MatchmakingManager {
 
     // Create room and add players
     const room = createRoom('public', undefined, true); // Matchmaking rooms always have timer enabled
+    room.mode = mode;
     room.ownerId = matchedPlayers[0].playerId; // First player is nominal owner
 
     // Shuffle players for 2v2 to randomize team assignment
@@ -272,6 +273,7 @@ class MatchmakingManager {
 
     // Create new matchmaking room with timer enabled
     const room = createRoom('public', undefined, true);
+    room.mode = '2v2';
     room.ownerId = party1.players[0].playerId;
 
     // Add all 4 players to room
@@ -346,6 +348,7 @@ class MatchmakingManager {
 
     // Create new matchmaking room with timer enabled
     const room = createRoom('public', undefined, true);
+    room.mode = '2v2';
     room.ownerId = party.players[0].playerId;
 
     // Add all 4 players to room

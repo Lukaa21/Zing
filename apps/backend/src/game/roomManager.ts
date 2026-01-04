@@ -29,6 +29,7 @@ export type RoomMember = {
   roleInRoom: RoomRole;
   joinedAt: Date;
   socketId?: string; // Current socket connection
+  isAuthenticated?: boolean; // True if authenticated user, false/undefined for guest
 };
 
 export type Room = {
@@ -60,6 +61,9 @@ export type Room = {
     expiresAt: number; // timestamp when timer expires
     timeoutId: NodeJS.Timeout;
   };
+  // game mode and start time for match history
+  mode?: '1v1' | '2v2';
+  gameStartedAt?: Date;
 };
 
 const rooms: Map<string, Room> = new Map();
@@ -174,7 +178,68 @@ export async function startGame(room: Room, options?: { customTeams?: { team0: s
   room.seq++;
   await appendGameEvent(gameId, room.seq, handsEv.type, handsEv.actor, handsEv.payload);
   room.state = state;
+  room.gameStartedAt = new Date();
   return state;
+}
+
+// Save match history to database when a match ends
+async function saveMatchHistory(room: Room, winnerTeam: number, finalScores: { team0: number; team1: number }) {
+  if (!room.state || !process.env.DATABASE_URL) return;
+
+  const mode = room.mode || (room.state.players.length === 2 ? '1v1' : '2v2');
+  const duration = room.gameStartedAt 
+    ? Math.floor((Date.now() - room.gameStartedAt.getTime()) / 1000) 
+    : null;
+
+  // Map players by team
+  const team0Players = room.state.players.filter(p => p.team === 0);
+  const team1Players = room.state.players.filter(p => p.team === 1);
+
+  console.log('[Match History] Team 0 players:', team0Players.map(p => ({ id: p.id, name: p.name })));
+  console.log('[Match History] Team 1 players:', team1Players.map(p => ({ id: p.id, name: p.name })));
+  console.log('[Match History] Room members:', room.members?.map(m => ({ userId: m.userId, name: m.name, isAuthenticated: m.isAuthenticated })));
+
+  // Helper to extract userId from player - check if user is authenticated
+  const extractUserId = (playerId: string): string | null => {
+    console.log('[Match History] Checking playerId:', playerId);
+    
+    // Find matching member in room
+    const member = room.members?.find(m => m.userId === playerId);
+    if (member) {
+      console.log('[Match History] Found member:', member.userId, 'isAuthenticated:', member.isAuthenticated);
+      // Return userId only if authenticated
+      if (member.isAuthenticated) {
+        console.log('[Match History] Authenticated user, returning userId:', playerId);
+        return playerId;
+      }
+    }
+    
+    console.log('[Match History] Guest player, returning null');
+    return null; // Guest player
+  };
+
+  try {
+    await prisma.matchHistory.create({
+      data: {
+        mode,
+        winnerTeam,
+        team0Score: finalScores.team0,
+        team1Score: finalScores.team1,
+        team0Player1Id: team0Players[0] ? extractUserId(team0Players[0].id) : null,
+        team0Player1Name: team0Players[0]?.name || 'Unknown',
+        team0Player2Id: team0Players[1] ? extractUserId(team0Players[1].id) : null,
+        team0Player2Name: team0Players[1]?.name || null,
+        team1Player1Id: team1Players[0] ? extractUserId(team1Players[0].id) : null,
+        team1Player1Name: team1Players[0]?.name || 'Unknown',
+        team1Player2Id: team1Players[1] ? extractUserId(team1Players[1].id) : null,
+        team1Player2Name: team1Players[1]?.name || null,
+        duration,
+      }
+    });
+    console.log('Match history saved successfully');
+  } catch (err) {
+    console.warn('Failed to save match history:', err);
+  }
 }
 
 // Finalize a round: compute round scores, update cumulative match scores,
@@ -236,6 +301,9 @@ export async function finalizeRound(room: Room) {
     room.seq++;
     await appendGameEvent(state.id, room.seq, matchEnd.type, matchEnd.actor, matchEnd.payload);
     emitted.push(matchEnd);
+
+    // Save match history
+    await saveMatchHistory(room, winner, { team0: t0, team1: t1 });
 
     // best-effort DB update
     if (process.env.DATABASE_URL) {
@@ -469,12 +537,14 @@ export function getAllRooms(): Room[] {
  * Add member to room
  * Default role: PLAYER
  */
-export function addMemberToRoom(room: Room, userId: string, name: string, socketId?: string): RoomMember {
+export function addMemberToRoom(room: Room, userId: string, name: string, socketId?: string, isAuthenticated?: boolean): RoomMember {
   // Check if already a member
   const existing = room.members.find(m => m.userId === userId);
   if (existing) {
     // Update socket if provided
     if (socketId) existing.socketId = socketId;
+    // Update isAuthenticated if provided
+    if (isAuthenticated !== undefined) existing.isAuthenticated = isAuthenticated;
     
     // Also update legacy players array if exists
     const legacyPlayer = room.players.find(p => p.id === userId);
@@ -492,6 +562,7 @@ export function addMemberToRoom(room: Room, userId: string, name: string, socket
     roleInRoom: 'PLAYER',
     joinedAt: new Date(),
     socketId,
+    isAuthenticated,
   };
 
   room.members.push(member);

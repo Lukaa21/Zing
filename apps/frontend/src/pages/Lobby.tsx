@@ -3,10 +3,13 @@ import { Socket } from 'socket.io-client';
 import { connect } from '../services/socket';
 import { getOrCreateGuestId } from '../utils/guest';
 import { useAuth } from '../context/AuthContext';
+import MatchHistory from '../components/MatchHistory';
 
 type LobbyProps = {
   playerName: string;
   onJoin: (roomId: string, name: string, code?: string, inviteToken?: string, directToGame?: boolean) => void;
+  showMatchHistory?: boolean;
+  onMatchHistoryClose?: () => void;
 };
 
 type AccessCredentials = {
@@ -18,7 +21,7 @@ type AccessCredentials = {
 
 type MatchmakingMode = '1v1' | '2v2';
 
-const Lobby: React.FC<LobbyProps> = ({ playerName, onJoin }) => {
+const Lobby: React.FC<LobbyProps> = ({ playerName, onJoin, showMatchHistory, onMatchHistoryClose }) => {
   const { token } = useAuth();
   const [socket, setSocket] = useState<Socket | null>(null);
   const [credentials, setCredentials] = useState<AccessCredentials | null>(null);
@@ -328,6 +331,9 @@ const Lobby: React.FC<LobbyProps> = ({ playerName, onJoin }) => {
         </div>
         {joinError && <p className="error">{joinError}</p>}
       </div>
+
+      {/* MATCH HISTORY MODAL */}
+      {showMatchHistory && <MatchHistory onClose={onMatchHistoryClose || (() => {})} />}
     </div>
   );
 };

@@ -23,6 +23,7 @@ const App: React.FC = () => {
   const [name, setName] = useState<string>('');
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [code, setCode] = useState<string | null>(null);
+  const [showMatchHistory, setShowMatchHistory] = useState<boolean>(false);
 
   React.useEffect(() => {
     if (isLoading) return;
@@ -175,6 +176,7 @@ const App: React.FC = () => {
             <div style={{ textAlign: 'right', padding: 10 }}>
               <span>{authUser.username}</span>
               <button onClick={() => navigate('/friends')} style={{ marginLeft: 10 }}>Friends</button>
+              <button onClick={() => setShowMatchHistory(true)} style={{ marginLeft: 10 }}>Match History</button>
               <button onClick={() => {
                 logout();
                 navigate('/');
@@ -183,6 +185,8 @@ const App: React.FC = () => {
           )}
           <Lobby 
             playerName={name}
+            showMatchHistory={showMatchHistory}
+            onMatchHistoryClose={() => setShowMatchHistory(false)}
             onJoin={(id, playerName, joinCode, joinInviteToken, directToGame) => { 
               setRoomId(id); 
               setName(playerName);

@@ -116,3 +116,31 @@ model RoundScore {
   points    Int
   createdAt DateTime @default(now())
 }
+
+model MatchHistory {
+  id               String   @id @default(uuid())
+  mode             String   // "1v1" or "2v2"
+  winnerTeam       Int      // 0 or 1
+  team0Score       Int
+  team1Score       Int
+  
+  // Team 0 Players
+  team0Player1Id   String?  // NULL for guest players
+  team0Player1Name String
+  team0Player2Id   String?  // NULL for 1v1 or guest
+  team0Player2Name String?  // NULL for 1v1
+  
+  // Team 1 Players
+  team1Player1Id   String?
+  team1Player1Name String
+  team1Player2Id   String?
+  team1Player2Name String?
+  
+  duration         Int?     // duration in seconds
+  createdAt        DateTime @default(now())
+  
+  @@index([team0Player1Id, createdAt])
+  @@index([team0Player2Id, createdAt])
+  @@index([team1Player1Id, createdAt])
+  @@index([team1Player2Id, createdAt])
+}
