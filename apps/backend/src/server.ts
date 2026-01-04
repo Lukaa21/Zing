@@ -5,7 +5,7 @@ import { Server } from 'socket.io';
 import { createAdapter } from 'socket.io-redis';
 import Redis from 'ioredis';
 import pino from 'pino';
-import { createRoom, joinRoom, startGame, getRoom, handleIntent, leaveRoom, removePlayerFromAllRooms, getRoomByAccessCode, validateRoomAccess, generateAndStoreReconnectToken, validateReconnectToken, getAllRooms, addMemberToRoom, setMemberRole, kickMember, leaveMemberRoom, countPlayers, canStart1v1, canStart2v2, getUserCurrentRoom, isHost, RoomRole, deleteRoom, setTeamAssignment, getTeamAssignment, getPlayersInRoom } from './game/roomManager';
+import { createRoom, joinRoom, startGame, getRoom, handleIntent, leaveRoom, removePlayerFromAllRooms, getRoomByAccessCode, validateRoomAccess, generateAndStoreReconnectToken, validateReconnectToken, getAllRooms, addMemberToRoom, setMemberRole, kickMember, leaveMemberRoom, countPlayers, canStart1v1, canStart2v2, getUserCurrentRoom, isHost, RoomRole, deleteRoom, setTeamAssignment, getTeamAssignment, getPlayersInRoom, startTurnTimer, clearTurnTimer, getTurnTimeRemaining } from './game/roomManager';
 import { matchmakingManager } from './game/matchmakingManager';
 import { InviteService } from './services/InviteService';
 import * as inviteRepo from './services/inviteRepository';
@@ -91,6 +91,58 @@ setActiveUsers(activeUsers);
   io.on('connection', (socket) => {
     const { id } = socket;
     logger.info({ clientId: id }, 'Client connected');
+
+    /**
+     * Helper function to start turn timer with auto-play on timeout
+     */
+    const startTurnTimerWithAutoPlay = (roomId: string) => {
+      const room = getRoom(roomId);
+      if (!room || !room.state || !room.timerEnabled || !room.state.currentTurnPlayerId) return;
+
+      startTurnTimer(roomId, room.state.currentTurnPlayerId, async () => {
+        // Timer expired - auto-play first card
+        logger.info({ roomId, playerId: room.state!.currentTurnPlayerId }, 'Turn timer expired - auto-playing first card');
+        const currentPlayer = room.state!.players.find(p => p.id === room.state!.currentTurnPlayerId);
+        if (currentPlayer && currentPlayer.hand.length > 0) {
+          const firstCard = currentPlayer.hand[0];
+          const autoEv = await handleIntent(room, { type: 'play_card', playerId: currentPlayer.id, cardId: firstCard });
+          if (Array.isArray(autoEv)) {
+            for (const e of autoEv) io.to(roomId).emit('game_event', e);
+          } else if (autoEv) {
+            io.to(roomId).emit('game_event', autoEv);
+          }
+          if (room.state) {
+            io.to(roomId).emit('game_state', room.state);
+            // Recursively start timer for next player
+            startTurnTimerWithAutoPlay(roomId);
+          }
+        }
+      });
+
+      // Emit timer start event to all clients
+      io.to(roomId).emit('turn_timer_started', { 
+        playerId: room.state.currentTurnPlayerId,
+        duration: 12000,
+        expiresAt: Date.now() + 12000
+      });
+    };
+
+    /**
+     * Helper function to emit timer event with delay
+     * Ensures all clients received game_state before timer event
+     */
+    const emitTimerEventDelayed = (roomId: string, delay = 100) => {
+      setTimeout(() => {
+        const room = getRoom(roomId);
+        if (room?.state?.currentTurnPlayerId && room.timerEnabled) {
+          io.to(roomId).emit('turn_timer_started', { 
+            playerId: room.state.currentTurnPlayerId,
+            duration: 12000,
+            expiresAt: Date.now() + 12000
+          });
+        }
+      }, delay);
+    };
 
     socket.on('auth', async (payload) => {
       const { token, guestId, name, role } = payload || {};
@@ -220,6 +272,12 @@ setActiveUsers(activeUsers);
               })), 
               ownerId: result.room.ownerId 
             });
+
+            // Start turn timer for first player (matchmaking rooms always have timer)
+            startTurnTimerWithAutoPlay(result.room.id);
+            
+            // Emit timer event with delay to ensure all clients received game_state
+            emitTimerEventDelayed(result.room.id);
           }
         } else {
           // Added to queue, waiting for more players
@@ -271,7 +329,8 @@ setActiveUsers(activeUsers);
 
     // PRIVATE ROOM CREATION (keep for invite-based private games)
     socket.on('create_private_room', (payload: any) => {
-      const room = createRoom('private');
+      const timerEnabled = false; // Default to false, host can toggle later
+      const room = createRoom('private', undefined, timerEnabled);
       let creatorName = socket.data.displayName ?? payload?.name ?? 'guest';
       const creatorId = socket.data.identity?.id ?? socket.id;
       
@@ -296,13 +355,15 @@ setActiveUsers(activeUsers);
       io.to(room.id).emit('room_update', { 
         roomId: room.id, 
         players: room.players.map((p) => ({ id: p.id, name: p.name ?? p.id, role: p.role, taken: p.taken })), 
-        ownerId: room.ownerId 
+        ownerId: room.ownerId,
+        timerEnabled: room.timerEnabled
       });
       socket.emit('room_created', { 
         roomId: room.id, 
         visibility: 'private', 
         accessCode: room.accessCode, 
-        inviteToken: room.inviteToken 
+        inviteToken: room.inviteToken,
+        timerEnabled: room.timerEnabled
       });
     });
 
@@ -548,7 +609,12 @@ setActiveUsers(activeUsers);
         io.to(roomId).emit('game_event', ev);
       }
       // emit updated full state so clients have current view
-      if (room.state) io.to(roomId).emit('game_state', room.state);
+      if (room.state) {
+        io.to(roomId).emit('game_state', room.state);
+        
+        // Start timer for next player's turn if timer enabled
+        startTurnTimerWithAutoPlay(roomId);
+      }
     });
 
     // Dev-only: allow playing a card as another player (for manual multi-player testing)
@@ -885,6 +951,50 @@ setActiveUsers(activeUsers);
     });
 
     /**
+     * Toggle timer setting (host only)
+     * Payload: { roomId: string, enabled: boolean }
+     */
+    socket.on('toggle_timer', ({ roomId, enabled }: { roomId: string; enabled: boolean }) => {
+      const requesterId = socket.data.identity?.id;
+      
+      if (!requesterId) {
+        socket.emit('room_error', { reason: 'NOT_AUTHENTICATED' });
+        return;
+      }
+
+      const room = getRoom(roomId);
+      if (!room) {
+        socket.emit('room_error', { reason: 'ROOM_NOT_FOUND' });
+        return;
+      }
+
+      // Check if requester is host
+      if (room.hostId !== requesterId && room.ownerId !== requesterId) {
+        socket.emit('room_error', { reason: 'NOT_HOST' });
+        return;
+      }
+
+      // Update timer setting
+      room.timerEnabled = enabled;
+
+      // Broadcast update to all room members
+      io.to(roomId).emit('room_update', {
+        roomId: room.id,
+        timerEnabled: enabled,
+        members: room.members?.map(m => ({
+          userId: m.userId,
+          name: m.name,
+          roleInRoom: m.roleInRoom,
+          joinedAt: m.joinedAt,
+        })) || [],
+        hostId: room.hostId,
+        ownerId: room.ownerId
+      });
+
+      logger.info({ roomId, enabled, requesterId }, 'Timer setting toggled');
+    });
+
+    /**
      * Kick member from room (host only)
      * Payload: { roomId: string, targetUserId: string }
      */
@@ -1099,6 +1209,12 @@ setActiveUsers(activeUsers);
           roomId 
         });
 
+        // Start turn timer for first player if timer enabled
+        startTurnTimerWithAutoPlay(roomId);
+        
+        // Emit timer event with delay to ensure all clients received game_state
+        emitTimerEventDelayed(roomId);
+
         logger.info({ roomId, hostId: userId }, '1v1 game started');
 
       } catch (error: any) {
@@ -1257,6 +1373,12 @@ setActiveUsers(activeUsers);
               })), 
               ownerId: result.room.ownerId 
             });
+
+            // Start turn timer for first player (matchmaking rooms always have timer)
+            startTurnTimerWithAutoPlay(result.room.id);
+            
+            // Emit timer event with delay to ensure all clients received game_state
+            emitTimerEventDelayed(result.room.id);
           }
 
           // Delete the old room manually (since members aren't leaving normally)
@@ -1418,6 +1540,12 @@ setActiveUsers(activeUsers);
             team1: teamAssignment.team1
           }
         });
+
+        // Start turn timer for first player if timer enabled
+        startTurnTimerWithAutoPlay(roomId);
+        
+        // Emit timer event with delay to ensure all clients received game_state
+        emitTimerEventDelayed(roomId);
 
         logger.info({ 
           roomId, 

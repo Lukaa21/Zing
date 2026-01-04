@@ -19,6 +19,7 @@ export interface RoomState {
   isHost: boolean;
   playerCount: number;
   teamAssignment: { team0: string[]; team1: string[] } | null;
+  timerEnabled: boolean;
 }
 
 export interface PendingInvite {
@@ -56,6 +57,7 @@ export function useRoomState({ socket, currentUserId, initialRoomId, initialPlay
     isHost: false,
     playerCount: 0,
     teamAssignment: null,
+    timerEnabled: false,
   });
 
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
@@ -94,6 +96,7 @@ export function useRoomState({ socket, currentUserId, initialRoomId, initialPlay
       players?: any[];
       hostId?: string;
       ownerId?: string;
+      timerEnabled?: boolean;
     }) => {
       // Backend emits TWO formats:
       // 1. Invite system: { members: RoomMember[] } - new format
@@ -118,6 +121,7 @@ export function useRoomState({ socket, currentUserId, initialRoomId, initialPlay
         members: updatedMembers || prev.members,
         hostId: effectiveHostId !== undefined ? effectiveHostId : prev.hostId,
         ownerId: data.ownerId !== undefined ? data.ownerId : prev.ownerId,
+        timerEnabled: data.timerEnabled !== undefined ? data.timerEnabled : prev.timerEnabled,
       }));
     };
 
@@ -131,6 +135,7 @@ export function useRoomState({ socket, currentUserId, initialRoomId, initialPlay
         isHost: false,
         playerCount: 0,
         teamAssignment: null,
+        timerEnabled: false,
       });
       setInMatchmaking(false);
       // Navigate back to lobby
@@ -349,6 +354,13 @@ export function useRoomState({ socket, currentUserId, initialRoomId, initialPlay
     setError(null);
   }, []);
 
+  const toggleTimer = useCallback((enabled: boolean) => {
+    if (!socket || !roomState.roomId) return;
+    socket.emit('toggle_timer', { roomId: roomState.roomId, enabled });
+    // Optimistically update local state
+    setRoomState(prev => ({ ...prev, timerEnabled: enabled }));
+  }, [socket, roomState.roomId]);
+
   return {
     roomState,
     pendingInvites,
@@ -367,6 +379,7 @@ export function useRoomState({ socket, currentUserId, initialRoomId, initialPlay
       start2v2Party,
       cancelMatchmaking,
       clearError,
+      toggleTimer,
     },
   };
 }

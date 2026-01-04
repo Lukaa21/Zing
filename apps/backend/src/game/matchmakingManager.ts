@@ -197,7 +197,7 @@ class MatchmakingManager {
     console.log(`[Matchmaking] Match formed for ${mode}! Players:`, matchedPlayers.map(p => p.playerName));
 
     // Create room and add players
-    const room = createRoom('public'); // Matchmaking rooms are public (access controlled by matchmaking, not listed anywhere)
+    const room = createRoom('public', undefined, true); // Matchmaking rooms always have timer enabled
     room.ownerId = matchedPlayers[0].playerId; // First player is nominal owner
 
     // Shuffle players for 2v2 to randomize team assignment
@@ -270,8 +270,8 @@ class MatchmakingManager {
 
     console.log(`[Matchmaking] 2v2 party match formed! Party 1: ${party1.players.map(p => p.playerName).join(', ')}, Party 2: ${party2.players.map(p => p.playerName).join(', ')}`);
 
-    // Create new matchmaking room
-    const room = createRoom('public');
+    // Create new matchmaking room with timer enabled
+    const room = createRoom('public', undefined, true);
     room.ownerId = party1.players[0].playerId;
 
     // Add all 4 players to room
@@ -344,8 +344,8 @@ class MatchmakingManager {
 
     console.log(`[Matchmaking] 2v2 mixed match formed! Party: ${party.players.map(p => p.playerName).join(', ')}, Singles: ${single1.playerName}, ${single2.playerName}`);
 
-    // Create new matchmaking room
-    const room = createRoom('public');
+    // Create new matchmaking room with timer enabled
+    const room = createRoom('public', undefined, true);
     room.ownerId = party.players[0].playerId;
 
     // Add all 4 players to room

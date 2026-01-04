@@ -77,6 +77,8 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
   const [controlAs, setControlAs] = useState<string | null>(null);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [isMatchmakingTransition, setIsMatchmakingTransition] = useState<boolean>(false);
+  const [timerDuration, setTimerDuration] = useState<number | undefined>(undefined);
+  const [timerExpiresAt, setTimerExpiresAt] = useState<number | undefined>(undefined);
   const playersRef = React.useRef(players);
   React.useEffect(() => {
     playersRef.current = players;
@@ -161,6 +163,11 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
       // Store token with guestId as part of the key to avoid conflicts between different players
       // guestId is per-tab unique, so each player has their own token key
       setReconnectToken(data.roomId, data.token, guestId);
+    });
+
+    s.on('turn_timer_started', (data: { playerId: string; duration: number; expiresAt: number }) => {
+      setTimerDuration(data.duration);
+      setTimerExpiresAt(data.expiresAt);
     });
 
     s.on('match_found', (data: { roomId: string; mode: string; players: any[] }) => {
@@ -321,6 +328,8 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
             devMode={devMode}
             isSpectator={isSpectator}
             controlAs={controlAs}
+            timerDuration={timerDuration}
+            timerExpiresAt={timerExpiresAt}
             setDevMode={setDevMode}
             setControlAs={setControlAs}
             onPlay={handlePlay}

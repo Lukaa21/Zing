@@ -52,6 +52,14 @@ export type Room = {
     team0: string[]; // Array of 2 player userIds
     team1: string[]; // Array of 2 player userIds
   };
+  // timer enabled (for turn time limit)
+  timerEnabled?: boolean;
+  // current turn timer (if active)
+  turnTimer?: {
+    playerId: string;
+    expiresAt: number; // timestamp when timer expires
+    timeoutId: NodeJS.Timeout;
+  };
 };
 
 const rooms: Map<string, Room> = new Map();
@@ -74,7 +82,7 @@ setInterval(() => {
   }
 }, 30000); // Check every 30 seconds
 
-export function createRoom(visibility?: 'public' | 'private', creatorId?: string): Room {
+export function createRoom(visibility?: 'public' | 'private', creatorId?: string, timerEnabled?: boolean): Room {
   const id = `room-${Math.random().toString(36).slice(2, 8)}`;
   const room: Room = { 
     id, 
@@ -84,6 +92,7 @@ export function createRoom(visibility?: 'public' | 'private', creatorId?: string
     visibility: visibility || 'public',
     hostId: creatorId, // Creator becomes initial host
     ownerId: creatorId,
+    timerEnabled: timerEnabled ?? false, // Default to false for private rooms
   };
   
   // Generate access credentials for private rooms
@@ -653,6 +662,8 @@ export function leaveMemberRoom(
  * Called when room becomes empty
  */
 export function deleteRoom(roomId: string): void {
+  // Clear turn timer if active
+  clearTurnTimer(roomId);
   rooms.delete(roomId);
   // Also clear all reconnect tokens for this room
   clearReconnectTokensForRoom(roomId);
@@ -801,3 +812,62 @@ export function clearTeamAssignment(roomId: string): void {
     room.teamAssignment = undefined;
   }
 }
+
+/**
+ * Start turn timer for current player
+ * @param roomId Room ID
+ * @param playerId Player who needs to play
+ * @param onTimeout Callback when timer expires
+ * @param duration Timer duration in milliseconds (default 12000ms = 12s)
+ */
+export function startTurnTimer(
+  roomId: string,
+  playerId: string,
+  onTimeout: () => void,
+  duration: number = 12000
+): void {
+  const room = rooms.get(roomId);
+  if (!room || !room.timerEnabled) return;
+
+  // Clear existing timer if any
+  clearTurnTimer(roomId);
+
+  const expiresAt = Date.now() + duration;
+  const timeoutId = setTimeout(() => {
+    // Timer expired - execute timeout callback
+    onTimeout();
+    // Clear timer reference
+    if (room.turnTimer) {
+      room.turnTimer = undefined;
+    }
+  }, duration);
+
+  room.turnTimer = {
+    playerId,
+    expiresAt,
+    timeoutId,
+  };
+}
+
+/**
+ * Clear active turn timer
+ */
+export function clearTurnTimer(roomId: string): void {
+  const room = rooms.get(roomId);
+  if (!room || !room.turnTimer) return;
+
+  clearTimeout(room.turnTimer.timeoutId);
+  room.turnTimer = undefined;
+}
+
+/**
+ * Get remaining time for current turn (in milliseconds)
+ */
+export function getTurnTimeRemaining(roomId: string): number | null {
+  const room = rooms.get(roomId);
+  if (!room || !room.turnTimer) return null;
+
+  const remaining = room.turnTimer.expiresAt - Date.now();
+  return Math.max(0, remaining);
+}
+

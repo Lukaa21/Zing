@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Hand from '../components/Hand';
 import Card from '../components/Card';
 
@@ -16,6 +16,8 @@ interface InGameViewProps {
   devMode: boolean;
   isSpectator?: boolean;
   controlAs: string | null;
+  timerDuration?: number; // Total timer duration in ms
+  timerExpiresAt?: number; // Timestamp when timer expires
   setDevMode: (v: boolean) => void;
   setControlAs: (id: string | null) => void;
   onPlay: (cardId: string, ownerId?: string) => void;
@@ -30,10 +32,39 @@ const InGameView: React.FC<InGameViewProps> = ({
   devMode,
   isSpectator = false,
   controlAs,
+  timerDuration,
+  timerExpiresAt,
   setDevMode,
   setControlAs,
   onPlay,
 }) => {
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+
+  // Update timer countdown
+  useEffect(() => {
+    if (!timerExpiresAt) {
+      setTimeRemaining(null);
+      return;
+    }
+
+    const updateTimer = () => {
+      const remaining = timerExpiresAt - Date.now();
+      setTimeRemaining(Math.max(0, remaining));
+    };
+
+    updateTimer(); // Initial update
+    const interval = setInterval(updateTimer, 100); // Update every 100ms for smooth countdown
+
+    return () => clearInterval(interval);
+  }, [timerExpiresAt]);
+
+  // Format timer display: show decimals only when < 4 seconds
+  const timerSeconds = timeRemaining !== null 
+    ? (timeRemaining >= 4000 
+        ? Math.floor(timeRemaining / 1000).toString() 
+        : (timeRemaining / 1000).toFixed(1))
+    : null;
+
   return (
     <div className="in-game">
       <div style={{ display: 'flex', gap: 24 }}>
@@ -80,6 +111,19 @@ const InGameView: React.FC<InGameViewProps> = ({
             <div>
               <strong>Hand:</strong> {state?.handNumber ?? 0}
             </div>
+            {timerSeconds !== null && (
+              <div style={{ 
+                marginLeft: 'auto',
+                padding: '0.5rem 1rem',
+                backgroundColor: Number(timerSeconds) <= 3 ? '#ff4444' : '#4CAF50',
+                color: 'white',
+                borderRadius: '4px',
+                fontWeight: 'bold',
+                fontSize: '1.2rem'
+              }}>
+                ⏱️ {timerSeconds}s
+              </div>
+            )}
           </div>
           <div style={{ marginTop: 8 }}>
             <label style={{ fontSize: 13 }}>

@@ -144,6 +144,17 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomId, myId, playerName, initi
       {/* Host Start Controls */}
       {roomState.isHost && (
         <div className="room-screen__start-controls">
+          <h3>Game Options</h3>
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+              <input 
+                type="checkbox" 
+                checked={roomState.timerEnabled || false}
+                onChange={(e) => actions.toggleTimer(e.target.checked)}
+              />
+              <span>Enable turn timer (12s per turn)</span>
+            </label>
+          </div>
           <h3>Start Game</h3>
           <div className="start-controls__buttons">
             <button
