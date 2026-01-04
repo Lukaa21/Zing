@@ -42,8 +42,11 @@ export function initialDeal(state: GameState, seed?: string, dealerSeat = 0): Ga
     if (c) talon.unshift(c);
   }
   const dealDeck = halfA.slice();
-  // reset hands
-  for (const p of state.players) p.hand = [];
+  // reset hands and taken cards for new round
+  for (const p of state.players) {
+    p.hand = [];
+    p.taken = [];
+  }
   state.talon = talon;
   // initial deck is dealDeck followed by remaining cutterHalf and reserved card
   state.deck = dealDeck.concat(cutterHalf).concat(reserved ? [reserved] : []);

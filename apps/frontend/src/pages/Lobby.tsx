@@ -26,7 +26,7 @@ const Lobby: React.FC<LobbyProps> = ({ playerName, onJoin }) => {
   const [joinError, setJoinError] = useState<string>('');
 
   // Matchmaking state
-  const [selectedMode, setSelectedMode] = useState<MatchmakingMode>('2v2');
+  const [selectedMode, setSelectedMode] = useState<MatchmakingMode>('1v1');
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [queuePosition, setQueuePosition] = useState<number | null>(null);
 

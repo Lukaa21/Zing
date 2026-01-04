@@ -117,13 +117,13 @@ setActiveUsers(activeUsers);
             startTurnTimerWithAutoPlay(roomId);
           }
         }
-      });
+      }, 100); // 100ms for testing (change back to 12000 for production)
 
       // Emit timer start event to all clients
       io.to(roomId).emit('turn_timer_started', { 
         playerId: room.state.currentTurnPlayerId,
-        duration: 12000,
-        expiresAt: Date.now() + 12000
+        duration: 100,
+        expiresAt: Date.now() + 100
       });
     };
 
@@ -137,8 +137,8 @@ setActiveUsers(activeUsers);
         if (room?.state?.currentTurnPlayerId && room.timerEnabled) {
           io.to(roomId).emit('turn_timer_started', { 
             playerId: room.state.currentTurnPlayerId,
-            duration: 12000,
-            expiresAt: Date.now() + 12000
+            duration: 100,
+            expiresAt: Date.now() + 100
           });
         }
       }, delay);

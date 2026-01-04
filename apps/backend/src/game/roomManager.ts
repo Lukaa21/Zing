@@ -212,15 +212,23 @@ export async function finalizeRound(room: Room) {
   state.scores.team0 = (state.scores.team0 || 0) + pts0;
   state.scores.team1 = (state.scores.team1 || 0) + pts1;
 
+  // check match end logic with escalating thresholds
+  let target = state.targetScore || 101;
+  const t0 = state.scores.team0 || 0;
+  const t1 = state.scores.team1 || 0;
+
+  // If both teams exceeded the current target, raise the target by 50
+  while (t0 >= target && t1 >= target) {
+    target += 50;
+    state.targetScore = target;
+  }
+
   const matchUpdate = { type: 'match_update', actor: undefined, payload: { cumulative: { ...state.scores }, lastRound: result.scores, targetScore: state.targetScore } } as Event;
   room.seq++;
   await appendGameEvent(state.id, room.seq, matchUpdate.type, matchUpdate.actor, matchUpdate.payload);
   emitted.push(matchUpdate);
 
-  // check match end: one team reached target while the other did not
-  const target = state.targetScore || 101;
-  const t0 = state.scores.team0 || 0;
-  const t1 = state.scores.team1 || 0;
+  // Now check if one team reached the (possibly updated) target while the other did not
   if ((t0 >= target && t1 < target) || (t1 >= target && t0 < target)) {
     state.matchOver = true;
     const winner = t0 > t1 ? 0 : 1;
@@ -499,6 +507,8 @@ export function addMemberToRoom(room: Room, userId: string, name: string, socket
       taken: [],
       socketId,
       connected: true,
+      seat: room.players.length,
+      team: 0,
     });
   } else {
     // Update existing legacy player

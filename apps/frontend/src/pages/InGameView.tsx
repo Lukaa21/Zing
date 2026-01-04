@@ -73,14 +73,8 @@ const InGameView: React.FC<InGameViewProps> = ({
           <ul className="players-list">
             {players.map((p) => (
               <li key={p.id} className={p.id === state?.currentTurnPlayerId ? 'current' : ''}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <div>
-                    {p.name} {p.role === 'spectator' ? '(spectator)' : ''} {p.id === state?.currentTurnPlayerId ? ' ← turn' : ''}
-                  </div>
-                  <div style={{ fontSize: 12, color: '#444' }}>{p.taken?.length || 0} taken</div>
-                </div>
-                <div style={{ fontSize: 12, color: '#666' }}>
-                  {!p.taken || p.taken.length === 0 ? 'no cards' : p.taken.map(shortCardName).slice(0, 6).join(', ')}
+                <div>
+                  {p.name} {p.role === 'spectator' ? '(spectator)' : ''} {p.id === state?.currentTurnPlayerId ? ' ← turn' : ''}
                 </div>
               </li>
             ))}
@@ -195,14 +189,27 @@ const InGameView: React.FC<InGameViewProps> = ({
         )}
       </div>
       <div style={{ marginTop: 12 }}>
-        <h4>Taken Counts</h4>
-        <ul>
-          {state?.players?.map((p: any) => (
-            <li key={p.id}>
-              {p.name}: {p.taken?.length || 0}
-            </li>
-          ))}
-        </ul>
+        <h4>Team Scores</h4>
+        <div style={{ display: 'flex', gap: '2rem', fontSize: '1.1rem' }}>
+          <div style={{ 
+            padding: '0.5rem 1rem',
+            backgroundColor: '#4CAF50',
+            color: 'white',
+            borderRadius: '4px',
+            fontWeight: 'bold'
+          }}>
+            Team 0: {state?.scores?.team0 || 0} pts
+          </div>
+          <div style={{ 
+            padding: '0.5rem 1rem',
+            backgroundColor: '#2196F3',
+            color: 'white',
+            borderRadius: '4px',
+            fontWeight: 'bold'
+          }}>
+            Team 1: {state?.scores?.team1 || 0} pts
+          </div>
+        </div>
       </div>
       <div style={{ marginTop: 12 }}>
         <h4>Move Log</h4>
