@@ -21,6 +21,16 @@ enum RoomInviteStatus {
   EXPIRED
 }
 
+enum AchievementType {
+  GAMES_PLAYED
+  SOLO_WINS
+  DUO_WINS
+  POINTS_TAKEN
+  ZINGS_MADE
+  GAMES_HOSTED
+  FRIENDS_ADDED
+}
+
 model User {
   id                    String       @id @default(uuid())
   username              String       @unique
@@ -32,6 +42,8 @@ model User {
   friendRequestsReceived Friendship[] @relation("FriendAddressee")
   invitesSent           RoomInvite[] @relation("InviteSender")
   invitesReceived       RoomInvite[] @relation("InviteReceiver")
+  stats                 UserStats?
+  achievements          UserAchievement[]
 }
 
 model Friendship {
@@ -123,6 +135,9 @@ model MatchHistory {
   winnerTeam       Int      // 0 or 1
   team0Score       Int
   team1Score       Int
+  team0Zings       Int      @default(0) // Number of zings scored by team 0
+  team1Zings       Int      @default(0) // Number of zings scored by team 1
+  hostUserId       String?  // The user who hosted/created the game
   
   // Team 0 Players
   team0Player1Id   String?  // NULL for guest players
@@ -143,4 +158,54 @@ model MatchHistory {
   @@index([team0Player2Id, createdAt])
   @@index([team1Player1Id, createdAt])
   @@index([team1Player2Id, createdAt])
+}
+
+model UserStats {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Game statistics
+  gamesPlayed   Int      @default(0)
+  soloWins      Int      @default(0)
+  duoWins       Int      @default(0)
+  pointsTaken   Int      @default(0)
+  zingsMade     Int      @default(0)
+  gamesHosted   Int      @default(0)
+  friendsAdded  Int      @default(0)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([gamesPlayed])
+  @@index([soloWins])
+  @@index([duoWins])
+}
+
+model Achievement {
+  id          String          @id @default(uuid())
+  type        AchievementType
+  tier        Int             // 1, 2, or 3 (bronze, silver, gold)
+  threshold   Int             // The count needed to unlock this achievement
+  
+  name        String          // e.g., "Beginner Player"
+  description String          // e.g., "Play 10 games"
+  
+  unlockedBy  UserAchievement[]
+  
+  @@unique([type, tier])
+}
+
+model UserAchievement {
+  id            String      @id @default(uuid())
+  userId        String
+  achievementId String
+  
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  
+  unlockedAt    DateTime    @default(now())
+  
+  @@unique([userId, achievementId])
+  @@index([userId, unlockedAt])
 }

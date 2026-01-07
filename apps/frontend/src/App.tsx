@@ -6,6 +6,7 @@ import RegisterForm from './components/RegisterForm';
 import Lobby from './pages/Lobby';
 import Game from './pages/Game';
 import FriendsPage from './pages/FriendsPage';
+import Achievements from './components/Achievements';
 import { useState } from 'react';
 import { getGuestName } from './utils/guest';
 import { useAuth } from './context/AuthContext';
@@ -28,6 +29,7 @@ const App: React.FC = () => {
     return sessionStorage.getItem('zing_current_code') || null;
   });
   const [showMatchHistory, setShowMatchHistory] = useState<boolean>(false);
+  const [showAchievements, setShowAchievements] = useState<boolean>(false);
 
   React.useEffect(() => {
     if (isLoading) return;
@@ -115,6 +117,7 @@ const App: React.FC = () => {
   }
 
   return (
+    <>
     <Routes>
       <Route path="/" element={
         <LandingPage 
@@ -181,6 +184,7 @@ const App: React.FC = () => {
               <span>{authUser.username}</span>
               <button onClick={() => navigate('/friends')} style={{ marginLeft: 10 }}>Friends</button>
               <button onClick={() => setShowMatchHistory(true)} style={{ marginLeft: 10 }}>Match History</button>
+              <button onClick={() => setShowAchievements(true)} style={{ marginLeft: 10 }}>🏆 Achievements</button>
               <button onClick={() => {
                 logout();
                 navigate('/');
@@ -258,7 +262,18 @@ const App: React.FC = () => {
         />
       } />
     </Routes>
+    
+    {/* Achievements Modal */}
+    {showAchievements && authUser && (
+      <Achievements
+        userId={authUser.id}
+        token={localStorage.getItem('auth_token') || ''}
+        onClose={() => setShowAchievements(false)}
+      />
+    )}
+    </>
   );
 };
+
 
 export default App;

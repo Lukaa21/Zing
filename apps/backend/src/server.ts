@@ -13,6 +13,7 @@ import cors from 'cors';
 import authRoutes from './auth/routes';
 import friendRoutes, { setActiveUsers } from './friends/routes';
 import matchRoutes from './matches/routes';
+import achievementRoutes from './achievements/routes';
 import { verifyToken } from './auth/jwt';
 import { prisma } from './db/prisma';
 
@@ -45,6 +46,9 @@ app.use('/api/friends', friendRoutes);
 
 // Match history routes
 app.use('/api/matches', matchRoutes);
+
+// Achievement routes
+app.use('/api/achievements', achievementRoutes);
 
 // Track active users globally
 const activeUsers = new Set<string>();
@@ -1333,7 +1337,8 @@ setActiveUsers(activeUsers);
             playerName: p.name,
             socketId: p.socketId!, // Now guaranteed to be defined
           })),
-          roomId
+          roomId,
+          room.hostId // Pass original host ID for achievement tracking
         );
 
         if (result.matched && result.room && result.players) {

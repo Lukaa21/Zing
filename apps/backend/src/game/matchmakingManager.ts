@@ -80,7 +80,8 @@ class MatchmakingManager {
   async addPartyToQueue(
     mode: '2v2',
     players: Array<{ playerId: string; playerName: string; socketId: string }>,
-    roomId: string
+    roomId: string,
+    originalHostId?: string
   ): Promise<{ matched: boolean; room?: Room; players?: QueueEntry[] }> {
     if (players.length !== 2) {
       throw new Error('Party must have exactly 2 players for 2v2');
@@ -107,6 +108,11 @@ class MatchmakingManager {
     // Add to party queue
     this.partyQueues['2v2'].push(partyEntry);
     this.roomInPartyQueue.set(roomId, partyId);
+    
+    // Store originalHostId for this party
+    if (originalHostId) {
+      (partyEntry as any).originalHostId = originalHostId;
+    }
 
     // Mark players as in queue
     for (const player of players) {
@@ -275,6 +281,15 @@ class MatchmakingManager {
     const room = createRoom('public', undefined, true);
     room.mode = '2v2';
     room.ownerId = party1.players[0].playerId;
+    
+    // Preserve original hosts from both parties (if they exist)
+    room.originalHostIds = [];
+    if ((party1 as any).originalHostId) {
+      room.originalHostIds.push((party1 as any).originalHostId);
+    }
+    if ((party2 as any).originalHostId) {
+      room.originalHostIds.push((party2 as any).originalHostId);
+    }
 
     // Add all 4 players to room
     // Party 1 = Team 0, Party 2 = Team 1
@@ -350,6 +365,12 @@ class MatchmakingManager {
     const room = createRoom('public', undefined, true);
     room.mode = '2v2';
     room.ownerId = party.players[0].playerId;
+    
+    // Preserve original host from party (if it exists)
+    room.originalHostIds = [];
+    if ((party as any).originalHostId) {
+      room.originalHostIds.push((party as any).originalHostId);
+    }
 
     // Add all 4 players to room
     // Party players = Team 0, Single players = Team 1

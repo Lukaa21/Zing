@@ -42,6 +42,9 @@ export type Room = {
   ownerId?: string;
   // id of the current host (can change when host leaves)
   hostId?: string;
+  // id(s) of the original host(s) from private room(s) (for party matchmaking)
+  // Array to support 2 parties matching (each with their own host)
+  originalHostIds?: string[];
   // room visibility
   visibility?: 'public' | 'private';
   // access code for private rooms (6 chars like "vpq6rc")
@@ -183,13 +186,138 @@ export async function startGame(room: Room, options?: { customTeams?: { team0: s
 }
 
 // Save match history to database when a match ends
-async function saveMatchHistory(room: Room, winnerTeam: number, finalScores: { team0: number; team1: number }) {
+async function updatePlayerStatistics(
+  room: Room,
+  team0Players: any[],
+  team1Players: any[],
+  winnerTeam: number,
+  mode: string,
+  finalScores: { team0: number; team1: number },
+  zingsCounts: { team0: number; team1: number }
+) {
+  if (!process.env.DATABASE_URL) return;
+
+  const allPlayers = [...team0Players, ...team1Players];
+  const isHost = (playerId: string) => playerId === room.hostId;
+
+  for (const player of allPlayers) {
+    // Find matching member to check if authenticated
+    const member = room.members?.find(m => m.userId === player.id);
+    if (!member || !member.isAuthenticated) {
+      continue; // Skip guests
+    }
+
+    const userId = player.id;
+    const playerTeam = player.team;
+    const isWinner = playerTeam === winnerTeam;
+    const isSolo = mode === '1v1';
+    const isDuo = mode === '2v2';
+
+    // Calculate player's contribution
+    const teamScore = playerTeam === 0 ? finalScores.team0 : finalScores.team1;
+    const teamZings = playerTeam === 0 ? zingsCounts.team0 : zingsCounts.team1;
+    
+    // Count hosted games if:
+    // 1. Room is private and player is host, OR
+    // 2. Room is public (matchmaking) but player was originalHost (party matchmaking from private room)
+    const isPrivateHost = room.visibility === 'private' && isHost(userId);
+    const isPartyHost = room.visibility === 'public' && room.originalHostIds?.includes(userId);
+    const shouldCountHosted = isPrivateHost || isPartyHost;
+
+    try {
+      // Update or create user stats
+      const stats = await prisma.userStats.upsert({
+        where: { userId },
+        create: {
+          userId,
+          gamesPlayed: 1,
+          soloWins: isSolo && isWinner ? 1 : 0,
+          duoWins: isDuo && isWinner ? 1 : 0,
+          pointsTaken: teamScore,
+          zingsMade: teamZings,
+          gamesHosted: shouldCountHosted ? 1 : 0,
+          friendsAdded: 0,
+        },
+        update: {
+          gamesPlayed: { increment: 1 },
+          soloWins: { increment: isSolo && isWinner ? 1 : 0 },
+          duoWins: { increment: isDuo && isWinner ? 1 : 0 },
+          pointsTaken: { increment: teamScore },
+          zingsMade: { increment: teamZings },
+          gamesHosted: { increment: shouldCountHosted ? 1 : 0 },
+        },
+      });
+
+      // Check for newly unlocked achievements
+      await checkAndUnlockAchievements(userId, stats);
+    } catch (err) {
+      console.warn(`Failed to update statistics for user ${userId}:`, err);
+    }
+  }
+}
+
+async function checkAndUnlockAchievements(userId: string, stats: any) {
+  const statMap = {
+    GAMES_PLAYED: stats.gamesPlayed,
+    SOLO_WINS: stats.soloWins,
+    DUO_WINS: stats.duoWins,
+    POINTS_TAKEN: stats.pointsTaken,
+    ZINGS_MADE: stats.zingsMade,
+    GAMES_HOSTED: stats.gamesHosted,
+    FRIENDS_ADDED: stats.friendsAdded,
+  };
+
+  try {
+    // Get all achievements
+    const achievements = await prisma.achievement.findMany();
+
+    // Get user's already unlocked achievements
+    const unlockedAchievements = await prisma.userAchievement.findMany({
+      where: { userId },
+      select: { achievementId: true },
+    });
+    const unlockedIds = new Set(unlockedAchievements.map(a => a.achievementId));
+
+    // Check each achievement
+    for (const achievement of achievements) {
+      // Skip if already unlocked
+      if (unlockedIds.has(achievement.id)) continue;
+
+      // Check if threshold is met
+      const currentStat = statMap[achievement.type as keyof typeof statMap];
+      if (currentStat >= achievement.threshold) {
+        // Unlock achievement
+        await prisma.userAchievement.create({
+          data: {
+            userId,
+            achievementId: achievement.id,
+          },
+        });
+        console.log(`[Achievement] User ${userId} unlocked: ${achievement.name}`);
+      }
+    }
+  } catch (err) {
+    console.warn(`Failed to check achievements for user ${userId}:`, err);
+  }
+}
+
+// Save match history to database when a match ends
+async function saveMatchHistory(
+  room: Room, 
+  winnerTeam: number, 
+  finalScores: { team0: number; team1: number },
+  zingsCounts?: { team0: number; team1: number }
+) {
   if (!room.state || !process.env.DATABASE_URL) return;
 
   const mode = room.mode || (room.state.players.length === 2 ? '1v1' : '2v2');
   const duration = room.gameStartedAt 
     ? Math.floor((Date.now() - room.gameStartedAt.getTime()) / 1000) 
     : null;
+  
+  // Track total zings (default to 0 if not provided)
+  const team0Zings = zingsCounts?.team0 || 0;
+  const team1Zings = zingsCounts?.team1 || 0;
 
   // Map players by team
   const team0Players = room.state.players.filter(p => p.team === 0);
@@ -219,12 +347,15 @@ async function saveMatchHistory(room: Room, winnerTeam: number, finalScores: { t
   };
 
   try {
-    await prisma.matchHistory.create({
+    const matchHistory = await prisma.matchHistory.create({
       data: {
         mode,
         winnerTeam,
         team0Score: finalScores.team0,
         team1Score: finalScores.team1,
+        team0Zings,
+        team1Zings,
+        hostUserId: room.visibility === 'private' ? (room.hostId || null) : (room.originalHostIds?.[0] || null),
         team0Player1Id: team0Players[0] ? extractUserId(team0Players[0].id) : null,
         team0Player1Name: team0Players[0]?.name || 'Unknown',
         team0Player2Id: team0Players[1] ? extractUserId(team0Players[1].id) : null,
@@ -237,6 +368,17 @@ async function saveMatchHistory(room: Room, winnerTeam: number, finalScores: { t
       }
     });
     console.log('Match history saved successfully');
+
+    // Update statistics for authenticated players
+    await updatePlayerStatistics(
+      room,
+      team0Players,
+      team1Players,
+      winnerTeam,
+      mode,
+      finalScores,
+      { team0: team0Zings, team1: team1Zings }
+    );
   } catch (err) {
     console.warn('Failed to save match history:', err);
   }
@@ -255,6 +397,13 @@ export async function finalizeRound(room: Room) {
   room.seq++;
   await appendGameEvent(state.id, room.seq, roundEv.type, roundEv.actor, roundEv.payload);
   emitted.push(roundEv);
+
+  // Track cumulative zings per team for the match
+  if (!(room as any)._matchZings) {
+    (room as any)._matchZings = { team0: 0, team1: 0 };
+  }
+  (room as any)._matchZings.team0 += result.teams.team0.zings || 0;
+  (room as any)._matchZings.team1 += result.teams.team1.zings || 0;
 
   // persist round scores for both teams (best-effort)
   const pts0 = result.scores.team0 || 0;
@@ -303,7 +452,8 @@ export async function finalizeRound(room: Room) {
     emitted.push(matchEnd);
 
     // Save match history
-    await saveMatchHistory(room, winner, { team0: t0, team1: t1 });
+    const matchZings = (room as any)._matchZings || { team0: 0, team1: 0 };
+    await saveMatchHistory(room, winner, { team0: t0, team1: t1 }, matchZings);
 
     // best-effort DB update
     if (process.env.DATABASE_URL) {

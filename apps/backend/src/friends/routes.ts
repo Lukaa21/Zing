@@ -304,6 +304,35 @@ router.put('/:id/accept', async (req: AuthRequest, res: Response) => {
       data: { status: FriendshipStatus.ACCEPTED },
     });
 
+    // Update friendsAdded count for both users
+    try {
+      // Increment friendsAdded for the requester
+      await prisma.userStats.upsert({
+        where: { userId: friendship.requesterId },
+        create: {
+          userId: friendship.requesterId,
+          friendsAdded: 1,
+        },
+        update: {
+          friendsAdded: { increment: 1 },
+        },
+      });
+
+      // Increment friendsAdded for the addressee
+      await prisma.userStats.upsert({
+        where: { userId: friendship.addresseeId },
+        create: {
+          userId: friendship.addresseeId,
+          friendsAdded: 1,
+        },
+        update: {
+          friendsAdded: { increment: 1 },
+        },
+      });
+    } catch (err) {
+      console.warn('Failed to update friendsAdded stats:', err);
+    }
+
     return res.json({
       id: updated.id,
       friendId: friendship.requester.id,
