@@ -21,8 +21,12 @@ const App: React.FC = () => {
   // Don't initialize name from localStorage yet - let user explicitly choose identity
   // This prevents invited players from getting the room creator's name
   const [name, setName] = useState<string>('');
-  const [inviteToken, setInviteToken] = useState<string | null>(null);
-  const [code, setCode] = useState<string | null>(null);
+  const [inviteToken, setInviteToken] = useState<string | null>(() => {
+    return sessionStorage.getItem('zing_current_invite_token') || null;
+  });
+  const [code, setCode] = useState<string | null>(() => {
+    return sessionStorage.getItem('zing_current_code') || null;
+  });
   const [showMatchHistory, setShowMatchHistory] = useState<boolean>(false);
 
   React.useEffect(() => {
@@ -192,8 +196,18 @@ const App: React.FC = () => {
               setName(playerName);
               setCode(joinCode || null);
               setInviteToken(joinInviteToken || null);
-              // Store roomId for refresh recovery
+              // Store roomId, code, and inviteToken for refresh recovery
               sessionStorage.setItem('zing_current_room', id);
+              if (joinCode) {
+                sessionStorage.setItem('zing_current_code', joinCode);
+              } else {
+                sessionStorage.removeItem('zing_current_code');
+              }
+              if (joinInviteToken) {
+                sessionStorage.setItem('zing_current_invite_token', joinInviteToken);
+              } else {
+                sessionStorage.removeItem('zing_current_invite_token');
+              }
               // Pass state flag for matchmaking to force InGameView immediately
               navigate(directToGame ? '/game' : '/room', directToGame ? { state: { isMatchmakingMatch: true } } : undefined); 
             }} 
@@ -215,8 +229,10 @@ const App: React.FC = () => {
             sessionStorage.setItem('zing_current_room', newRoomId);
           }}
           onLeave={() => {
-            // Clear stored roomId when leaving game
+            // Clear stored roomId, code, and inviteToken when leaving game
             sessionStorage.removeItem('zing_current_room');
+            sessionStorage.removeItem('zing_current_code');
+            sessionStorage.removeItem('zing_current_invite_token');
             navigate('/lobby');
           }}
         />
@@ -235,6 +251,8 @@ const App: React.FC = () => {
           }}
           onLeave={() => {
             sessionStorage.removeItem('zing_current_room');
+            sessionStorage.removeItem('zing_current_code');
+            sessionStorage.removeItem('zing_current_invite_token');
             navigate('/lobby');
           }}
         />
