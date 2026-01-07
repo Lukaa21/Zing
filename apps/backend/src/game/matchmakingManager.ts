@@ -292,10 +292,12 @@ class MatchmakingManager {
     }
 
     // Add all 4 players to room
-    // Party 1 = Team 0, Party 2 = Team 1
+    // Interleave parties to ensure alternating teams (Team0, Team1, Team0, Team1)
     const allPlayers = [
-      ...party1.players.map(p => ({ ...p, team: 0 })),
-      ...party2.players.map(p => ({ ...p, team: 1 })),
+      { ...party1.players[0], team: 0 },
+      { ...party2.players[0], team: 1 },
+      { ...party1.players[1], team: 0 },
+      { ...party2.players[1], team: 1 },
     ];
 
     for (let i = 0; i < allPlayers.length; i++) {
@@ -373,10 +375,11 @@ class MatchmakingManager {
     }
 
     // Add all 4 players to room
-    // Party players = Team 0, Single players = Team 1
+    // Interleave party and singles to ensure alternating teams (Team0, Team1, Team0, Team1)
     const allPlayers = [
-      ...party.players.map(p => ({ ...p, team: 0 })),
+      { ...party.players[0], team: 0 },
       { ...single1, team: 1 },
+      { ...party.players[1], team: 0 },
       { ...single2, team: 1 },
     ];
 

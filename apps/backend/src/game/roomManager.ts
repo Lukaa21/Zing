@@ -129,13 +129,26 @@ export async function startGame(room: Room, options?: { customTeams?: { team0: s
     // Use custom team assignment for 2v2 party
     const { team0, team1 } = options.customTeams;
     
-    players = activePlayers.map((p, idx) => {
-      // Determine team based on custom assignment
+    // First, assign teams to all players
+    const playersWithTeams = activePlayers.map((p) => {
       const isTeam0 = team0.includes(p.id);
       const team = isTeam0 ? 0 : 1;
-      
-      return { ...p, hand: [], taken: [], seat: idx, team };
+      return { ...p, hand: [], taken: [], team };
     });
+    
+    // Separate into team arrays
+    const team0Players = playersWithTeams.filter(p => p.team === 0);
+    const team1Players = playersWithTeams.filter(p => p.team === 1);
+    
+    // Interleave teams: Team0, Team1, Team0, Team1
+    players = [];
+    for (let i = 0; i < Math.max(team0Players.length, team1Players.length); i++) {
+      if (team0Players[i]) players.push(team0Players[i]);
+      if (team1Players[i]) players.push(team1Players[i]);
+    }
+    
+    // Assign seat numbers after interleaving
+    players = players.map((p, idx) => ({ ...p, seat: idx }));
   } else {
     // Default: alternating teams (0, 1, 0, 1)
     players = activePlayers.map((p, idx) => ({ ...p, hand: [], taken: [], seat: idx, team: idx % 2 }));
