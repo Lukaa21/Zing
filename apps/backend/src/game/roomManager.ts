@@ -492,7 +492,7 @@ export function validateRoomAccess(room: Room, code?: string, inviteToken?: stri
 
 export function generateAndStoreReconnectToken(roomId: string, playerId: string): string {
   const token = generateReconnectToken();
-  const expiresAt = Date.now() + 120000; // 120 seconds
+  const expiresAt = Date.now() + 1800000; // 30 minutes (1800 seconds)
   reconnectTokens.set(token, { roomId, playerId, expiresAt });
   return token;
 }

@@ -754,6 +754,39 @@ setActiveUsers(activeUsers);
       }
 
       try {
+        // First, leave current room if in one
+        const currentRoomId = getUserCurrentRoom(userId);
+        if (currentRoomId) {
+          const currentRoom = getRoom(currentRoomId);
+          if (currentRoom) {
+            logger.info({ userId, currentRoomId, inviteId }, 'accept_invite: leaving current room');
+            
+            // Leave current room
+            leaveMemberRoom(currentRoomId, userId);
+            socket.leave(currentRoomId);
+            
+            // Notify current room members
+            io.to(currentRoomId).emit('room_update', {
+              roomId: currentRoomId,
+              players: currentRoom.players.map((p: any) => ({ 
+                id: p.id, 
+                name: p.name ?? p.id, 
+                role: p.role, 
+                taken: p.taken,
+                connected: p.connected ?? true 
+              })),
+              members: currentRoom.members.map(m => ({
+                userId: m.userId,
+                name: m.name,
+                roleInRoom: m.roleInRoom,
+                joinedAt: m.joinedAt,
+              })),
+              hostId: currentRoom.hostId,
+              ownerId: currentRoom.ownerId,
+            });
+          }
+        }
+
         // Accept invite via service (validates everything)
         const acceptedInvite = await inviteService.acceptInvite({
           inviteId,
@@ -1602,7 +1635,8 @@ setActiveUsers(activeUsers);
         });
       }
       
-      // Set a timer to fully remove player if not reconnected within 120 seconds
+      // Set a timer to fully remove player if not reconnected within 30 minutes (1800 seconds)
+      // This gives players enough time to stay in lobby without starting the game
       setTimeout(async () => {
         const stillDisconnected = changedRooms.some((roomId) => {
           const room = getRoom(roomId);
@@ -1670,7 +1704,7 @@ setActiveUsers(activeUsers);
             }
           }
         }
-      }, 120000);
+      }, 1800000); // 30 minutes in milliseconds
     });
   });
 })();
