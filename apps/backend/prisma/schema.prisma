@@ -31,6 +31,19 @@ enum AchievementType {
   FRIENDS_ADDED
 }
 
+enum LeaderboardCategory {
+  WINS
+  ZINGS
+  POINTS
+}
+
+enum LeaderboardPeriod {
+  WEEKLY
+  MONTHLY
+  YEARLY
+  ALL_TIME
+}
+
 model User {
   id                    String       @id @default(uuid())
   username              String       @unique
@@ -44,6 +57,7 @@ model User {
   invitesReceived       RoomInvite[] @relation("InviteReceiver")
   stats                 UserStats?
   achievements          UserAchievement[]
+  leaderboardEntries    LeaderboardSnapshot[]
 }
 
 model Friendship {
@@ -208,4 +222,30 @@ model UserAchievement {
   
   @@unique([userId, achievementId])
   @@index([userId, unlockedAt])
+}
+
+model LeaderboardSnapshot {
+  id        String              @id @default(uuid())
+  userId    String
+  username  String              // Denormalized for faster queries
+  category  LeaderboardCategory
+  period    LeaderboardPeriod
+  value     Int                 // The score (wins/zings/points)
+  
+  // Period identifiers
+  weekStart  DateTime?          // Start of week (Monday 00:00)
+  monthStart DateTime?          // Start of month (1st 00:00)
+  yearStart  DateTime?          // Start of year (Jan 1st 00:00)
+  
+  rank      Int?                // Computed rank within period/category
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, category, period, weekStart, monthStart, yearStart])
+  @@index([category, period, weekStart, value])
+  @@index([category, period, monthStart, value])
+  @@index([category, period, yearStart, value])
+  @@index([category, period, value])
 }

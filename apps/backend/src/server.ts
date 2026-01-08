@@ -14,6 +14,8 @@ import authRoutes from './auth/routes';
 import friendRoutes, { setActiveUsers } from './friends/routes';
 import matchRoutes from './matches/routes';
 import achievementRoutes from './achievements/routes';
+import leaderboardRoutes from './leaderboard/routes';
+import { scheduleLeaderboardUpdates } from './leaderboard/service';
 import { verifyToken } from './auth/jwt';
 import { prisma } from './db/prisma';
 
@@ -50,6 +52,9 @@ app.use('/api/matches', matchRoutes);
 // Achievement routes
 app.use('/api/achievements', achievementRoutes);
 
+// Leaderboard routes
+app.use('/api/leaderboard', leaderboardRoutes);
+
 // Track active users globally
 const activeUsers = new Set<string>();
 
@@ -60,6 +65,9 @@ setActiveUsers(activeUsers);
   server.listen(PORT, () => {
     logger.info({ port: PORT }, 'Backend server started');
   });
+  
+  // Schedule leaderboard updates
+  scheduleLeaderboardUpdates();
 
   const io = new Server(server, {
     cors: { origin: '*' }

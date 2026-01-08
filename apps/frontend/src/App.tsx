@@ -7,6 +7,7 @@ import Lobby from './pages/Lobby';
 import Game from './pages/Game';
 import FriendsPage from './pages/FriendsPage';
 import Achievements from './components/Achievements';
+import Leaderboard from './components/Leaderboard';
 import { useState } from 'react';
 import { getGuestName } from './utils/guest';
 import { useAuth } from './context/AuthContext';
@@ -30,6 +31,7 @@ const App: React.FC = () => {
   });
   const [showMatchHistory, setShowMatchHistory] = useState<boolean>(false);
   const [showAchievements, setShowAchievements] = useState<boolean>(false);
+  const [showLeaderboard, setShowLeaderboard] = useState<boolean>(false);
 
   React.useEffect(() => {
     if (isLoading) return;
@@ -185,6 +187,7 @@ const App: React.FC = () => {
               <button onClick={() => navigate('/friends')} style={{ marginLeft: 10 }}>Friends</button>
               <button onClick={() => setShowMatchHistory(true)} style={{ marginLeft: 10 }}>Match History</button>
               <button onClick={() => setShowAchievements(true)} style={{ marginLeft: 10 }}>🏆 Achievements</button>
+              <button onClick={() => setShowLeaderboard(true)} style={{ marginLeft: 10 }}>📊 Leaderboard</button>
               <button onClick={() => {
                 logout();
                 navigate('/');
@@ -269,6 +272,15 @@ const App: React.FC = () => {
         userId={authUser.id}
         token={localStorage.getItem('auth_token') || ''}
         onClose={() => setShowAchievements(false)}
+      />
+    )}
+    
+    {/* Leaderboard Modal */}
+    {showLeaderboard && authUser && (
+      <Leaderboard
+        token={localStorage.getItem('auth_token') || ''}
+        currentUserId={authUser.id}
+        onClose={() => setShowLeaderboard(false)}
       />
     )}
     </>
