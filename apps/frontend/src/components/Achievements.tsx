@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import '../styles/Achievements.css';
 
 interface Achievement {
   id: string;
@@ -28,52 +29,67 @@ interface AchievementsProps {
   onClose: () => void;
 }
 
-const AchievementTierIcon: React.FC<{ tier: number }> = ({ tier }) => {
-  const stars = '⭐'.repeat(tier);
-  return <span style={{ fontSize: '1.2em' }}>{stars}</span>;
-};
-
-const AchievementProgress: React.FC<{ achievement: Achievement }> = ({ achievement }) => {
-  const percentage = achievement.percentage || 0;
-  const unlocked = achievement.unlocked || false;
+// Component for displaying a single achievement type with all tiers
+const AchievementCard: React.FC<{ 
+  type: string; 
+  achievements: Achievement[]; 
+  typeLabel: string;
+}> = ({ type, achievements, typeLabel }) => {
+  // Sort achievements by tier
+  const sortedAchievements = [...achievements].sort((a, b) => a.tier - b.tier);
+  
+  // Find current active tier (first one that's not unlocked)
+  const activeTierIndex = sortedAchievements.findIndex(a => !a.unlocked);
+  const isAllCompleted = activeTierIndex === -1;
+  
+  // Get the active achievement (current goal)
+  const activeAchievement = isAllCompleted 
+    ? sortedAchievements[sortedAchievements.length - 1] 
+    : sortedAchievements[activeTierIndex];
+  
+  // Calculate progress
+  const currentProgress = activeAchievement?.currentProgress || 0;
+  const targetThreshold = activeAchievement?.threshold || 0;
+  const progressPercentage = isAllCompleted 
+    ? 100 
+    : (currentProgress / targetThreshold) * 100;
+  
+  // Calculate unlocked stars count
+  const unlockedStars = sortedAchievements.filter(a => a.unlocked).length;
 
   return (
-    <div style={{
-      padding: '12px',
-      margin: '8px 0',
-      border: `2px solid ${unlocked ? '#4CAF50' : '#ddd'}`,
-      borderRadius: '8px',
-      backgroundColor: unlocked ? '#e8f5e9' : '#f5f5f5',
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <AchievementTierIcon tier={achievement.tier} />
-          <strong>{achievement.name}</strong>
+    <div className={`achievement-card ${isAllCompleted ? 'completed' : ''}`}>
+      <div className="achievement-header">
+        <div className="achievement-title-group">
+          <h3 className="achievement-category">{typeLabel}</h3>
+          <p className="achievement-description">
+            {activeAchievement?.description || 'Complete all tiers!'}
+          </p>
         </div>
-        {unlocked && <span style={{ color: '#4CAF50', fontWeight: 'bold' }}>✓ Unlocked</span>}
+        <div className="achievement-stars">
+          {[0, 1, 2].map(index => (
+            <span 
+              key={index} 
+              className={`star ${index < unlockedStars ? 'unlocked' : 'locked'}`}
+            >
+              ⭐
+            </span>
+          ))}
+        </div>
       </div>
       
-      <div style={{ fontSize: '0.9em', color: '#666', marginBottom: '8px' }}>
-        {achievement.description}
-      </div>
-      
-      <div style={{ fontSize: '0.85em', color: '#888', marginBottom: '4px' }}>
-        Progress: {achievement.currentProgress || 0} / {achievement.threshold}
-      </div>
-      
-      <div style={{ 
-        width: '100%', 
-        height: '8px', 
-        backgroundColor: '#e0e0e0', 
-        borderRadius: '4px',
-        overflow: 'hidden'
-      }}>
-        <div style={{
-          width: `${percentage}%`,
-          height: '100%',
-          backgroundColor: unlocked ? '#4CAF50' : '#2196F3',
-          transition: 'width 0.3s ease',
-        }} />
+      <div className="achievement-progress-section">
+        <div className="progress-info">
+          <span className="progress-text">
+            Progress: <span className="progress-fraction">{currentProgress} / {targetThreshold}</span>
+          </span>
+        </div>
+        <div className="progress-bar-container">
+          <div 
+            className={`progress-bar-fill ${isAllCompleted ? 'completed' : ''}`}
+            style={{ width: `${progressPercentage}%` }}
+          />
+        </div>
       </div>
     </div>
   );
@@ -139,86 +155,79 @@ export default function Achievements({ userId, token, onClose }: AchievementsPro
   };
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      width: '100%',
-      height: '100%',
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 1000,
-    }}>
-      <div style={{
-        backgroundColor: 'white',
-        padding: '24px',
-        borderRadius: '8px',
-        maxWidth: '800px',
-        width: '90%',
-        maxHeight: '90vh',
-        overflow: 'auto',
-        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h2 style={{ margin: 0 }}>🏆 Achievements</h2>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: '#f44336',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-            }}
-          >
+    <div className="achievements-overlay" onClick={onClose}>
+      <div className="achievements-modal" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="achievements-header">
+          <div className="achievements-title-section">
+            <span className="achievements-icon">🏆</span>
+            <h2 className="achievements-title">Achievements</h2>
+          </div>
+          <button className="achievements-close-btn" onClick={onClose}>
             Close
           </button>
         </div>
 
-        {loading && <div style={{ textAlign: 'center', padding: '20px' }}>Loading achievements...</div>}
-        {error && <div style={{ color: 'red', padding: '20px' }}>Error: {error}</div>}
+        {/* Content */}
+        <div className="achievements-content">
+          {loading && <div className="achievements-loading">Loading achievements...</div>}
+          {error && <div className="achievements-error">⚠️ Error: {error}</div>}
 
-        {!loading && !error && stats && (
-          <>
-            {/* Stats Summary */}
-            <div style={{
-              padding: '16px',
-              backgroundColor: '#f5f5f5',
-              borderRadius: '8px',
-              marginBottom: '24px',
-            }}>
-              <h3 style={{ marginTop: 0 }}>Your Statistics</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-                <div><strong>Games Played:</strong> {stats.gamesPlayed}</div>
-                <div><strong>Solo Wins:</strong> {stats.soloWins}</div>
-                <div><strong>Duo Wins:</strong> {stats.duoWins}</div>
-                <div><strong>Points Taken:</strong> {stats.pointsTaken.toLocaleString()}</div>
-                <div><strong>Zings Made:</strong> {stats.zingsMade}</div>
-                <div><strong>Games Hosted:</strong> {stats.gamesHosted}</div>
-                <div><strong>Friends Added:</strong> {stats.friendsAdded}</div>
+          {!loading && !error && stats && (
+            <>
+              {/* Stats Summary */}
+              <div className="stats-summary">
+                <h3 className="stats-summary-title">Your Statistics</h3>
+                <div className="stats-grid">
+                  <div className="stat-item">
+                    <span className="stat-label">Games Played:</span>
+                    <span className="stat-value">{stats.gamesPlayed}</span>
+                  </div>
+                  <div className="stat-item">
+                    <span className="stat-label">Solo Wins:</span>
+                    <span className="stat-value">{stats.soloWins}</span>
+                  </div>
+                  <div className="stat-item">
+                    <span className="stat-label">Duo Wins:</span>
+                    <span className="stat-value">{stats.duoWins}</span>
+                  </div>
+                  <div className="stat-item">
+                    <span className="stat-label">Points Taken:</span>
+                    <span className="stat-value">{stats.pointsTaken.toLocaleString()}</span>
+                  </div>
+                  <div className="stat-item">
+                    <span className="stat-label">Zings Made:</span>
+                    <span className="stat-value">{stats.zingsMade}</span>
+                  </div>
+                  <div className="stat-item">
+                    <span className="stat-label">Games Hosted:</span>
+                    <span className="stat-value">{stats.gamesHosted}</span>
+                  </div>
+                  <div className="stat-item">
+                    <span className="stat-label">Friends Added:</span>
+                    <span className="stat-value">{stats.friendsAdded}</span>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            {/* Achievement Categories */}
-            {Object.entries(groupedAchievements).map(([type, typeAchievements]) => (
-              <div key={type} style={{ marginBottom: '24px' }}>
-                <h3>{typeLabels[type] || type}</h3>
-                {typeAchievements.map(achievement => (
-                  <AchievementProgress key={achievement.id} achievement={achievement} />
-                ))}
-              </div>
-            ))}
+              {/* Achievement Cards */}
+              {Object.entries(groupedAchievements).map(([type, typeAchievements]) => (
+                <AchievementCard
+                  key={type}
+                  type={type}
+                  achievements={typeAchievements}
+                  typeLabel={typeLabels[type] || type}
+                />
+              ))}
 
-            {achievements.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
-                No achievements available yet. Start playing to unlock achievements!
-              </div>
-            )}
-          </>
-        )}
+              {achievements.length === 0 && (
+                <div className="achievements-empty">
+                  🎯 No achievements available yet. Start playing to unlock achievements!
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
