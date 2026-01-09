@@ -750,9 +750,27 @@ setActiveUsers(activeUsers);
           
           io.to(roomId).emit('game_state', room.state);
           
-          // Save match history
+          // Calculate zings from current round (if any) and add to match total
           const matchZings = (room as any)._matchZings || { team0: 0, team1: 0 };
-          await saveMatchHistory(room, winnerTeam, finalScores, matchZings);
+          const roundZings = (room.state as any)._roundZings || { team0: 0, team1: 0 };
+          
+          // Track zing counts (number of zings, not points) for achievements
+          const matchZingsCount = (room as any)._matchZingsCount || { team0: 0, team1: 0 };
+          const roundZingsCount = (room.state as any)._roundZingsCount || { team0: 0, team1: 0 };
+          
+          // Add current round zings to match total (for points display)
+          const totalZings = {
+            team0: matchZings.team0 + (roundZings.team0 || 0),
+            team1: matchZings.team1 + (roundZings.team1 || 0)
+          };
+          
+          // Add current round zing counts to match total (for achievements)
+          const totalZingsCount = {
+            team0: matchZingsCount.team0 + (roundZingsCount.team0 || 0),
+            team1: matchZingsCount.team1 + (roundZingsCount.team1 || 0)
+          };
+          
+          await saveMatchHistory(room, winnerTeam, finalScores, totalZings, totalZingsCount);
           
           // Mark room as not in game anymore (game is over)
           room.inGame = false;

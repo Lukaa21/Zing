@@ -57,6 +57,7 @@ export function initialDeal(state: GameState, seed?: string, dealerSeat = 0): Ga
   state.currentTurnPlayerId = state.players[(dealerSeat + 1) % state.players.length]?.id;
   (state as any)._zingPending = null;
   (state as any)._roundZings = { team0: 0, team1: 0 };
+  (state as any)._roundZingsCount = { team0: 0, team1: 0 }; // Track number of zings, not points
   (state as any)._lastTaker = undefined;
   return state;
 }
@@ -132,7 +133,8 @@ export function applyIntent(state: GameState, intent: Intent): Event | null {
               const points = playedRank === 'J' && pendingRank === 'J' ? 20 : 10;
               zing = { points, double: points === 20 };
               const teamKey = `team${player.team}` as 'team0' | 'team1';
-              (state as any)._roundZings[teamKey] += points;
+              (state as any)._roundZings[teamKey] += points; // Points for scoring
+              (state as any)._roundZingsCount[teamKey] += 1; // Count for achievements
             }
           }
         }
@@ -196,8 +198,11 @@ export function computeRoundScores(state: GameState) {
   }
 
   const z = (state as any)._roundZings || { team0: 0, team1: 0 };
+  const zCount = (state as any)._roundZingsCount || { team0: 0, team1: 0 };
   teams.team0.zings = z.team0 || 0;
   teams.team1.zings = z.team1 || 0;
+  teams.team0.zingsCount = zCount.team0 || 0;
+  teams.team1.zingsCount = zCount.team1 || 0;
   teams.team0.totalPoints += teams.team0.zings;
   teams.team1.totalPoints += teams.team1.zings;
   teamPoints.team0 += teams.team0.zings;

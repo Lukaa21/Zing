@@ -345,6 +345,7 @@ export async function saveMatchHistory(
   room: Room, 
   winnerTeam: number, 
   finalScores: { team0: number; team1: number },
+  zingsPoints?: { team0: number; team1: number },
   zingsCounts?: { team0: number; team1: number }
 ) {
   if (!room.state || !process.env.DATABASE_URL) return;
@@ -354,9 +355,13 @@ export async function saveMatchHistory(
     ? Math.floor((Date.now() - room.gameStartedAt.getTime()) / 1000) 
     : null;
   
-  // Track total zings (default to 0 if not provided)
-  const team0Zings = zingsCounts?.team0 || 0;
-  const team1Zings = zingsCounts?.team1 || 0;
+  // Track total zings POINTS for display (default to 0 if not provided)
+  const team0ZingsPoints = zingsPoints?.team0 || 0;
+  const team1ZingsPoints = zingsPoints?.team1 || 0;
+  
+  // Track total zings COUNT for achievements (default to 0 if not provided)
+  const team0ZingsCount = zingsCounts?.team0 || 0;
+  const team1ZingsCount = zingsCounts?.team1 || 0;
 
   // Map players by team
   const team0Players = room.state.players.filter(p => p.team === 0);
@@ -392,8 +397,8 @@ export async function saveMatchHistory(
         winnerTeam,
         team0Score: finalScores.team0,
         team1Score: finalScores.team1,
-        team0Zings,
-        team1Zings,
+        team0Zings: team0ZingsPoints,
+        team1Zings: team1ZingsPoints,
         hostUserId: room.visibility === 'private' ? (room.hostId || null) : (room.originalHostIds?.[0] || null),
         team0Player1Id: team0Players[0] ? extractUserId(team0Players[0].id) : null,
         team0Player1Name: team0Players[0]?.name || 'Unknown',
@@ -416,7 +421,7 @@ export async function saveMatchHistory(
       winnerTeam,
       mode,
       finalScores,
-      { team0: team0Zings, team1: team1Zings }
+      { team0: team0ZingsCount, team1: team1ZingsCount }
     );
   } catch (err) {
     console.warn('Failed to save match history:', err);
@@ -443,6 +448,13 @@ export async function finalizeRound(room: Room) {
   }
   (room as any)._matchZings.team0 += result.teams.team0.zings || 0;
   (room as any)._matchZings.team1 += result.teams.team1.zings || 0;
+
+  // Track cumulative zing count (number of zings, not points) for achievements
+  if (!(room as any)._matchZingsCount) {
+    (room as any)._matchZingsCount = { team0: 0, team1: 0 };
+  }
+  (room as any)._matchZingsCount.team0 += result.teams.team0.zingsCount || 0;
+  (room as any)._matchZingsCount.team1 += result.teams.team1.zingsCount || 0;
 
   // persist round scores for both teams (best-effort)
   const pts0 = result.scores.team0 || 0;
@@ -496,7 +508,8 @@ export async function finalizeRound(room: Room) {
 
     // Save match history
     const matchZings = (room as any)._matchZings || { team0: 0, team1: 0 };
-    await saveMatchHistory(room, winner, { team0: t0, team1: t1 }, matchZings);
+    const matchZingsCount = (room as any)._matchZingsCount || { team0: 0, team1: 0 };
+    await saveMatchHistory(room, winner, { team0: t0, team1: t1 }, matchZings, matchZingsCount);
     
     // Mark room as not in game anymore (game is over)
     room.inGame = false;
