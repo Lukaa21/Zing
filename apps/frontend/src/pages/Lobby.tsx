@@ -4,12 +4,21 @@ import { connect } from '../services/socket';
 import { getOrCreateGuestId } from '../utils/guest';
 import { useAuth } from '../context/AuthContext';
 import MatchHistory from '../components/MatchHistory';
+import '../styles/Lobby.css';
 
 type LobbyProps = {
   playerName: string;
   onJoin: (roomId: string, name: string, code?: string, inviteToken?: string, directToGame?: boolean) => void;
   showMatchHistory?: boolean;
   onMatchHistoryClose?: () => void;
+  onShowMatchHistory?: () => void;
+  onNavigateToFriends?: () => void;
+  onShowLeaderboard?: () => void;
+  onShowAchievements?: () => void;
+  onLogout?: () => void;
+  onNavigateToLogin?: () => void;
+  onNavigateToRegister?: () => void;
+  isAuthenticated?: boolean;
 };
 
 type AccessCredentials = {
@@ -21,7 +30,20 @@ type AccessCredentials = {
 
 type MatchmakingMode = '1v1' | '2v2';
 
-const Lobby: React.FC<LobbyProps> = ({ playerName, onJoin, showMatchHistory, onMatchHistoryClose }) => {
+const Lobby: React.FC<LobbyProps> = ({ 
+  playerName, 
+  onJoin, 
+  showMatchHistory, 
+  onMatchHistoryClose,
+  onShowMatchHistory,
+  onNavigateToFriends,
+  onShowLeaderboard,
+  onShowAchievements,
+  onLogout,
+  onNavigateToLogin,
+  onNavigateToRegister,
+  isAuthenticated = false
+}) => {
   const { token } = useAuth();
   const [socket, setSocket] = useState<Socket | null>(null);
   const [credentials, setCredentials] = useState<AccessCredentials | null>(null);
@@ -32,6 +54,9 @@ const Lobby: React.FC<LobbyProps> = ({ playerName, onJoin, showMatchHistory, onM
   const [selectedMode, setSelectedMode] = useState<MatchmakingMode>('1v1');
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [queuePosition, setQueuePosition] = useState<number | null>(null);
+  
+  // User menu state
+  const [showUserMenu, setShowUserMenu] = useState<boolean>(false);
 
   useEffect(() => {
     const s = connect(playerName || 'guest', 'player', token || undefined);
@@ -222,118 +247,251 @@ const Lobby: React.FC<LobbyProps> = ({ playerName, onJoin, showMatchHistory, onM
     : '';
 
   return (
-    <div className="lobby container">
-      <h1>Zing — Lobby</h1>
-      <p className="player-info">
-        Playing as: <strong>{playerName}</strong>
-      </p>
-
-      {/* MATCHMAKING SECTION */}
-      <div className="lobby-section matchmaking-section">
-        <h2>Find Game</h2>
-
-        {!isSearching ? (
-          <>
-            <div className="mode-selector">
-              <label>
-                <input
-                  type="radio"
-                  name="mode"
-                  value="1v1"
-                  checked={selectedMode === '1v1'}
-                  onChange={(e) => setSelectedMode(e.target.value as MatchmakingMode)}
-                />
-                1v1
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="mode"
-                  value="2v2"
-                  checked={selectedMode === '2v2'}
-                  onChange={(e) => setSelectedMode(e.target.value as MatchmakingMode)}
-                />
-                2v2
-              </label>
+    <div className="lobby-container">
+      <div className="lobby-content">
+        {/* Header */}
+        <div className="lobby-header">
+          <div className="lobby-header-content">
+            <div className="lobby-header-left">
+              <h1 className="lobby-title">Zing</h1>
+              <p className="lobby-player-info">
+                Welcome, <span className="lobby-player-name">{playerName}</span>
+              </p>
             </div>
-            <button onClick={handleFindGame} disabled={!playerName} className="btn-primary btn-find-game">
-              Find Game ({selectedMode})
+            
+            <div className="lobby-header-right">
+              {isAuthenticated ? (
+                <nav className="lobby-nav">
+                  <button
+                    className="lobby-nav-btn"
+                    onClick={onNavigateToFriends}
+                    title="Friends"
+                  >
+                    <span className="nav-icon">👥</span>
+                    <span className="nav-label">Friends</span>
+                  </button>
+                  <button
+                    className="lobby-nav-btn"
+                    onClick={onShowMatchHistory}
+                    title="Match History"
+                  >
+                    <span className="nav-icon">📜</span>
+                    <span className="nav-label">History</span>
+                  </button>
+                  <button
+                    className="lobby-nav-btn"
+                    onClick={onShowLeaderboard}
+                    title="Leaderboard"
+                  >
+                    <span className="nav-icon">📊</span>
+                    <span className="nav-label">Leaderboard</span>
+                  </button>
+                  <button
+                    className="lobby-nav-btn"
+                    onClick={onShowAchievements}
+                    title="Achievements"
+                  >
+                    <span className="nav-icon">🏆</span>
+                    <span className="nav-label">Achievements</span>
+                  </button>
+                  <button
+                    className="lobby-nav-btn lobby-nav-btn-logout"
+                    onClick={onLogout}
+                    title="Logout"
+                  >
+                    <span className="nav-icon">🚪</span>
+                    <span className="nav-label">Logout</span>
+                  </button>
+                </nav>
+              ) : (
+                <nav className="lobby-nav lobby-nav-guest">
+                  <button
+                    className="lobby-nav-btn lobby-nav-btn-login"
+                    onClick={onNavigateToLogin}
+                    title="Login"
+                  >
+                    <span className="nav-icon">🔐</span>
+                    <span className="nav-label">Login</span>
+                  </button>
+                  <button
+                    className="lobby-nav-btn lobby-nav-btn-register"
+                    onClick={onNavigateToRegister}
+                    title="Register"
+                  >
+                    <span className="nav-icon">✨</span>
+                    <span className="nav-label">Register</span>
+                  </button>
+                </nav>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content - 2 Column Grid */}
+        <div className="lobby-main-grid">
+          {/* Find Game Card */}
+          <div className="lobby-card">
+            <div className="lobby-card-icon">🎮</div>
+            <h2 className="lobby-card-title">Find Game</h2>
+            <p className="lobby-card-description">
+              Jump into quick matchmaking and compete against other players
+            </p>
+
+            {!isSearching ? (
+              <>
+                {/* Mode Selector */}
+                <div className="mode-selector">
+                  <label className={`mode-option ${selectedMode === '1v1' ? 'active' : ''}`}>
+                    <input
+                      type="radio"
+                      name="mode"
+                      value="1v1"
+                      checked={selectedMode === '1v1'}
+                      onChange={(e) => setSelectedMode(e.target.value as MatchmakingMode)}
+                    />
+                    <span className="mode-option-emoji">⚔️</span>
+                    <span className="mode-option-label">1v1</span>
+                  </label>
+                  <label className={`mode-option ${selectedMode === '2v2' ? 'active' : ''}`}>
+                    <input
+                      type="radio"
+                      name="mode"
+                      value="2v2"
+                      checked={selectedMode === '2v2'}
+                      onChange={(e) => setSelectedMode(e.target.value as MatchmakingMode)}
+                    />
+                    <span className="mode-option-emoji">👥</span>
+                    <span className="mode-option-label">2v2</span>
+                  </label>
+                </div>
+
+                <button
+                  className="lobby-btn lobby-btn-primary"
+                  onClick={handleFindGame}
+                  disabled={!playerName}
+                >
+                  Start Matchmaking
+                </button>
+              </>
+            ) : (
+              <div className="searching-status">
+                <div className="searching-animation">
+                  <div className="searching-spinner"></div>
+                </div>
+                <p className="searching-text">Finding match...</p>
+                {queuePosition && <p className="queue-position">Queue position: {queuePosition}</p>}
+                <button
+                  className="lobby-btn lobby-btn-secondary"
+                  onClick={handleCancelSearch}
+                >
+                  Cancel Search
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Private Room Card */}
+          <div className="lobby-card">
+            <div className="lobby-card-icon">🏠</div>
+            <h2 className="lobby-card-title">Private Room</h2>
+            <p className="lobby-card-description">
+              Create a private room to play with friends
+            </p>
+
+            <button
+              className="lobby-btn lobby-btn-primary"
+              onClick={handleCreatePrivate}
+              disabled={!playerName}
+            >
+              Create Private Room
             </button>
-          </>
-        ) : (
-          <div className="searching-status">
-            <p className="searching-text">Searching for {selectedMode} match...</p>
-            {queuePosition && <p className="queue-position">Position in queue: {queuePosition}</p>}
-            <button onClick={handleCancelSearch} className="btn-secondary">
-              Cancel Search
+          </div>
+        </div>
+
+        {/* Join By Code - Full Width */}
+        <div className="lobby-join-section">
+          <div className="lobby-join-header">
+            <div className="lobby-join-icon">🔑</div>
+            <h2 className="lobby-join-title">Join by Room Code</h2>
+          </div>
+          <div className="join-input-group">
+            <input
+              type="text"
+              className="join-input"
+              placeholder="Enter 6-digit room code..."
+              value={joinCode}
+              onChange={(e) => setJoinCode(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleJoinByCode()}
+            />
+            <button
+              className="lobby-btn lobby-btn-primary join-btn"
+              onClick={handleJoinByCode}
+              disabled={!joinCode.trim()}
+            >
+              Join Room
             </button>
+          </div>
+          {joinError && <div className="lobby-error">{joinError}</div>}
+        </div>
+
+        {/* Credentials Modal */}
+        {credentials && (
+          <div className="credentials-modal">
+            <div className="credentials-modal-content">
+              <h2 className="credentials-modal-title">Room Created!</h2>
+              <p className="credentials-modal-subtitle">
+                Share these credentials with your friends to join
+              </p>
+
+              <div className="credential-item">
+                <label className="credential-label">Access Code</label>
+                <div className="credential-row">
+                  <input
+                    type="text"
+                    className="credential-input"
+                    value={credentials.accessCode || ''}
+                    readOnly
+                  />
+                  <button
+                    className="credential-copy-btn"
+                    onClick={() => navigator.clipboard.writeText(credentials.accessCode || '')}
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+
+              <div className="credential-item">
+                <label className="credential-label">Invite Link</label>
+                <div className="credential-row">
+                  <input
+                    type="text"
+                    className="credential-input"
+                    value={inviteLink}
+                    readOnly
+                  />
+                  <button
+                    className="credential-copy-btn"
+                    onClick={() => navigator.clipboard.writeText(inviteLink)}
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+
+              <button
+                className="lobby-btn lobby-btn-primary credentials-enter-btn"
+                onClick={handleJoinFromCredentials}
+              >
+                Enter Room
+              </button>
+            </div>
           </div>
         )}
+
+        {/* Match History Modal */}
+        {showMatchHistory && <MatchHistory onClose={onMatchHistoryClose || (() => {})} />}
       </div>
-
-      {/* PRIVATE ROOMS SECTION */}
-      <div className="lobby-section">
-        <h2>Private Room</h2>
-        <button onClick={handleCreatePrivate} disabled={!playerName} className="btn-secondary">
-          Create Private Room
-        </button>
-      </div>
-
-      {credentials && (
-        <div className="credentials-modal">
-          <div className="modal-content">
-            <h2>Private Room Created!</h2>
-            <p>Share these with your friends:</p>
-
-            <div className="credential-item">
-              <label>Access Code:</label>
-              <div className="credential-row">
-                <input type="text" readOnly value={credentials.accessCode || ''} />
-                <button
-                  onClick={() => navigator.clipboard.writeText(credentials.accessCode || '')}
-                  className="btn-copy"
-                >
-                  Copy
-                </button>
-              </div>
-            </div>
-
-            <div className="credential-item">
-              <label>Invite Link:</label>
-              <div className="credential-row">
-                <input type="text" readOnly value={inviteLink} />
-                <button onClick={() => navigator.clipboard.writeText(inviteLink)} className="btn-copy">
-                  Copy
-                </button>
-              </div>
-            </div>
-
-            <button onClick={handleJoinFromCredentials} className="btn-primary">
-              Enter Room
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div className="lobby-section">
-        <h2>Join Private Room</h2>
-        <div className="join-by-code">
-          <input
-            type="text"
-            placeholder="Enter room ID or code (e.g., vpq6rc)"
-            value={joinCode}
-            onChange={(e) => setJoinCode(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleJoinByCode()}
-          />
-          <button onClick={handleJoinByCode} className="btn-secondary">
-            Join
-          </button>
-        </div>
-        {joinError && <p className="error">{joinError}</p>}
-      </div>
-
-      {/* MATCH HISTORY MODAL */}
-      {showMatchHistory && <MatchHistory onClose={onMatchHistoryClose || (() => {})} />}
     </div>
   );
 };

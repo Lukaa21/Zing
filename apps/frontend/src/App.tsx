@@ -169,23 +169,21 @@ const App: React.FC = () => {
 
       <Route path="/lobby" element={
         <>
-          {authUser && (
-            <div style={{ textAlign: 'right', padding: 10 }}>
-              <span>{authUser.username}</span>
-              <button onClick={() => navigate('/friends')} style={{ marginLeft: 10 }}>Friends</button>
-              <button onClick={() => setShowMatchHistory(true)} style={{ marginLeft: 10 }}>Match History</button>
-              <button onClick={() => setShowAchievements(true)} style={{ marginLeft: 10 }}>🏆 Achievements</button>
-              <button onClick={() => setShowLeaderboard(true)} style={{ marginLeft: 10 }}>📊 Leaderboard</button>
-              <button onClick={() => {
-                logout();
-                navigate('/');
-              }} style={{ marginLeft: 10 }}>Logout</button>
-            </div>
-          )}
           <Lobby 
             playerName={name}
             showMatchHistory={showMatchHistory}
             onMatchHistoryClose={() => setShowMatchHistory(false)}
+            onShowMatchHistory={() => setShowMatchHistory(true)}
+            isAuthenticated={!!authUser}
+            onNavigateToFriends={() => navigate('/friends')}
+            onShowLeaderboard={() => setShowLeaderboard(true)}
+            onShowAchievements={() => setShowAchievements(true)}
+            onNavigateToLogin={() => navigate('/login')}
+            onNavigateToRegister={() => navigate('/register')}
+            onLogout={() => {
+              logout();
+              navigate('/');
+            }}
             onJoin={(id, playerName, joinCode, joinInviteToken, directToGame) => { 
               setRoomId(id); 
               setName(playerName);
