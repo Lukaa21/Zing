@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import '../styles/Leaderboard.css';
 
 interface LeaderboardEntry {
   rank: number;
@@ -74,155 +75,131 @@ export default function Leaderboard({ token, currentUserId, onClose }: Leaderboa
   };
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      width: '100%',
-      height: '100%',
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 1000,
-    }}>
-      <div style={{
-        backgroundColor: 'white',
-        padding: '24px',
-        borderRadius: '8px',
-        maxWidth: '800px',
-        width: '90%',
-        maxHeight: '90vh',
-        overflow: 'auto',
-        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h2 style={{ margin: 0 }}>🏆 Leaderboard</h2>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: '#f44336',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-            }}
-          >
+    <div className="leaderboard-overlay" onClick={onClose}>
+      <div className="leaderboard-modal" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="leaderboard-header">
+          <div className="leaderboard-title-section">
+            <span className="leaderboard-icon">🏆</span>
+            <h2 className="leaderboard-title">Leaderboard</h2>
+          </div>
+          <button className="leaderboard-close-btn" onClick={onClose}>
             Close
           </button>
         </div>
 
-        {/* Category Selection */}
-        <div style={{ marginBottom: '16px' }}>
-          <label style={{ fontWeight: 'bold', marginRight: '8px' }}>Category:</label>
-          {(['WINS', 'ZINGS', 'POINTS'] as Category[]).map(cat => (
-            <button
-              key={cat}
-              onClick={() => { setCategory(cat); setShowPrevious(false); }}
-              style={{
-                padding: '6px 12px',
-                margin: '0 4px',
-                backgroundColor: category === cat ? '#2196F3' : '#ddd',
-                color: category === cat ? 'white' : 'black',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-              }}
-            >
-              {categoryLabels[cat]}
-            </button>
-          ))}
-        </div>
-
-        {/* Period Selection */}
-        <div style={{ marginBottom: '16px' }}>
-          <label style={{ fontWeight: 'bold', marginRight: '8px' }}>Period:</label>
-          {(['WEEKLY', 'MONTHLY', 'YEARLY', 'ALL_TIME'] as Period[]).map(per => (
-            <button
-              key={per}
-              onClick={() => { setPeriod(per); setShowPrevious(false); }}
-              style={{
-                padding: '6px 12px',
-                margin: '0 4px',
-                backgroundColor: period === per ? '#4CAF50' : '#ddd',
-                color: period === per ? 'white' : 'black',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-              }}
-            >
-              {periodLabels[per]}
-            </button>
-          ))}
-        </div>
-
-        {/* Previous Period Toggle */}
-        {period !== 'ALL_TIME' && (
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={showPrevious}
-                onChange={(e) => setShowPrevious(e.target.checked)}
-                style={{ marginRight: '8px' }}
-              />
-              Show Previous {period === 'WEEKLY' ? 'Week' : period === 'MONTHLY' ? 'Month' : 'Year'}
-            </label>
-          </div>
-        )}
-
-        {/* Leaderboard Table */}
-        {loading && <div style={{ textAlign: 'center', padding: '20px' }}>Loading...</div>}
-        {error && <div style={{ color: 'red', padding: '20px' }}>Error: {error}</div>}
-
-        {!loading && !error && (
-          <>
-            <h3>{categoryLabels[category]} - {showPrevious ? `Previous ${periodLabels[period]}` : periodLabels[period]}</h3>
-            
-            {leaderboard.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
-                No data available for this period yet.
+        {/* Content */}
+        <div className="leaderboard-content">
+          {/* Filters */}
+          <div className="leaderboard-filters">
+            {/* Category Selection */}
+            <div className="filter-group">
+              <label className="filter-label">Category</label>
+              <div className="filter-buttons">
+                {(['WINS', 'ZINGS', 'POINTS'] as Category[]).map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => { setCategory(cat); setShowPrevious(false); }}
+                    className={`filter-btn ${category === cat ? 'active' : ''}`}
+                  >
+                    {categoryLabels[cat]}
+                  </button>
+                ))}
               </div>
-            ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ backgroundColor: '#f5f5f5', borderBottom: '2px solid #ddd' }}>
-                    <th style={{ padding: '12px', textAlign: 'left' }}>Rank</th>
-                    <th style={{ padding: '12px', textAlign: 'left' }}>Player</th>
-                    <th style={{ padding: '12px', textAlign: 'right' }}>
-                      {category === 'WINS' ? 'Wins' : category === 'ZINGS' ? 'Zings' : 'Points'}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {leaderboard.map((entry) => {
-                    const isCurrentUser = entry.userId === currentUserId;
-                    return (
-                      <tr
-                        key={entry.userId}
-                        style={{
-                          backgroundColor: isCurrentUser ? '#e3f2fd' : entry.rank <= 3 ? '#fff9c4' : 'white',
-                          borderBottom: '1px solid #eee',
-                        }}
-                      >
-                        <td style={{ padding: '12px', fontWeight: entry.rank <= 3 ? 'bold' : 'normal' }}>
-                          {entry.rank <= 3 ? ['🥇', '🥈', '🥉'][entry.rank - 1] : `#${entry.rank}`}
-                        </td>
-                        <td style={{ padding: '12px', fontWeight: isCurrentUser ? 'bold' : 'normal' }}>
-                          {entry.username} {isCurrentUser && '(You)'}
-                        </td>
-                        <td style={{ padding: '12px', textAlign: 'right', fontWeight: entry.rank <= 3 ? 'bold' : 'normal' }}>
-                          {formatValue(entry.value)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            </div>
+
+            {/* Period Selection */}
+            <div className="filter-group">
+              <label className="filter-label">Time Period</label>
+              <div className="filter-buttons">
+                {(['WEEKLY', 'MONTHLY', 'YEARLY', 'ALL_TIME'] as Period[]).map(per => (
+                  <button
+                    key={per}
+                    onClick={() => { setPeriod(per); setShowPrevious(false); }}
+                    className={`filter-btn ${period === per ? 'active' : ''}`}
+                  >
+                    {periodLabels[per]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Previous Period Toggle */}
+            {period !== 'ALL_TIME' && (
+              <label className="previous-toggle">
+                <input
+                  type="checkbox"
+                  checked={showPrevious}
+                  onChange={(e) => setShowPrevious(e.target.checked)}
+                />
+                <span className="previous-toggle-label">
+                  Show Previous {period === 'WEEKLY' ? 'Week' : period === 'MONTHLY' ? 'Month' : 'Year'}
+                </span>
+              </label>
             )}
-          </>
-        )}
+          </div>
+
+          {/* Current Selection Display */}
+          <div className="leaderboard-current">
+            <h3 className="leaderboard-current-title">
+              {categoryLabels[category]} - {showPrevious ? `Previous ${periodLabels[period]}` : periodLabels[period]}
+            </h3>
+          </div>
+
+          {/* Loading State */}
+          {loading && <div className="leaderboard-loading">Loading leaderboard...</div>}
+
+          {/* Error State */}
+          {error && <div className="leaderboard-error">⚠️ Error: {error}</div>}
+
+          {/* Leaderboard Table */}
+          {!loading && !error && (
+            <>
+              {leaderboard.length === 0 ? (
+                <div className="leaderboard-empty">
+                  📊 No data available for this period yet.
+                </div>
+              ) : (
+                <table className="leaderboard-table">
+                  <thead>
+                    <tr>
+                      <th>Rank</th>
+                      <th>Player</th>
+                      <th>{category === 'WINS' ? 'Wins' : category === 'ZINGS' ? 'Zings' : 'Points'}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leaderboard.map((entry) => {
+                      const isCurrentUser = entry.userId === currentUserId;
+                      const isTop3 = entry.rank <= 3;
+                      return (
+                        <tr
+                          key={entry.userId}
+                          className={`${isTop3 ? 'top-3' : ''} ${isCurrentUser ? 'current-user' : ''}`}
+                        >
+                          <td>
+                            {isTop3 ? (
+                              <span className="rank-medal">
+                                {['🥇', '🥈', '🥉'][entry.rank - 1]}
+                              </span>
+                            ) : (
+                              `#${entry.rank}`
+                            )}
+                          </td>
+                          <td>
+                            <span className="player-name">{entry.username}</span>
+                            {isCurrentUser && <span className="player-you">(You)</span>}
+                          </td>
+                          <td>{formatValue(entry.value)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
