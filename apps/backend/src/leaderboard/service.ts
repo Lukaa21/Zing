@@ -5,6 +5,7 @@ const prisma = new PrismaClient();
 // Helper to get period boundaries
 function getPeriodBoundaries(period: 'WEEKLY' | 'MONTHLY' | 'YEARLY') {
   const now = new Date();
+  const epoch = new Date(0); // Unix epoch as placeholder
   
   if (period === 'WEEKLY') {
     const dayOfWeek = now.getDay();
@@ -12,20 +13,20 @@ function getPeriodBoundaries(period: 'WEEKLY' | 'MONTHLY' | 'YEARLY') {
     const weekStart = new Date(now);
     weekStart.setDate(now.getDate() + diff);
     weekStart.setHours(0, 0, 0, 0);
-    return { weekStart };
+    return { weekStart, monthStart: epoch, yearStart: epoch };
   }
   
   if (period === 'MONTHLY') {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-    return { monthStart };
+    return { weekStart: epoch, monthStart, yearStart: epoch };
   }
   
   if (period === 'YEARLY') {
     const yearStart = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
-    return { yearStart };
+    return { weekStart: epoch, monthStart: epoch, yearStart };
   }
   
-  return {};
+  return { weekStart: epoch, monthStart: epoch, yearStart: epoch };
 }
 
 // Update leaderboard snapshots for a specific period and category
@@ -66,13 +67,14 @@ async function updateLeaderboardSnapshot(
   for (let i = 0; i < leaderboardData.length; i++) {
     const entry = leaderboardData[i];
     
-    const uniqueWhere: any = {
+    // All three date fields are always present (epoch used as placeholder)
+    const uniqueWhere = {
       userId: entry.userId,
       category,
       period,
-      weekStart: boundaries.weekStart || null,
-      monthStart: boundaries.monthStart || null,
-      yearStart: boundaries.yearStart || null,
+      weekStart: boundaries.weekStart!,
+      monthStart: boundaries.monthStart!,
+      yearStart: boundaries.yearStart!,
     };
 
     await prisma.leaderboardSnapshot.upsert({
