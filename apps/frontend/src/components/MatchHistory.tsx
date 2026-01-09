@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getAuthToken } from '../utils/auth';
-import './MatchHistory.css';
+import '../styles/MatchHistory.css';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
 

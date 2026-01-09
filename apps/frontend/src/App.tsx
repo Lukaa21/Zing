@@ -133,37 +133,25 @@ const App: React.FC = () => {
       } />
 
       <Route path="/login" element={
-        <>
-          <LoginForm onSuccess={(user) => {
-            setName(user.username);
-            const pendingRoom = sessionStorage.getItem('zing_pending_invite_room');
-            if (!pendingRoom) {
-              navigate('/lobby');
-            }
-            // If pending invite exists, useEffect will route to /game
-          }} />
-          <div style={{ textAlign: 'center', marginTop: 20 }}>
-            <button onClick={() => navigate('/')} style={{ marginRight: 10 }}>Back</button>
-            <span>Don't have an account? <button onClick={() => navigate('/register')}>Register</button></span>
-          </div>
-        </>
+        <LoginForm onSuccess={(user) => {
+          setName(user.username);
+          const pendingRoom = sessionStorage.getItem('zing_pending_invite_room');
+          if (!pendingRoom) {
+            navigate('/lobby');
+          }
+          // If pending invite exists, useEffect will route to /game
+        }} />
       } />
 
       <Route path="/register" element={
-        <>
-          <RegisterForm onSuccess={(user) => {
-            setName(user.username);
-            const pendingRoom = sessionStorage.getItem('zing_pending_invite_room');
-            if (!pendingRoom) {
-              navigate('/lobby');
-            }
-            // If pending invite exists, useEffect will route to /game
-          }} />
-          <div style={{ textAlign: 'center', marginTop: 20 }}>
-            <button onClick={() => navigate('/')} style={{ marginRight: 10 }}>Back</button>
-            <span>Already have an account? <button onClick={() => navigate('/login')}>Login</button></span>
-          </div>
-        </>
+        <RegisterForm onSuccess={(user) => {
+          setName(user.username);
+          const pendingRoom = sessionStorage.getItem('zing_pending_invite_room');
+          if (!pendingRoom) {
+            navigate('/lobby');
+          }
+          // If pending invite exists, useEffect will route to /game
+        }} />
       } />
 
       <Route path="/guest-name" element={
