@@ -5,7 +5,7 @@ import { Server } from 'socket.io';
 import { createAdapter } from 'socket.io-redis';
 import Redis from 'ioredis';
 import pino from 'pino';
-import { createRoom, joinRoom, startGame, getRoom, handleIntent, leaveRoom, removePlayerFromAllRooms, getRoomByAccessCode, validateRoomAccess, generateAndStoreReconnectToken, validateReconnectToken, getAllRooms, addMemberToRoom, setMemberRole, kickMember, leaveMemberRoom, countPlayers, canStart1v1, canStart2v2, getUserCurrentRoom, isHost, RoomRole, deleteRoom, setTeamAssignment, getTeamAssignment, getPlayersInRoom, startTurnTimer, clearTurnTimer, getTurnTimeRemaining } from './game/roomManager';
+import { createRoom, joinRoom, startGame, getRoom, handleIntent, leaveRoom, removePlayerFromAllRooms, getRoomByAccessCode, validateRoomAccess, generateAndStoreReconnectToken, validateReconnectToken, getAllRooms, addMemberToRoom, setMemberRole, kickMember, leaveMemberRoom, countPlayers, canStart1v1, canStart2v2, getUserCurrentRoom, isHost, RoomRole, deleteRoom, setTeamAssignment, getTeamAssignment, getPlayersInRoom, startTurnTimer, clearTurnTimer, getTurnTimeRemaining, saveMatchHistory, cleanupInactiveRooms, Room } from './game/roomManager';
 import { matchmakingManager } from './game/matchmakingManager';
 import { InviteService } from './services/InviteService';
 import * as inviteRepo from './services/inviteRepository';
@@ -68,6 +68,14 @@ setActiveUsers(activeUsers);
   
   // Schedule leaderboard updates
   scheduleLeaderboardUpdates();
+  
+  // Schedule periodic cleanup of inactive private rooms (every 10 minutes)
+  setInterval(() => {
+    const deletedCount = cleanupInactiveRooms();
+    if (deletedCount > 0) {
+      logger.info({ deletedCount }, 'Cleaned up inactive private rooms');
+    }
+  }, 10 * 60 * 1000); // 10 minutes
 
   const io = new Server(server, {
     cors: { origin: '*' }
@@ -114,11 +122,15 @@ setActiveUsers(activeUsers);
     const startTurnTimerWithAutoPlay = (roomId: string) => {
       const room = getRoom(roomId);
       if (!room || !room.state || !room.timerEnabled || !room.state.currentTurnPlayerId) return;
+      
+      // Don't start timer if game is already over
+      if (room.state.matchOver) return;
 
       startTurnTimer(roomId, room.state.currentTurnPlayerId, async () => {
         // Timer expired - auto-play first card
-        logger.info({ roomId, playerId: room.state!.currentTurnPlayerId }, 'Turn timer expired - auto-playing first card');
-        const currentPlayer = room.state!.players.find(p => p.id === room.state!.currentTurnPlayerId);
+        logger.info({ roomId, playerId: room.state?.currentTurnPlayerId }, 'Turn timer expired - auto-playing first card');
+        
+        const currentPlayer = room.state?.players.find(p => p.id === room.state?.currentTurnPlayerId);
         if (currentPlayer && currentPlayer.hand.length > 0) {
           const firstCard = currentPlayer.hand[0];
           const autoEv = await handleIntent(room, { type: 'play_card', playerId: currentPlayer.id, cardId: firstCard });
@@ -129,8 +141,10 @@ setActiveUsers(activeUsers);
           }
           if (room.state) {
             io.to(roomId).emit('game_state', room.state);
-            // Recursively start timer for next player
-            startTurnTimerWithAutoPlay(roomId);
+            // Start timer for next player only if game is not over
+            if (!room.state.matchOver) {
+              startTurnTimerWithAutoPlay(roomId);
+            }
           }
         }
       }, 100); // 100ms for testing (change back to 12000 for production)
@@ -150,7 +164,7 @@ setActiveUsers(activeUsers);
     const emitTimerEventDelayed = (roomId: string, delay = 100) => {
       setTimeout(() => {
         const room = getRoom(roomId);
-        if (room?.state?.currentTurnPlayerId && room.timerEnabled) {
+        if (room?.state?.currentTurnPlayerId && room.timerEnabled && !room.state.matchOver) {
           io.to(roomId).emit('turn_timer_started', { 
             playerId: room.state.currentTurnPlayerId,
             duration: 100,
@@ -334,6 +348,12 @@ setActiveUsers(activeUsers);
       const wasInQueue = matchmakingManager.removePartyFromQueue(roomId);
       
       if (wasInQueue) {
+        // Reset inGame flag when leaving queue
+        const room = getRoom(roomId);
+        if (room) {
+          room.inGame = false;
+        }
+        
         io.to(roomId).emit('queue_left', { 
           message: 'Matchmaking cancelled by host' 
         });
@@ -651,6 +671,334 @@ setActiveUsers(activeUsers);
         io.to(roomId).emit('game_event', ev);
       }
       if (room.state) io.to(roomId).emit('game_state', room.state);
+    });
+    
+    // ============================================
+    // SURRENDER & REMATCH Socket Handlers
+    // ============================================
+    
+    /**
+     * Player votes to surrender
+     * In 2v2, both team members must vote to surrender
+     */
+    socket.on('vote_surrender', async ({ roomId }: { roomId: string }) => {
+      const room = getRoom(roomId);
+      if (!room || !room.state || room.state.matchOver) {
+        socket.emit('error', { reason: 'game_not_active' });
+        return;
+      }
+      
+      const player = room.players.find((p: any) => p.socketId === socket.id);
+      const playerId = player?.id ?? socket.data.identity?.id ?? socket.id;
+      
+      // Check if player is in this game
+      const gamePlayer = room.state.players.find(p => p.id === playerId);
+      if (!gamePlayer) {
+        socket.emit('error', { reason: 'not_in_game' });
+        return;
+      }
+      
+      // Load or initialize surrender votes from database
+      try {
+        const gameRecord = await prisma.game.findUnique({
+          where: { id: room.state.id }
+        });
+        
+        if (!gameRecord) {
+          socket.emit('error', { reason: 'game_not_found' });
+          return;
+        }
+        
+        let surrenderVotes = gameRecord.surrenderVotes || [];
+        
+        // Add vote if not already voted
+        if (!surrenderVotes.includes(playerId)) {
+          surrenderVotes.push(playerId);
+          
+          await prisma.game.update({
+            where: { id: room.state.id },
+            data: { surrenderVotes }
+          });
+        }
+        
+        // Check if team has fully surrendered
+        const playerTeam = gamePlayer.team;
+        const teamPlayers = room.state.players.filter(p => p.team === playerTeam);
+        const teamVotes = surrenderVotes.filter(vid => teamPlayers.some(p => p.id === vid));
+        
+        if (teamVotes.length === teamPlayers.length) {
+          // Team has surrendered! End game
+          const winnerTeam = playerTeam === 0 ? 1 : 0;
+          
+          // Set scores: winner gets 101, loser gets current score
+          const finalScores = {
+            team0: playerTeam === 0 ? room.state.scores.team0 : 101,
+            team1: playerTeam === 1 ? room.state.scores.team1 : 101
+          };
+          
+          room.state.scores = finalScores;
+          room.state.matchOver = true;
+          
+          // Stop any active turn timer
+          clearTurnTimer(roomId);
+          
+          // Emit surrender event
+          io.to(roomId).emit('game_event', {
+            type: 'team_surrendered',
+            payload: { team: playerTeam, winnerTeam, finalScores }
+          });
+          
+          io.to(roomId).emit('game_state', room.state);
+          
+          // Save match history
+          const matchZings = (room as any)._matchZings || { team0: 0, team1: 0 };
+          await saveMatchHistory(room, winnerTeam, finalScores, matchZings);
+          
+          // Mark room as not in game anymore (game is over)
+          room.inGame = false;
+          
+        } else {
+          // Notify only team members that one member wants to surrender
+          // Find all players in the same team and send them the notification
+          const teamPlayerIds = teamPlayers.map(p => p.id);
+          const teamMembers = room.members.filter(m => teamPlayerIds.includes(m.userId));
+          
+          for (const member of teamMembers) {
+            if (member.socketId) {
+              io.to(member.socketId).emit('surrender_vote_added', {
+                playerId,
+                team: playerTeam,
+                votesNeeded: teamPlayers.length,
+                currentVotes: teamVotes.length
+              });
+            }
+          }
+        }
+        
+      } catch (error) {
+        console.error('Error handling surrender vote:', error);
+        socket.emit('error', { reason: 'surrender_failed' });
+      }
+    });
+    
+    /**
+     * Player votes for rematch
+     * All players must vote for rematch
+     */
+    socket.on('vote_rematch', async ({ roomId }: { roomId: string }) => {
+      const room = getRoom(roomId);
+      if (!room || !room.state || !room.state.matchOver) {
+        socket.emit('error', { reason: 'game_not_ended' });
+        return;
+      }
+      
+      const player = room.players.find((p: any) => p.socketId === socket.id);
+      const playerId = player?.id ?? socket.data.identity?.id ?? socket.id;
+      
+      // Check if player is in this game
+      const gamePlayer = room.state.players.find(p => p.id === playerId);
+      if (!gamePlayer) {
+        socket.emit('error', { reason: 'not_in_game' });
+        return;
+      }
+      
+      try {
+        const gameRecord = await prisma.game.findUnique({
+          where: { id: room.state.id }
+        });
+        
+        if (!gameRecord) {
+          socket.emit('error', { reason: 'game_not_found' });
+          return;
+        }
+        
+        let rematchVotes = gameRecord.rematchVotes || [];
+        
+        // Add vote if not already voted
+        if (!rematchVotes.includes(playerId)) {
+          rematchVotes.push(playerId);
+          
+          await prisma.game.update({
+            where: { id: room.state.id },
+            data: { rematchVotes }
+          });
+        }
+        
+        // Notify all players of vote
+        io.to(roomId).emit('rematch_vote_added', {
+          playerId,
+          votesNeeded: room.state.players.length,
+          currentVotes: rematchVotes.length
+        });
+        
+        // Check if all players voted
+        if (rematchVotes.length === room.state.players.length) {
+          // All voted! Start rematch
+          logger.info({ roomId }, 'All players voted for rematch, starting new game');
+          
+          // Clear old game state but keep players
+          room.state = undefined;
+          room.seq = 0;
+          
+          // Start new game with same players
+          try {
+            await startGame(room);
+            io.to(roomId).emit('game_state', room.state);
+            io.to(roomId).emit('game_event', { type: 'rematch_started', payload: {} });
+            
+            // Start turn timer for first player if timer enabled
+            startTurnTimerWithAutoPlay(roomId);
+            
+            // Emit timer event with delay to ensure all clients received game_state
+            emitTimerEventDelayed(roomId);
+          } catch (error) {
+            console.error('Error starting rematch:', error);
+            io.to(roomId).emit('error', { reason: 'rematch_failed' });
+          }
+        }
+        
+      } catch (error) {
+        console.error('Error handling rematch vote:', error);
+        socket.emit('error', { reason: 'rematch_failed' });
+      }
+    });
+    
+    /**
+     * Player exits game (leaves room after game ends)
+     */
+    socket.on('exit_game', async ({ roomId }: { roomId: string }) => {
+      const room = getRoom(roomId);
+      if (!room) {
+        socket.emit('error', { reason: 'room_not_found' });
+        return;
+      }
+      
+      const player = room.players.find((p: any) => p.socketId === socket.id);
+      const playerId = player?.id ?? socket.data.identity?.id ?? socket.id;
+      
+      // Return player to original room if they came from one
+      const originalRoomId = room.playerOriginalRooms?.get(playerId);
+      
+      if (originalRoomId && originalRoomId !== roomId) {
+        // Player came from a different private room (e.g., party matchmaking), return them there
+        const originalRoom = getRoom(originalRoomId);
+        
+        if (originalRoom) {
+          // Get player info from matchmaking room BEFORE leaving
+          const member = room.members.find(m => m.userId === playerId);
+          const playerName = member?.name || room.players.find((p: any) => p.id === playerId)?.name || 'Unknown';
+          const isAuthenticated = member?.isAuthenticated || false;
+          
+          // Remove from matchmaking room (only if still a member)
+          socket.leave(roomId);
+          const isMember = room.members.some(m => m.userId === playerId);
+          if (isMember) {
+            try {
+              leaveMemberRoom(roomId, playerId);
+            } catch (error: any) {
+              logger.warn({ roomId, playerId, error: error.message }, 'Failed to leave matchmaking room (player may have already left)');
+            }
+          }
+          
+          // Rejoin original room
+          addMemberToRoom(originalRoom, playerId, playerName, socket.id, isAuthenticated);
+          
+          // Sync room.players with room.members (remove ghost players from matchmaking)
+          originalRoom.players = originalRoom.members.map((m, idx) => {
+            const existingPlayer = originalRoom.players.find(p => p.id === m.userId);
+            return existingPlayer || {
+              id: m.userId,
+              name: m.name,
+              seat: idx,
+              role: m.roleInRoom === 'PLAYER' ? 'player' : 'spectator',
+              team: 0,
+              hand: [],
+              taken: [],
+              socketId: m.socketId,
+              connected: true,
+            };
+          });
+          
+          socket.join(originalRoomId);
+          socket.emit('returned_to_room', { roomId: originalRoomId, room: originalRoom });
+          
+          // Notify all members in original room with updated player list (including this player)
+          io.to(originalRoomId).emit('room_update', {
+            roomId: originalRoomId,
+            players: originalRoom.players.map((p: any) => ({ 
+              id: p.id, 
+              name: p.name ?? p.id, 
+              role: p.role, 
+              taken: p.taken 
+            })),
+            ownerId: originalRoom.ownerId
+          });
+          
+          logger.info({ roomId, originalRoomId, playerId }, 'Player returned to original private room');
+          
+          // Clean up matchmaking room if empty
+          if (room.members.length === 0) {
+            room.inGame = false; // Allow deletion now
+            deleteRoom(roomId);
+          }
+          
+          return;
+        } else {
+          // Original room was deleted, send to lobby
+          logger.warn({ roomId, originalRoomId, playerId }, 'Original room no longer exists, sending to lobby');
+          socket.leave(roomId);
+          const isMember = room.members.some(m => m.userId === playerId);
+          if (isMember) {
+            try {
+              leaveMemberRoom(roomId, playerId);
+            } catch (error: any) {
+              logger.warn({ roomId, playerId, error: error.message }, 'Failed to leave room');
+            }
+          }
+          socket.emit('left_room', { roomId });
+          
+          // Clean up matchmaking room if empty
+          if (room.members.length === 0) {
+            room.inGame = false;
+            deleteRoom(roomId);
+          }
+          
+          return;
+        }
+      }
+      
+      // Game started in this room (1v1 or 2v2_party in private room)
+      // Just end the game but keep players in the room
+      if (room.visibility === 'private' && room.state) {
+        // Clear game state but keep room intact
+        room.state = undefined;
+        room.inGame = false;
+        
+        // Notify room that game ended
+        io.to(roomId).emit('game_exited', { roomId });
+        socket.emit('stayed_in_room', { roomId, room });
+        
+        logger.info({ roomId, playerId }, 'Player exited game, staying in private room');
+        return;
+      }
+      
+      // Public room or no game state - leave normally
+      socket.leave(roomId);
+      const isMember = room.members.some(m => m.userId === playerId);
+      if (isMember) {
+        try {
+          leaveMemberRoom(roomId, playerId);
+        } catch (error: any) {
+          logger.warn({ roomId, playerId, error: error.message }, 'Failed to leave room');
+        }
+      }
+      socket.emit('left_room', { roomId });
+      
+      // Clean up room if empty
+      if (room.members.length === 0) {
+        room.inGame = false;
+        deleteRoom(roomId);
+      }
     });
     
     // ============================================
@@ -1436,11 +1784,19 @@ setActiveUsers(activeUsers);
             emitTimerEventDelayed(result.room.id);
           }
 
-          // Delete the old room manually (since members aren't leaving normally)
-          deleteRoom(roomId);
+          // Mark the old room as empty but keep it alive for players to return to
+          // Remove all members from old room (they're now in matchmaking room)
+          room.members = [];
+          room.players = [];
+          room.inGame = true; // Keep room protected from deletion
+          
+          logger.info({ oldRoomId: roomId, newRoomId: result.room.id }, 'Emptied original room but kept it alive for return');
           
         } else {
           // Added to queue, waiting for another party
+          // Mark room as in-game to protect it from deletion while in queue
+          room.inGame = true;
+          
           io.to(roomId).emit('queue_joined', { 
             mode: '2v2',
             message: 'Searching for another team...'

@@ -67,6 +67,13 @@ export type Room = {
   // game mode and start time for match history
   mode?: '1v1' | '2v2';
   gameStartedAt?: Date;
+  // flag to indicate room is in an active game (prevents auto-deletion)
+  inGame?: boolean;
+  // original room IDs for players (used for returning after game)
+  // Maps playerId -> originalRoomId
+  playerOriginalRooms?: Map<string, string>;
+  // timestamp of last activity (for cleanup of inactive private rooms)
+  lastActivity?: number;
 };
 
 const rooms: Map<string, Room> = new Map();
@@ -100,6 +107,7 @@ export function createRoom(visibility?: 'public' | 'private', creatorId?: string
     hostId: creatorId, // Creator becomes initial host
     ownerId: creatorId,
     timerEnabled: timerEnabled ?? false, // Default to false for private rooms
+    lastActivity: Date.now(), // Track activity for cleanup
   };
   
   // Generate access credentials for private rooms
@@ -195,6 +203,24 @@ export async function startGame(room: Room, options?: { customTeams?: { team0: s
   await appendGameEvent(gameId, room.seq, handsEv.type, handsEv.actor, handsEv.payload);
   room.state = state;
   room.gameStartedAt = new Date();
+  
+  // Mark room as in-game to prevent auto-deletion when players leave
+  room.inGame = true;
+  
+  // Update activity timestamp
+  updateRoomActivity(room.id);
+  
+  // Track original room for each player (for returning after game)
+  if (!room.playerOriginalRooms) {
+    room.playerOriginalRooms = new Map();
+  }
+  for (const player of state.players) {
+    // Only set if not already set (to preserve party matchmaking mappings)
+    if (!room.playerOriginalRooms.has(player.id)) {
+      room.playerOriginalRooms.set(player.id, room.id);
+    }
+  }
+  
   return state;
 }
 
@@ -315,7 +341,7 @@ async function checkAndUnlockAchievements(userId: string, stats: any) {
 }
 
 // Save match history to database when a match ends
-async function saveMatchHistory(
+export async function saveMatchHistory(
   room: Room, 
   winnerTeam: number, 
   finalScores: { team0: number; team1: number },
@@ -458,6 +484,10 @@ export async function finalizeRound(room: Room) {
   // Now check if one team reached the (possibly updated) target while the other did not
   if ((t0 >= target && t1 < target) || (t1 >= target && t0 < target)) {
     state.matchOver = true;
+    
+    // Stop any active turn timer since game is over
+    clearTurnTimer(room.id);
+    
     const winner = t0 > t1 ? 0 : 1;
     const matchEnd = { type: 'match_end', actor: undefined, payload: { winnerTeam: winner, finalScores: { team0: t0, team1: t1 } } } as Event;
     room.seq++;
@@ -467,6 +497,9 @@ export async function finalizeRound(room: Room) {
     // Save match history
     const matchZings = (room as any)._matchZings || { team0: 0, team1: 0 };
     await saveMatchHistory(room, winner, { team0: t0, team1: t1 }, matchZings);
+    
+    // Mark room as not in game anymore (game is over)
+    room.inGame = false;
 
     // best-effort DB update
     if (process.env.DATABASE_URL) {
@@ -499,6 +532,10 @@ export async function finalizeRound(room: Room) {
 
 export async function handleIntent(room: Room, intent: Intent) {
   if (!room.state) return null;
+  
+  // Update activity timestamp on game action
+  updateRoomActivity(room.id);
+  
   // enforce turn order
   if (room.state.currentTurnPlayerId && room.state.currentTurnPlayerId !== (intent as any).playerId) {
     room.seq++;
@@ -582,6 +619,9 @@ export function joinRoom(room: Room, p: PlayerState) {
       }
     }
   }
+  
+  // Update activity timestamp
+  updateRoomActivity(room.id);
 }
 
 export function leaveRoom(room: Room, playerId: string) {
@@ -609,8 +649,8 @@ export function leaveRoom(room: Room, playerId: string) {
     }
   }
 
-  // Delete room if empty
-  if (room.members.length === 0 && room.players.length === 0) {
+  // Delete room if it should be deleted (checks inGame, members, and grace period)
+  if (shouldDeleteRoom(room)) {
     deleteRoom(room.id);
   }
 }
@@ -716,6 +756,9 @@ export function addMemberToRoom(room: Room, userId: string, name: string, socket
       legacyPlayer.connected = true;
     }
     
+    // Update activity timestamp
+    updateRoomActivity(room.id);
+    
     return existing;
   }
 
@@ -729,6 +772,9 @@ export function addMemberToRoom(room: Room, userId: string, name: string, socket
   };
 
   room.members.push(member);
+  
+  // Update activity timestamp for new member
+  updateRoomActivity(room.id);
 
   // Sync to legacy players array (for backwards compatibility)
   const existingLegacyPlayer = room.players.find(p => p.id === userId);
@@ -830,8 +876,8 @@ export function kickMember(
   // Also remove from players array if present
   room.players = room.players.filter(p => p.id !== targetUserId);
 
-  // Check if room is now empty -> delete room
-  if (room.members.length === 0) {
+  // Check if room should be deleted
+  if (shouldDeleteRoom(room)) {
     deleteRoom(roomId);
   } else {
     // Clear team assignment when member count changes
@@ -877,8 +923,8 @@ export function leaveMemberRoom(
 
   let newHostId: string | undefined;
 
-  // Check if room is now empty
-  if (room.members.length === 0) {
+  // Check if room should be deleted
+  if (shouldDeleteRoom(room)) {
     deleteRoom(roomId);
     return { wasHost, roomDeleted: true };
   }
@@ -902,6 +948,37 @@ export function leaveMemberRoom(
 }
 
 /**
+ * Update room's last activity timestamp
+ */
+export function updateRoomActivity(roomId: string): void {
+  const room = rooms.get(roomId);
+  if (room) {
+    room.lastActivity = Date.now();
+  }
+}
+
+/**
+ * Check if room should be deleted based on activity and state
+ */
+export function shouldDeleteRoom(room: Room): boolean {
+  // Never delete if game is active
+  if (room.inGame) return false;
+  
+  // Never delete if has members
+  if (room.members.length > 0) return false;
+  
+  // Private rooms get 30 minute grace period for players to return
+  if (room.visibility === 'private') {
+    const gracePeriod = 30 * 60 * 1000; // 30 minutes
+    const timeSinceActivity = Date.now() - (room.lastActivity || 0);
+    return timeSinceActivity > gracePeriod;
+  }
+  
+  // Public/matchmaking rooms can be deleted immediately when empty
+  return true;
+}
+
+/**
  * Delete room from memory
  * Called when room becomes empty
  */
@@ -911,6 +988,31 @@ export function deleteRoom(roomId: string): void {
   rooms.delete(roomId);
   // Also clear all reconnect tokens for this room
   clearReconnectTokensForRoom(roomId);
+}
+
+/**
+ * Cleanup inactive rooms (scheduled job)
+ */
+export function cleanupInactiveRooms(): number {
+  let deletedCount = 0;
+  for (const [roomId, room] of rooms.entries()) {
+    if (shouldDeleteRoom(room)) {
+      console.log(`[Cleanup] Deleting inactive room ${roomId} (visibility: ${room.visibility}, lastActivity: ${new Date(room.lastActivity || 0).toISOString()})`);
+      deleteRoom(roomId);
+      deletedCount++;
+    }
+  }
+  if (deletedCount > 0) {
+    console.log(`[Cleanup] Deleted ${deletedCount} inactive rooms`);
+  }
+  return deletedCount;
+}
+
+/**
+ * Get all rooms map (for debugging)
+ */
+export function getAllRoomsMap(): Map<string, Room> {
+  return rooms;
 }
 
 /**

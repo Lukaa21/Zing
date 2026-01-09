@@ -290,6 +290,15 @@ class MatchmakingManager {
     if ((party2 as any).originalHostId) {
       room.originalHostIds.push((party2 as any).originalHostId);
     }
+    
+    // Track original room IDs for each player (for returning after game)
+    room.playerOriginalRooms = new Map();
+    for (const player of party1.players) {
+      room.playerOriginalRooms.set(player.playerId, party1.roomId);
+    }
+    for (const player of party2.players) {
+      room.playerOriginalRooms.set(player.playerId, party2.roomId);
+    }
 
     // Add all 4 players to room
     // Interleave parties to ensure alternating teams (Team0, Team1, Team0, Team1)
@@ -372,6 +381,12 @@ class MatchmakingManager {
     room.originalHostIds = [];
     if ((party as any).originalHostId) {
       room.originalHostIds.push((party as any).originalHostId);
+    }
+    
+    // Track original room IDs for party players (singles don't have original rooms)
+    room.playerOriginalRooms = new Map();
+    for (const player of party.players) {
+      room.playerOriginalRooms.set(player.playerId, party.roomId);
     }
 
     // Add all 4 players to room

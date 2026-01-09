@@ -79,10 +79,28 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
   const [isMatchmakingTransition, setIsMatchmakingTransition] = useState<boolean>(false);
   const [timerDuration, setTimerDuration] = useState<number | undefined>(undefined);
   const [timerExpiresAt, setTimerExpiresAt] = useState<number | undefined>(undefined);
+  const [surrenderVotes, setSurrenderVotes] = useState<any>(null);
+  const [rematchVotes, setRematchVotes] = useState<any>(null);
   const playersRef = React.useRef(players);
   React.useEffect(() => {
     playersRef.current = players;
   }, [players]);
+  
+  // Track game ID to detect when a new game starts (after rematch)
+  const prevGameIdRef = React.useRef<string | null>(null);
+  
+  // Reset votes when a new game starts
+  React.useEffect(() => {
+    if (state?.id) {
+      // If game ID changed, it's a new game - reset votes
+      if (prevGameIdRef.current && prevGameIdRef.current !== state.id) {
+        console.log('New game detected (ID changed), resetting votes');
+        setSurrenderVotes(null);
+        setRematchVotes(null);
+      }
+      prevGameIdRef.current = state.id;
+    }
+  }, [state?.id]);
 
   useEffect(() => {
     const s = connect(playerName, 'player', token || undefined);
@@ -247,11 +265,92 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
         }
       }, 100); // Wait 100ms for auth_ok
     }
+    
+    // Surrender and Rematch event listeners
+    s.on('surrender_vote_added', (data: any) => {
+      console.log('surrender_vote_added', data);
+      setSurrenderVotes(data);
+    });
+    
+    s.on('team_surrendered', (data: any) => {
+      console.log('team_surrendered', data);
+      setSurrenderVotes(null);
+      // Game state will be updated via game_state event
+    });
+    
+    s.on('rematch_vote_added', (data: any) => {
+      console.log('rematch_vote_added', data);
+      setRematchVotes(data);
+    });
+    
+    s.on('rematch_started', () => {
+      console.log('rematch_started');
+      setRematchVotes(null);
+      setSurrenderVotes(null);
+      setLogs([]);
+      // Game state will be updated via game_state event
+    });
+    
+    s.on('game_exited', (data: { roomId: string }) => {
+      console.log('game_exited', data);
+      // Another player exited the game, reset game state
+      setState(null);
+      setRematchVotes(null);
+      setSurrenderVotes(null);
+      setLogs([]);
+      // Navigate back to room view if we're still in game view
+      if (location.pathname === '/game') {
+        navigate('/room', { replace: true });
+      }
+    });
+    
+    s.on('returned_to_room', (data: { roomId: string; room: any }) => {
+      console.log('returned_to_room', data);
+      // Update room ID and navigate back to room screen
+      if (onRoomChange) {
+        onRoomChange(data.roomId);
+      }
+      sessionStorage.setItem('zing_current_room', data.roomId);
+      // Reset game state
+      setState(null);
+      setRematchVotes(null);
+      setSurrenderVotes(null);
+      setLogs([]);
+    });
+    
+    s.on('stayed_in_room', (data: { roomId: string; room: any }) => {
+      console.log('stayed_in_room', data);
+      // Game exited but staying in the same private room
+      // Just reset game state, keep roomId the same
+      setState(null);
+      setRematchVotes(null);
+      setSurrenderVotes(null);
+      setLogs([]);
+      // Navigate back to room view
+      navigate('/room', { replace: true });
+    });
+    
+    s.on('left_room', (data: { roomId: string }) => {
+      console.log('left_room', data);
+      // Navigate back to lobby
+      if (onLeave) {
+        onLeave();
+      }
+    });
+    
     setSocket(s);
     // Do not disconnect here; socket is shared across views
     return () => {
       // Clean up all event handlers
       s.off('auth_ok', authOkHandler);
+      s.off('surrender_vote_added');
+      s.off('team_surrendered');
+      s.off('rematch_vote_added');
+      s.off('rematch_started');
+      s.off('returned_to_room');
+      s.off('stayed_in_room');
+      s.off('game_exited');
+      s.off('left_room');
       // keep socket alive (do not disconnect singleton)
       s.disconnect();
     };
@@ -282,6 +381,24 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
     if (!socket) return;
     setLogs((l) => [`Starting game...`, ...l].slice(0, 200));
     socket.emit('start_game', { roomId });
+  };
+  
+  const handleSurrender = () => {
+    if (!socket) return;
+    console.log('Voting to surrender');
+    socket.emit('vote_surrender', { roomId });
+  };
+  
+  const handleRematch = () => {
+    if (!socket) return;
+    console.log('Voting for rematch');
+    socket.emit('vote_rematch', { roomId });
+  };
+  
+  const handleExitGame = () => {
+    if (!socket) return;
+    console.log('Exiting game');
+    socket.emit('exit_game', { roomId });
   };
 
   // Determine phase: isInGame means handNumber is set and > 0
@@ -333,6 +450,11 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
             setDevMode={setDevMode}
             setControlAs={setControlAs}
             onPlay={handlePlay}
+            onSurrender={handleSurrender}
+            onRematch={handleRematch}
+            onExit={handleExitGame}
+            surrenderVotes={surrenderVotes}
+            rematchVotes={rematchVotes}
           />
         ) : (
           <RoomScreen

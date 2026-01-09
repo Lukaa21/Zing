@@ -21,6 +21,11 @@ interface InGameViewProps {
   setDevMode: (v: boolean) => void;
   setControlAs: (id: string | null) => void;
   onPlay: (cardId: string, ownerId?: string) => void;
+  onSurrender?: () => void;
+  onRematch?: () => void;
+  onExit?: () => void;
+  surrenderVotes?: { playerId: string; team: number; votesNeeded: number; currentVotes: number } | null;
+  rematchVotes?: { playerId: string; votesNeeded: number; currentVotes: number } | null;
 }
 
 const InGameView: React.FC<InGameViewProps> = ({
@@ -37,8 +42,14 @@ const InGameView: React.FC<InGameViewProps> = ({
   setDevMode,
   setControlAs,
   onPlay,
+  onSurrender,
+  onRematch,
+  onExit,
+  surrenderVotes,
+  rematchVotes,
 }) => {
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+  const [showSurrenderConfirm, setShowSurrenderConfirm] = useState(false);
 
   // Update timer countdown
   useEffect(() => {
@@ -67,8 +78,201 @@ const InGameView: React.FC<InGameViewProps> = ({
 
   return (
     <div className="in-game">
+      {/* Surrender Confirmation Modal */}
+      {showSurrenderConfirm && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '2rem',
+            borderRadius: '8px',
+            maxWidth: '400px',
+            textAlign: 'center'
+          }}>
+            <h3>Surrender Game?</h3>
+            <p>Are you sure you want to surrender? The other team will automatically win with 101 points.</p>
+            {state?.players?.length === 4 && (
+              <p style={{ fontSize: '0.9rem', color: '#666' }}>
+                In 2v2, both team members must agree to surrender.
+              </p>
+            )}
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'center' }}>
+              <button
+                onClick={() => setShowSurrenderConfirm(false)}
+                style={{
+                  padding: '0.5rem 1.5rem',
+                  fontSize: '1rem',
+                  borderRadius: '4px',
+                  border: '1px solid #ccc',
+                  backgroundColor: 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowSurrenderConfirm(false);
+                  onSurrender?.();
+                }}
+                style={{
+                  padding: '0.5rem 1.5rem',
+                  fontSize: '1rem',
+                  borderRadius: '4px',
+                  border: 'none',
+                  backgroundColor: '#f44336',
+                  color: 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                Surrender
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Game Over Modal */}
+      {state?.matchOver && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '2rem',
+            borderRadius: '8px',
+            maxWidth: '500px',
+            textAlign: 'center'
+          }}>
+            <h2 style={{ marginBottom: '1rem' }}>Game Over!</h2>
+            <div style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>
+              <div style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>
+                {(() => {
+                  const me = state.players.find((p: any) => p.id === myId);
+                  const myTeam = me?.team;
+                  const winnerTeam = state.scores.team0 > state.scores.team1 ? 0 : 1;
+                  const didIWin = myTeam === winnerTeam;
+                  return didIWin ? '🎉 You Won! 🎉' : '😔 You Lost';
+                })()}
+              </div>
+              <div style={{ display: 'flex', gap: '2rem', justifyContent: 'center', marginTop: '1rem' }}>
+                <div style={{ 
+                  padding: '0.5rem 1rem',
+                  backgroundColor: state.scores.team0 > state.scores.team1 ? '#4CAF50' : '#ccc',
+                  color: 'white',
+                  borderRadius: '4px',
+                  fontWeight: 'bold'
+                }}>
+                  Team 0: {state.scores.team0} pts
+                </div>
+                <div style={{ 
+                  padding: '0.5rem 1rem',
+                  backgroundColor: state.scores.team1 > state.scores.team0 ? '#2196F3' : '#ccc',
+                  color: 'white',
+                  borderRadius: '4px',
+                  fontWeight: 'bold'
+                }}>
+                  Team 1: {state.scores.team1} pts
+                </div>
+              </div>
+            </div>
+            
+            {/* Rematch voting status */}
+            {rematchVotes && (
+              <div style={{ marginBottom: '1rem', padding: '0.5rem', backgroundColor: '#f0f0f0', borderRadius: '4px' }}>
+                <p style={{ margin: 0, fontSize: '0.9rem' }}>
+                  Waiting for rematch votes: {rematchVotes.currentVotes}/{rematchVotes.votesNeeded}
+                </p>
+              </div>
+            )}
+            
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'center' }}>
+              <button
+                onClick={onExit}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  fontSize: '1rem',
+                  borderRadius: '4px',
+                  border: '1px solid #ccc',
+                  backgroundColor: 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                Exit Game
+              </button>
+              <button
+                onClick={onRematch}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  fontSize: '1rem',
+                  borderRadius: '4px',
+                  border: 'none',
+                  backgroundColor: '#4CAF50',
+                  color: 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                Rematch
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: 24 }}>
         <div style={{ minWidth: 240 }}>
+          {/* Leave Game / Surrender Button */}
+          {!state?.matchOver && !isSpectator && onSurrender && (
+            <div style={{ marginBottom: '1rem' }}>
+              <button
+                onClick={() => setShowSurrenderConfirm(true)}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  fontSize: '0.9rem',
+                  borderRadius: '4px',
+                  border: 'none',
+                  backgroundColor: '#f44336',
+                  color: 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                🏳️ Leave Game
+              </button>
+              {surrenderVotes && (
+                <div style={{ 
+                  marginTop: '0.5rem', 
+                  padding: '0.5rem', 
+                  backgroundColor: '#fff3cd', 
+                  borderRadius: '4px',
+                  fontSize: '0.8rem',
+                  textAlign: 'center'
+                }}>
+                  Teammate wants to surrender ({surrenderVotes.currentVotes}/{surrenderVotes.votesNeeded})
+                </div>
+              )}
+            </div>
+          )}
+          
           <h3>Players in Room</h3>
           <ul className="players-list">
             {players.map((p) => (
