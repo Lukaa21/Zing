@@ -1,6 +1,6 @@
 body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; }
 .container { max-width: 1200px; margin: 0 auto; padding: 1rem; }
-.lobby .board, .game .board { background: #f5f7fa; padding: 1rem; border-radius: 8px; }
+.lobby .board, .game .board { background: #ffffff; padding: 1rem; border-radius: 8px; }
 
 .players-list { list-style: none; padding: 0; }
 .players-list li { padding: 6px 4px; border-radius: 4px; }

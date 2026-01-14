@@ -422,6 +422,7 @@ const Lobby: React.FC<LobbyProps> = ({
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleJoinByCode()}
+              maxLength={6}
             />
             <button
               className="lobby-btn lobby-btn-primary join-btn"

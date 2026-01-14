@@ -17,6 +17,7 @@ import {
 } from '../services/friends';
 import { getSocket } from '../services/socket';
 import { setReconnectToken } from '../utils/guest';
+import '../styles/FriendsPage.css';
 
 export default function FriendsPage() {
   const { authUser, token } = useAuth();
@@ -214,207 +215,95 @@ export default function FriendsPage() {
   }
 
   return (
-    <div style={{ maxWidth: '800px', margin: '0 auto', padding: '2rem' }}>
-      <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ marginBottom: '1rem' }}>Friends</h1>
-        <button
-          onClick={() => navigate('/lobby')}
-          style={{
-            padding: '0.5rem 1rem',
-            fontSize: '1rem',
-            cursor: 'pointer',
-            borderRadius: '4px',
-            border: '1px solid #ccc',
-            backgroundColor: '#fff',
-          }}
-        >
+    <div className="friends-page">
+      <div className="friends-header">
+        <h1>Friends</h1>
+        <button onClick={() => navigate('/lobby')} className="friends-back-btn">
           ← Back to Lobby
         </button>
       </div>
 
       {/* Add Friend Form */}
-      <div
-        style={{
-          backgroundColor: '#f9f9f9',
-          padding: '1.5rem',
-          borderRadius: '8px',
-          marginBottom: '2rem',
-        }}
-      >
-        <h2 style={{ marginBottom: '1rem' }}>Add Friend</h2>
-        <form onSubmit={handleAddFriend}>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <input
-              type="text"
-              value={addFriendUsername}
-              onChange={(e) => setAddFriendUsername(e.target.value)}
-              placeholder="Enter username"
-              style={{
-                flex: 1,
-                padding: '0.5rem',
-                fontSize: '1rem',
-                borderRadius: '4px',
-                border: '1px solid #ccc',
-              }}
-            />
-            <button
-              type="submit"
-              disabled={!addFriendUsername.trim()}
-              style={{
-                padding: '0.5rem 1.5rem',
-                fontSize: '1rem',
-                cursor: addFriendUsername.trim() ? 'pointer' : 'not-allowed',
-                borderRadius: '4px',
-                border: 'none',
-                backgroundColor: addFriendUsername.trim() ? '#007bff' : '#ccc',
-                color: '#fff',
-              }}
-            >
-              Send Request
-            </button>
-          </div>
-          {addFriendError && (
-            <p style={{ color: 'red', marginTop: '0.5rem', fontSize: '0.9rem' }}>
-              {addFriendError}
-            </p>
-          )}
-          {addFriendSuccess && (
-            <p style={{ color: 'green', marginTop: '0.5rem', fontSize: '0.9rem' }}>
-              Friend request sent!
-            </p>
-          )}
+      <div className="add-friend-section">
+        <h2>Add Friend</h2>
+        <form onSubmit={handleAddFriend} className="add-friend-form">
+          <input
+            type="text"
+            value={addFriendUsername}
+            onChange={(e) => setAddFriendUsername(e.target.value)}
+            placeholder="Enter username"
+            className="add-friend-input"
+          />
+          <button
+            type="submit"
+            disabled={!addFriendUsername.trim()}
+            className="add-friend-submit"
+          >
+            Send Request
+          </button>
         </form>
+        {addFriendError && (
+          <p className="add-friend-error">{addFriendError}</p>
+        )}
+        {addFriendSuccess && (
+          <p className="add-friend-success">Friend request sent!</p>
+        )}
       </div>
 
       {/* Tabs */}
-      <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem' }}>
+      <div className="friends-tabs">
         <button
           onClick={() => setActiveTab('friends')}
-          style={{
-            padding: '0.5rem 1rem',
-            fontSize: '1rem',
-            cursor: 'pointer',
-            borderRadius: '4px',
-            border: '1px solid #ccc',
-            backgroundColor: activeTab === 'friends' ? '#007bff' : '#fff',
-            color: activeTab === 'friends' ? '#fff' : '#000',
-          }}
+          className={`friends-tab ${activeTab === 'friends' ? 'active' : ''}`}
         >
           Friends ({friends.length})
         </button>
         <button
           onClick={() => setActiveTab('requests')}
-          style={{
-            padding: '0.5rem 1rem',
-            fontSize: '1rem',
-            cursor: 'pointer',
-            borderRadius: '4px',
-            border: '1px solid #ccc',
-            backgroundColor: activeTab === 'requests' ? '#007bff' : '#fff',
-            color: activeTab === 'requests' ? '#fff' : '#000',
-          }}
+          className={`friends-tab ${activeTab === 'requests' ? 'active' : ''}`}
         >
           Requests ({requests.length})
         </button>
         <button
           onClick={() => setActiveTab('sent')}
-          style={{
-            padding: '0.5rem 1rem',
-            fontSize: '1rem',
-            cursor: 'pointer',
-            borderRadius: '4px',
-            border: '1px solid #ccc',
-            backgroundColor: activeTab === 'sent' ? '#007bff' : '#fff',
-            color: activeTab === 'sent' ? '#fff' : '#000',
-          }}
+          className={`friends-tab ${activeTab === 'sent' ? 'active' : ''}`}
         >
           Sent ({sentRequests.length})
         </button>
         <button
           onClick={() => setActiveTab('invites')}
-          style={{
-            padding: '0.5rem 1rem',
-            fontSize: '1rem',
-            cursor: 'pointer',
-            borderRadius: '4px',
-            border: '1px solid #ccc',
-            backgroundColor: activeTab === 'invites' ? '#007bff' : '#fff',
-            color: activeTab === 'invites' ? '#fff' : '#000',
-          }}
+          className={`friends-tab ${activeTab === 'invites' ? 'active' : ''}`}
         >
           Game Invites ({gameInvites.length})
         </button>
       </div>
 
       {/* Error Message */}
-      {error && (
-        <div
-          style={{
-            backgroundColor: '#ffebee',
-            color: '#c62828',
-            padding: '1rem',
-            borderRadius: '4px',
-            marginBottom: '1rem',
-          }}
-        >
-          {error}
-        </div>
-      )}
+      {error && <div className="friends-error">{error}</div>}
 
       {/* Loading State */}
-      {loading && <p>Loading...</p>}
+      {loading && <p className="friends-loading">Loading...</p>}
 
       {/* Friends List */}
       {!loading && activeTab === 'friends' && (
-        <div>
-          <h2 style={{ marginBottom: '1rem' }}>Your Friends</h2>
+        <div className="friends-content-section">
+          <h2>Your Friends</h2>
           {friends.length === 0 ? (
-            <p style={{ color: '#666' }}>You don't have any friends yet. Add some using the form above!</p>
+            <p className="friends-empty">You don't have any friends yet. Add some using the form above!</p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div className="friends-list">
               {friends.map((friend) => (
-                <div
-                  key={friend.id}
-                  style={{
-                    backgroundColor: '#fff',
-                    border: '1px solid #ddd',
-                    borderRadius: '4px',
-                    padding: '1rem',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
-                    {friend.isOnline && (
-                      <div
-                        style={{
-                          width: '12px',
-                          height: '12px',
-                          borderRadius: '50%',
-                          backgroundColor: '#4CAF50',
-                          flexShrink: 0,
-                        }}
-                      />
-                    )}
-                    <div>
-                      <strong style={{ fontSize: '1.1rem' }}>{friend.username}</strong>
-                      <p style={{ color: '#666', fontSize: '0.85rem', margin: '0.25rem 0 0 0' }}>
-                        Friends since {new Date(friend.since).toLocaleDateString()}
-                      </p>
+                <div key={friend.id} className="friend-card">
+                  <div className="friend-card-info">
+                    {friend.isOnline && <div className="friend-online-indicator" />}
+                    <div className="friend-details">
+                      <strong>{friend.username}</strong>
+                      <p>Friends since {new Date(friend.since).toLocaleDateString()}</p>
                     </div>
                   </div>
                   <button
                     onClick={() => handleRemoveFriend(friend.id)}
-                    style={{
-                      padding: '0.5rem 1rem',
-                      fontSize: '0.9rem',
-                      cursor: 'pointer',
-                      borderRadius: '4px',
-                      border: '1px solid #dc3545',
-                      backgroundColor: '#fff',
-                      color: '#dc3545',
-                    }}
+                    className="friend-remove-btn"
                   >
                     Remove
                   </button>
@@ -427,57 +316,28 @@ export default function FriendsPage() {
 
       {/* Friend Requests */}
       {!loading && activeTab === 'requests' && (
-        <div>
-          <h2 style={{ marginBottom: '1rem' }}>Friend Requests</h2>
+        <div className="friends-content-section">
+          <h2>Friend Requests</h2>
           {requests.length === 0 ? (
-            <p style={{ color: '#666' }}>No pending friend requests.</p>
+            <p className="friends-empty">No pending friend requests.</p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div className="friends-list">
               {requests.map((request) => (
-                <div
-                  key={request.id}
-                  style={{
-                    backgroundColor: '#fff',
-                    border: '1px solid #ddd',
-                    borderRadius: '4px',
-                    padding: '1rem',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}
-                >
-                  <div>
-                    <strong style={{ fontSize: '1.1rem' }}>{request.username}</strong>
-                    <p style={{ color: '#666', fontSize: '0.85rem', margin: '0.25rem 0 0 0' }}>
-                      Sent {new Date(request.createdAt).toLocaleDateString()}
-                    </p>
+                <div key={request.id} className="request-card">
+                  <div className="request-details">
+                    <strong>{request.username}</strong>
+                    <p>Sent {new Date(request.createdAt).toLocaleDateString()}</p>
                   </div>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <div className="request-actions">
                     <button
                       onClick={() => handleAcceptRequest(request.id)}
-                      style={{
-                        padding: '0.5rem 1rem',
-                        fontSize: '0.9rem',
-                        cursor: 'pointer',
-                        borderRadius: '4px',
-                        border: 'none',
-                        backgroundColor: '#28a745',
-                        color: '#fff',
-                      }}
+                      className="friend-accept-btn"
                     >
                       Accept
                     </button>
                     <button
                       onClick={() => handleRejectRequest(request.id)}
-                      style={{
-                        padding: '0.5rem 1rem',
-                        fontSize: '0.9rem',
-                        cursor: 'pointer',
-                        borderRadius: '4px',
-                        border: '1px solid #dc3545',
-                        backgroundColor: '#fff',
-                        color: '#dc3545',
-                      }}
+                      className="friend-reject-btn"
                     >
                       Reject
                     </button>
@@ -491,29 +351,19 @@ export default function FriendsPage() {
 
       {/* Sent Requests */}
       {!loading && activeTab === 'sent' && (
-        <div>
-          <h2 style={{ marginBottom: '1rem' }}>Sent Requests</h2>
+        <div className="friends-content-section">
+          <h2>Sent Requests</h2>
           {sentRequests.length === 0 ? (
-            <p style={{ color: '#666' }}>No pending sent requests.</p>
+            <p className="friends-empty">No pending sent requests.</p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div className="friends-list">
               {sentRequests.map((request) => (
-                <div
-                  key={request.id}
-                  style={{
-                    backgroundColor: '#fff',
-                    border: '1px solid #ddd',
-                    borderRadius: '4px',
-                    padding: '1rem',
-                  }}
-                >
-                  <strong style={{ fontSize: '1.1rem' }}>{request.username}</strong>
-                  <p style={{ color: '#666', fontSize: '0.85rem', margin: '0.25rem 0 0 0' }}>
-                    Sent {new Date(request.createdAt).toLocaleDateString()}
-                  </p>
-                  <p style={{ color: '#999', fontSize: '0.8rem', fontStyle: 'italic', margin: '0.25rem 0 0 0' }}>
-                    Waiting for response...
-                  </p>
+                <div key={request.id} className="sent-request-card">
+                  <div className="request-details">
+                    <strong>{request.username}</strong>
+                    <p>Sent {new Date(request.createdAt).toLocaleDateString()}</p>
+                    <p className="pending">Waiting for response...</p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -523,57 +373,28 @@ export default function FriendsPage() {
 
       {/* Game Invites */}
       {!loading && activeTab === 'invites' && (
-        <div>
-          <h2 style={{ marginBottom: '1rem' }}>Game Invites</h2>
+        <div className="friends-content-section">
+          <h2>Game Invites</h2>
           {gameInvites.length === 0 ? (
-            <p style={{ color: '#666' }}>No pending game invites.</p>
+            <p className="friends-empty">No pending game invites.</p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div className="friends-list">
               {gameInvites.map((invite) => (
-                <div
-                  key={invite.inviteId}
-                  style={{
-                    backgroundColor: '#fff',
-                    border: '1px solid #ddd',
-                    borderRadius: '4px',
-                    padding: '1rem',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}
-                >
-                  <div>
-                    <strong style={{ fontSize: '1.1rem' }}>{invite.inviterUsername}</strong>
-                    <p style={{ color: '#666', fontSize: '0.85rem', margin: '0.25rem 0 0 0' }}>
-                      Invited you to play • {new Date(invite.createdAt).toLocaleString()}
-                    </p>
+                <div key={invite.inviteId} className="request-card">
+                  <div className="request-details">
+                    <strong>{invite.inviterUsername}</strong>
+                    <p>Invited you to play • {new Date(invite.createdAt).toLocaleString()}</p>
                   </div>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <div className="request-actions">
                     <button
                       onClick={() => handleAcceptInvite(invite.inviteId)}
-                      style={{
-                        padding: '0.5rem 1rem',
-                        fontSize: '0.9rem',
-                        cursor: 'pointer',
-                        borderRadius: '4px',
-                        border: 'none',
-                        backgroundColor: '#28a745',
-                        color: '#fff',
-                      }}
+                      className="friend-accept-btn"
                     >
                       Accept
                     </button>
                     <button
                       onClick={() => handleDeclineInvite(invite.inviteId)}
-                      style={{
-                        padding: '0.5rem 1rem',
-                        fontSize: '0.9rem',
-                        cursor: 'pointer',
-                        borderRadius: '4px',
-                        border: '1px solid #dc3545',
-                        backgroundColor: '#fff',
-                        color: '#dc3545',
-                      }}
+                      className="friend-reject-btn"
                     >
                       Decline
                     </button>
