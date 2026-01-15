@@ -124,7 +124,8 @@ const App: React.FC = () => {
       <Route path="/" element={
         <LandingPage 
           onPlayAsGuest={() => {
-            logout(); // Clear any existing auth token
+            // Don't call logout() - it deletes token from ALL tabs!
+            // Just navigate to guest-name page
             navigate('/guest-name');
           }}
           onLogin={() => navigate('/login')}

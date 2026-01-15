@@ -25,46 +25,76 @@ export function getOrCreateGuestId(): string {
 }
 
 /**
- * Get guest name from localStorage
+ * Get guest name from sessionStorage (per-tab, tied to current guestId)
  */
 export function getGuestName(): string | null {
-  return localStorage.getItem('zing_guest_name');
+  const guestId = getOrCreateGuestId();
+  const name = sessionStorage.getItem(`zing_guest_name_${guestId}`);
+  return name;
 }
 
 /**
- * Set guest name in localStorage
+ * Set guest name in sessionStorage (per-tab, tied to current guestId)
  */
 export function setGuestName(name: string): void {
-  localStorage.setItem('zing_guest_name', name);
+  const guestId = getOrCreateGuestId();
+  sessionStorage.setItem(`zing_guest_name_${guestId}`, name);
 }
 
 /**
- * Clear guest name from localStorage
+ * Clear guest name from sessionStorage (per-tab, tied to current guestId)
  */
 export function clearGuestName(): void {
-  localStorage.removeItem('zing_guest_name');
+  const guestId = getOrCreateGuestId();
+  sessionStorage.removeItem(`zing_guest_name_${guestId}`);
 }
+
 /**
  * Get reconnect token for a room and player from localStorage
  */
 export function getReconnectToken(roomId: string, playerId?: string): string | null {
   if (!playerId) {
-    // Fallback: try to get token without playerId (for backwards compatibility)
     return localStorage.getItem(`zing_reconnect_${roomId}`);
   }
-  return localStorage.getItem(`zing_reconnect_${roomId}_${playerId}`);
+  const key = `zing_reconnect_${roomId}_${playerId}`;
+  return localStorage.getItem(key);
 }
 
 /**
  * Set reconnect token for a room and player in localStorage
  */
 export function setReconnectToken(roomId: string, token: string, playerId?: string): void {
+  cleanupOldReconnectTokens();
+  
   if (!playerId) {
-    // Fallback: store without playerId (for backwards compatibility)
-    localStorage.setItem(`zing_reconnect_${roomId}`, token);
+    const key = `zing_reconnect_${roomId}`;
+    localStorage.setItem(key, token);
     return;
   }
-  localStorage.setItem(`zing_reconnect_${roomId}_${playerId}`, token);
+  const key = `zing_reconnect_${roomId}_${playerId}`;
+  localStorage.setItem(key, token);
+}
+
+/**
+ * Clean up old reconnect tokens (keep only last 10)
+ */
+function cleanupOldReconnectTokens(): void {
+  const allKeys = Object.keys(localStorage);
+  const reconnectKeys = allKeys.filter(k => {
+    const isReconnect = k.startsWith('zing_reconnect_');
+    const isNotAuthToken = k !== 'zing_auth_token';
+    const isValidKey = typeof localStorage[k] === 'string';
+    return isReconnect && isNotAuthToken && isValidKey;
+  });
+  
+  if (reconnectKeys.length > 10) {
+    const toRemove = reconnectKeys.slice(0, reconnectKeys.length - 10);
+    toRemove.forEach(key => {
+      if (key !== 'zing_auth_token') {
+        localStorage.removeItem(key);
+      }
+    });
+  }
 }
 
 /**
@@ -72,9 +102,10 @@ export function setReconnectToken(roomId: string, token: string, playerId?: stri
  */
 export function clearReconnectToken(roomId: string, playerId?: string): void {
   if (!playerId) {
-    // Fallback: clear without playerId
-    localStorage.removeItem(`zing_reconnect_${roomId}`);
+    const key = `zing_reconnect_${roomId}`;
+    localStorage.removeItem(key);
     return;
   }
-  localStorage.removeItem(`zing_reconnect_${roomId}_${playerId}`);
+  const key = `zing_reconnect_${roomId}_${playerId}`;
+  localStorage.removeItem(key);
 }

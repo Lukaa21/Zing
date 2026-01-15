@@ -10,18 +10,20 @@ import '../styles/RoomScreen.css';
 interface RoomScreenProps {
   roomId: string;
   myId: string | null;
+  guestId: string;
   playerName: string;
   initialPlayers?: any[];
   initialOwnerId?: string | null;
   onLeave?: () => void;
 }
 
-const RoomScreen: React.FC<RoomScreenProps> = ({ roomId, myId, playerName, initialPlayers, initialOwnerId, onLeave }) => {
+const RoomScreen: React.FC<RoomScreenProps> = ({ roomId, myId, guestId, playerName, initialPlayers, initialOwnerId, onLeave }) => {
   const socket = getSocket();
   const { authUser } = useAuth();
   const { roomState, pendingInvites, error, inMatchmaking, actions } = useRoomState({
     socket,
     currentUserId: myId,
+    guestId,
     initialRoomId: roomId,
     initialPlayers,
     initialOwnerId,

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Socket } from 'socket.io-client';
+import { clearReconnectToken } from '../utils/guest';
 
 // Types
 export type RoomRole = 'PLAYER' | 'SPECTATOR';
@@ -34,13 +35,14 @@ export interface PendingInvite {
 interface UseRoomStateParams {
   socket: Socket | null;
   currentUserId: string | null;
+  guestId?: string | null;
   initialRoomId?: string | null;
   initialPlayers?: any[];
   initialOwnerId?: string | null;
   onLeave?: () => void;
 }
 
-export function useRoomState({ socket, currentUserId, initialRoomId, initialPlayers, initialOwnerId, onLeave }: UseRoomStateParams) {
+export function useRoomState({ socket, currentUserId, guestId, initialRoomId, initialPlayers, initialOwnerId, onLeave }: UseRoomStateParams) {
   // Convert initial players to members format
   const initialMembers = initialPlayers ? initialPlayers.map((p: any) => ({
     userId: p.id,
@@ -127,6 +129,7 @@ export function useRoomState({ socket, currentUserId, initialRoomId, initialPlay
 
     const handleRoomLeft = () => {
       console.log('useRoomState: room_left event received, navigating to lobby');
+      const currentRoomId = roomState.roomId;
       setRoomState({
         roomId: null,
         members: [],
@@ -138,12 +141,17 @@ export function useRoomState({ socket, currentUserId, initialRoomId, initialPlay
         timerEnabled: false,
       });
       setInMatchmaking(false);
+      
+      // Clear reconnect token for this room when leaving
+      // Use guestId for reconnect token (that's the key used when storing it)
+      const tokenPlayerId = guestId || currentUserId;
+      if (currentRoomId && tokenPlayerId) {
+        clearReconnectToken(currentRoomId, tokenPlayerId);
+      }
+      
       // Navigate back to lobby
       if (onLeave) {
-        console.log('useRoomState: calling onLeave callback');
         onLeave();
-      } else {
-        console.log('useRoomState: onLeave callback not provided!');
       }
     };
 

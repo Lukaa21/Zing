@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { clearGuestName } from '../utils/guest';
 
 export interface AuthUser {
   id: string;
@@ -49,7 +50,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setToken(null);
         }
       } catch (error) {
-        console.error('bootstrap error:', error);
+        console.error('[AUTH] bootstrap error:', error);
         localStorage.removeItem(TOKEN_KEY);
         setAuthUser(null);
         setToken(null);
@@ -71,9 +72,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const data = await res.json();
+    console.log('[AUTH] register: success, saving token to localStorage, key=', TOKEN_KEY);
     localStorage.setItem(TOKEN_KEY, data.token);
+    console.log('[AUTH] register: token saved, verifying...', localStorage.getItem(TOKEN_KEY) ? 'EXISTS' : 'MISSING');
     setToken(data.token);
     setAuthUser(data.user);
+    // Clear guest name since we're now authenticated
+    clearGuestName();
     return data;
   };
 
@@ -93,6 +98,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(TOKEN_KEY, data.token);
     setToken(data.token);
     setAuthUser(data.user);
+    // Clear guest name since we're now authenticated
+    clearGuestName();
+    
     return data;
   };
 

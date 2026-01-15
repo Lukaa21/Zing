@@ -71,6 +71,7 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
   const [players, setPlayers] = useState<any[]>([]);
   const [logs, setLogs] = useState<string[]>([]);
   const [myId, setMyId] = useState<string | null>(null);
+  const [guestId, setGuestId] = useState<string>('');
   const [ownerId, setOwnerId] = useState<string | null>(null);
   const [devMode, setDevMode] = useState<boolean>(false);
   const [hasJoined, setHasJoined] = useState<boolean>(false);
@@ -104,7 +105,8 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
 
   useEffect(() => {
     const s = connect(playerName, 'player', token || undefined);
-    const guestId = getOrCreateGuestId();
+    const currentGuestId = getOrCreateGuestId();
+    setGuestId(currentGuestId);
     let actualPlayerId: string | null = null;
     
     // Listen for auth_ok to get the correct ID (either userId or guestId)
@@ -118,7 +120,7 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
     s.on('auth_ok', authOkHandler);
     
     // Fallback: if already connected, set guestId initially
-    if (s.connected) setMyId(guestId);
+    if (s.connected) setMyId(currentGuestId);
     
     s.on('connect', () => { console.log('connected to backend'); });
     s.off('game_state');
@@ -134,9 +136,9 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
       // Only try to infer myId from game_state if we don't have it yet
       // Match by guestId only, don't use playerName as it can be outdated
       if (!myId) {
-        const meByGuestId = st?.players?.find((p: any) => p.id === guestId);
+        const meByGuestId = st?.players?.find((p: any) => p.id === currentGuestId);
         if (meByGuestId) {
-          setMyId(guestId);
+          setMyId(currentGuestId);
         }
       }
     });
@@ -163,9 +165,9 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
       }
       // Only match by guestId, don't use playerName (can be outdated)
       if (!myId) {
-        const meByGuestId = (u.players || []).find((p: any) => p.id === guestId);
+        const meByGuestId = (u.players || []).find((p: any) => p.id === currentGuestId);
         if (meByGuestId) {
-          setMyId(guestId);
+          setMyId(currentGuestId);
         }
       }
     });
@@ -177,10 +179,10 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
     });
 
     s.on('reconnect_token', (data: { token: string; roomId: string }) => {
-      console.log('Received reconnect token for room', data.roomId, 'with guestId', guestId);
+      console.log('Received reconnect token for room', data.roomId, 'with guestId', currentGuestId);
       // Store token with guestId as part of the key to avoid conflicts between different players
       // guestId is per-tab unique, so each player has their own token key
-      setReconnectToken(data.roomId, data.token, guestId);
+      setReconnectToken(data.roomId, data.token, currentGuestId);
     });
 
     s.on('turn_timer_started', (data: { playerId: string; duration: number; expiresAt: number }) => {
@@ -194,9 +196,8 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
       // Set flag to prevent auto-navigation during transition
       setIsMatchmakingTransition(true);
       
-      // Clear reconnect token for old room (use actualPlayerId if available)
-      const playerId = actualPlayerId || guestId;
-      clearReconnectToken(roomId, playerId);
+      // Clear reconnect token for old room (always use currentGuestId as that's the key)
+      clearReconnectToken(roomId, currentGuestId);
       
       // Update current room in sessionStorage
       sessionStorage.setItem('zing_current_room', data.roomId);
@@ -208,17 +209,16 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
       
       // Join the new matchmaking room to sync state
       // The room_update event will automatically update the UI with new room data
-      s.emit('join_room', { roomId: data.roomId, guestId, name: playerName });
+      s.emit('join_room', { roomId: data.roomId, guestId: currentGuestId, name: playerName });
     });
 
     s.on('rejoin_error', (err: { reason: string; message?: string }) => {
       const errorMsg = err.message || `Failed to rejoin room: ${err.reason}`;
       console.warn('rejoin_error', err);
-      // Rejoin failed, clear the token and try normal join_room
-      const playerId = actualPlayerId || guestId;
-      clearReconnectToken(roomId, playerId);
+      // Rejoin failed, clear the token and try normal join_room (always use currentGuestId as that's the key)
+      clearReconnectToken(roomId, currentGuestId);
       
-      const joinPayload: any = { roomId, guestId, name: playerName };
+      const joinPayload: any = { roomId, guestId: currentGuestId, name: playerName };
       if (code && typeof code === 'string') joinPayload.code = code;
       if (inviteToken && typeof inviteToken === 'string') joinPayload.inviteToken = inviteToken;
       
@@ -231,24 +231,24 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
       };
       s.on('auth_ok', onAuthOkRejoin);
       
-      s.emit('auth', { token: token || undefined, guestId, name: playerName, role: 'player' });
+      s.emit('auth', { token: token || undefined, guestId: currentGuestId, name: playerName, role: 'player' });
     });
 
     // Wait a bit for auth_ok to arrive, then try to rejoin or join normally
     if (!hasJoined) {
       setTimeout(() => {
-        const playerId = actualPlayerId || guestId;
-        const storedToken = getReconnectToken(roomId, playerId);
+        // Always use currentGuestId for reconnect token (that's the key it's stored with)
+        const storedToken = getReconnectToken(roomId, currentGuestId);
         if (storedToken) {
-          console.log('Game.tsx: attempting rejoin with stored token for playerId', playerId);
-          s.emit('rejoin_room', { roomId, guestId, reconnectToken: storedToken });
+          console.log('Game.tsx: attempting rejoin with stored token for guestId', currentGuestId);
+          s.emit('rejoin_room', { roomId, guestId: currentGuestId, reconnectToken: storedToken });
           setHasJoined(true);
         } else {
           // No stored token, do normal auth + join_room
           // IMPORTANT: Wait for auth_ok before joining to ensure socket.data.identity is set
           console.log('Game.tsx: no reconnect token, doing normal auth + join');
         
-        const joinPayload: any = { roomId, guestId, name: playerName };
+        const joinPayload: any = { roomId, guestId: currentGuestId, name: playerName };
         if (code && typeof code === 'string') joinPayload.code = code;
         if (inviteToken && typeof inviteToken === 'string') joinPayload.inviteToken = inviteToken;
         
@@ -260,7 +260,7 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
         };
         s.on('auth_ok', onAuthOk);
         
-        s.emit('auth', { token: token || undefined, guestId, name: playerName, role: 'player' });
+        s.emit('auth', { token: token || undefined, guestId: currentGuestId, name: playerName, role: 'player' });
         setHasJoined(true);
         }
       }, 100); // Wait 100ms for auth_ok
@@ -460,6 +460,7 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
           <RoomScreen
             roomId={roomId}
             myId={myId}
+            guestId={guestId}
             playerName={playerName}
             initialPlayers={players}
             initialOwnerId={ownerId}
