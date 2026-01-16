@@ -35,9 +35,9 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomId, myId, guestId, playerNa
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   
-  // Get room credentials from sessionStorage (set when room was created)
-  const accessCode = sessionStorage.getItem('zing_room_access_code');
-  const inviteToken = sessionStorage.getItem('zing_room_invite_token');
+  // Get room credentials from roomState (backend sends these to all players)
+  const accessCode = roomState.accessCode;
+  const inviteToken = roomState.inviteToken;
   const inviteLink = inviteToken 
     ? `${window.location.origin}?room=${roomId}&invite=${inviteToken}`
     : null;

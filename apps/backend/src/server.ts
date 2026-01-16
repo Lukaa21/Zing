@@ -300,7 +300,9 @@ setActiveUsers(activeUsers);
                 role: p.role, 
                 taken: p.taken 
               })), 
-              ownerId: result.room.ownerId 
+              ownerId: result.room.ownerId,
+              accessCode: result.room.accessCode,
+              inviteToken: result.room.inviteToken
             });
 
             // Start turn timer for first player (matchmaking rooms always have timer)
@@ -392,7 +394,9 @@ setActiveUsers(activeUsers);
         roomId: room.id, 
         players: room.players.map((p) => ({ id: p.id, name: p.name ?? p.id, role: p.role, taken: p.taken })), 
         ownerId: room.ownerId,
-        timerEnabled: room.timerEnabled
+        timerEnabled: room.timerEnabled,
+        accessCode: room.accessCode,
+        inviteToken: room.inviteToken
       });
       socket.emit('room_created', { 
         roomId: room.id, 
@@ -505,7 +509,7 @@ setActiveUsers(activeUsers);
         }
         
         logger.info({ roomId: actualRoomId, playersAfterJoin: room.players.map((p: any) => ({ id: p.id, name: p.name })) }, 'join_room: emitting room_update');
-        io.to(actualRoomId).emit('room_update', { roomId: actualRoomId, players: room.players.map((p: any) => ({ id: p.id, name: p.name ?? p.id, role: p.role, taken: p.taken })), ownerId: room.ownerId });
+        io.to(actualRoomId).emit('room_update', { roomId: actualRoomId, players: room.players.map((p: any) => ({ id: p.id, name: p.name ?? p.id, role: p.role, taken: p.taken })), ownerId: room.ownerId, accessCode: room.accessCode, inviteToken: room.inviteToken });
         
         // If game has already started (e.g., matchmaking auto-start), send game state to this player
         if (room.state) {
@@ -604,6 +608,8 @@ setActiveUsers(activeUsers);
           joinedAt: m.joinedAt,
         })) || [],
         hostId: room.hostId,
+        accessCode: room.accessCode,
+        inviteToken: room.inviteToken,
         ownerId: room.ownerId 
       });
 
@@ -631,7 +637,7 @@ setActiveUsers(activeUsers);
       const playerId = socket.data.identity?.id ?? socket.id;
       leaveRoom(room, playerId);
       socket.leave(roomId);
-      io.to(roomId).emit('room_update', { roomId, players: room.players.map((p) => ({ id: p.id, name: p.name, role: p.role, taken: p.taken })), ownerId: room.ownerId });
+      io.to(roomId).emit('room_update', { roomId, players: room.players.map((p) => ({ id: p.id, name: p.name, role: p.role, taken: p.taken })), ownerId: room.ownerId, accessCode: room.accessCode, inviteToken: room.inviteToken });
     });
 
     socket.on('intent_play_card', async ({ roomId, cardId, playerId }) => {
@@ -949,7 +955,9 @@ setActiveUsers(activeUsers);
               role: p.role, 
               taken: p.taken 
             })),
-            ownerId: originalRoom.ownerId
+            ownerId: originalRoom.ownerId,
+            accessCode: originalRoom.accessCode,
+            inviteToken: originalRoom.inviteToken
           });
           
           logger.info({ roomId, originalRoomId, playerId }, 'Player returned to original private room');
@@ -1072,6 +1080,8 @@ setActiveUsers(activeUsers);
             })),
             hostId: newRoom.hostId,
             ownerId: newRoom.ownerId,
+            accessCode: newRoom.accessCode,
+            inviteToken: newRoom.inviteToken
           });
         }
 
@@ -1153,6 +1163,8 @@ setActiveUsers(activeUsers);
                 taken: p.taken,
                 connected: p.connected ?? true 
               })),
+              accessCode: currentRoom.accessCode,
+              inviteToken: currentRoom.inviteToken,
               members: currentRoom.members.map(m => ({
                 userId: m.userId,
                 name: m.name,
@@ -1215,6 +1227,8 @@ setActiveUsers(activeUsers);
             taken: p.taken,
             connected: p.connected ?? true 
           })),
+          accessCode: room.accessCode,
+          inviteToken: room.inviteToken,
           members: room.members.map(m => ({
             userId: m.userId,
             name: m.name,
@@ -1358,7 +1372,9 @@ setActiveUsers(activeUsers);
               role: p.role,
               taken: p.taken || []
             })),
-            ownerId: room.ownerId
+            ownerId: room.ownerId,
+            accessCode: room.accessCode,
+            inviteToken: room.inviteToken
           });
         }
 
@@ -1408,7 +1424,9 @@ setActiveUsers(activeUsers);
           joinedAt: m.joinedAt,
         })) || [],
         hostId: room.hostId,
-        ownerId: room.ownerId
+        ownerId: room.ownerId,
+        accessCode: room.accessCode,
+        inviteToken: room.inviteToken
       });
 
       logger.info({ roomId, enabled, requesterId }, 'Timer setting toggled');
@@ -1557,6 +1575,8 @@ setActiveUsers(activeUsers);
               })),
               hostId: room.hostId,
               ownerId: room.ownerId,
+              accessCode: room.accessCode,
+              inviteToken: room.inviteToken
             });
           }
         }
@@ -1793,7 +1813,9 @@ setActiveUsers(activeUsers);
                 role: p.role, 
                 taken: p.taken 
               })), 
-              ownerId: result.room.ownerId 
+              ownerId: result.room.ownerId,
+              accessCode: result.room.accessCode,
+              inviteToken: result.room.inviteToken
             });
 
             // Start turn timer for first player (matchmaking rooms always have timer)
@@ -2019,7 +2041,9 @@ setActiveUsers(activeUsers);
         io.to(roomId).emit('room_update', { 
           roomId, 
           players: room.players.map((p) => ({ id: p.id, name: p.name, role: p.role, taken: p.taken, connected: p.connected ?? true })), 
-          ownerId: room.ownerId 
+          ownerId: room.ownerId,
+          accessCode: room.accessCode,
+          inviteToken: room.inviteToken
         });
       }
       
@@ -2077,7 +2101,9 @@ setActiveUsers(activeUsers);
                     joinedAt: m.joinedAt,
                   })),
                   hostId: room.hostId,
-                  ownerId: room.ownerId
+                  ownerId: room.ownerId,
+                  accessCode: room.accessCode,
+                  inviteToken: room.inviteToken
                 });
                 
                 // If host changed, notify

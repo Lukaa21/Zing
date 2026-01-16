@@ -21,6 +21,8 @@ export interface RoomState {
   playerCount: number;
   teamAssignment: { team0: string[]; team1: string[] } | null;
   timerEnabled: boolean;
+  accessCode: string | null;
+  inviteToken: string | null;
 }
 
 export interface PendingInvite {
@@ -60,6 +62,8 @@ export function useRoomState({ socket, currentUserId, guestId, initialRoomId, in
     playerCount: 0,
     teamAssignment: null,
     timerEnabled: false,
+    accessCode: null,
+    inviteToken: null,
   });
 
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
@@ -99,6 +103,8 @@ export function useRoomState({ socket, currentUserId, guestId, initialRoomId, in
       hostId?: string;
       ownerId?: string;
       timerEnabled?: boolean;
+      accessCode?: string;
+      inviteToken?: string;
     }) => {
       // Backend emits TWO formats:
       // 1. Invite system: { members: RoomMember[] } - new format
@@ -124,6 +130,8 @@ export function useRoomState({ socket, currentUserId, guestId, initialRoomId, in
         hostId: effectiveHostId !== undefined ? effectiveHostId : prev.hostId,
         ownerId: data.ownerId !== undefined ? data.ownerId : prev.ownerId,
         timerEnabled: data.timerEnabled !== undefined ? data.timerEnabled : prev.timerEnabled,
+        accessCode: data.accessCode !== undefined ? data.accessCode : prev.accessCode,
+        inviteToken: data.inviteToken !== undefined ? data.inviteToken : prev.inviteToken,
       }));
     };
 
@@ -139,6 +147,8 @@ export function useRoomState({ socket, currentUserId, guestId, initialRoomId, in
         playerCount: 0,
         teamAssignment: null,
         timerEnabled: false,
+        accessCode: null,
+        inviteToken: null,
       });
       setInMatchmaking(false);
       
