@@ -15,6 +15,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<{ token: string; user: AuthUser }>;
   logout: () => void;
   bootstrap: () => Promise<void>;
+  forceGuestMode: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,6 +34,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const bootstrap = async () => {
+    // Check if user explicitly wants to be guest in this tab
+    const forceGuestMode = sessionStorage.getItem('zing_force_guest_mode');
+    
+    if (forceGuestMode === 'true') {
+      // User chose "Play as Guest" - skip authentication for this tab only
+      setAuthUser(null);
+      setToken(null);
+      setIsLoading(false);
+      return;
+    }
+    
     const storedToken = localStorage.getItem(TOKEN_KEY);
     if (storedToken) {
       try {
@@ -72,12 +84,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const data = await res.json();
-    console.log('[AUTH] register: success, saving token to localStorage, key=', TOKEN_KEY);
     localStorage.setItem(TOKEN_KEY, data.token);
-    console.log('[AUTH] register: token saved, verifying...', localStorage.getItem(TOKEN_KEY) ? 'EXISTS' : 'MISSING');
     setToken(data.token);
     setAuthUser(data.user);
-    // Clear guest name since we're now authenticated
+    // Clear guest mode flag and guest name since we're now authenticated
+    sessionStorage.removeItem('zing_force_guest_mode');
     clearGuestName();
     return data;
   };
@@ -98,7 +109,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(TOKEN_KEY, data.token);
     setToken(data.token);
     setAuthUser(data.user);
-    // Clear guest name since we're now authenticated
+    // Clear guest mode flag and guest name since we're now authenticated
+    sessionStorage.removeItem('zing_force_guest_mode');
     clearGuestName();
     
     return data;
@@ -110,8 +122,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAuthUser(null);
   };
 
+  const forceGuestMode = () => {
+    // Set flag for this tab and clear auth state immediately
+    sessionStorage.setItem('zing_force_guest_mode', 'true');
+    setToken(null);
+    setAuthUser(null);
+  };
+
   return (
-    <AuthContext.Provider value={{ authUser, token, isLoading, register, login, logout, bootstrap }}>
+    <AuthContext.Provider value={{ authUser, token, isLoading, register, login, logout, bootstrap, forceGuestMode }}>
       {children}
     </AuthContext.Provider>
   );

@@ -11,10 +11,10 @@ import Leaderboard from './components/Leaderboard';
 import { useState } from 'react';
 import { getGuestName } from './utils/guest';
 import { useAuth } from './context/AuthContext';
-import { Routes, Route, useNavigate } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 
 const App: React.FC = () => {
-  const { authUser, logout, isLoading } = useAuth();
+  const { authUser, logout, forceGuestMode, isLoading } = useAuth();
   const navigate = useNavigate();
   // Initialize roomId from sessionStorage if available (for refresh during active game)
   const [roomId, setRoomId] = useState<string | null>(() => {
@@ -32,6 +32,27 @@ const App: React.FC = () => {
   const [showMatchHistory, setShowMatchHistory] = useState<boolean>(false);
   const [showAchievements, setShowAchievements] = useState<boolean>(false);
   const [showLeaderboard, setShowLeaderboard] = useState<boolean>(false);
+
+  // Sync state with sessionStorage when navigating (e.g., after accepting invite)
+  const location = useLocation();
+  React.useEffect(() => {
+    const storedRoomId = sessionStorage.getItem('zing_current_room');
+    const storedInviteToken = sessionStorage.getItem('zing_current_invite_token');
+    const storedCode = sessionStorage.getItem('zing_current_code');
+    
+    if (storedRoomId && storedRoomId !== roomId) {
+      console.log('[APP] Syncing roomId from sessionStorage:', storedRoomId);
+      setRoomId(storedRoomId);
+    }
+    if (storedInviteToken && storedInviteToken !== inviteToken) {
+      console.log('[APP] Syncing inviteToken from sessionStorage:', storedInviteToken);
+      setInviteToken(storedInviteToken);
+    }
+    if (storedCode && storedCode !== code) {
+      console.log('[APP] Syncing code from sessionStorage:', storedCode);
+      setCode(storedCode);
+    }
+  }, [location.pathname]); // Re-run when route changes
 
   React.useEffect(() => {
     if (isLoading) return;
@@ -124,8 +145,8 @@ const App: React.FC = () => {
       <Route path="/" element={
         <LandingPage 
           onPlayAsGuest={() => {
-            // Don't call logout() - it deletes token from ALL tabs!
-            // Just navigate to guest-name page
+            // Force guest mode for this tab and clear auth state immediately
+            forceGuestMode();
             navigate('/guest-name');
           }}
           onLogin={() => navigate('/login')}

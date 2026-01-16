@@ -79,16 +79,25 @@ export default function FriendsPage() {
       setGameInvites(data.invites);
     };
 
-    const handleInviteAccepted = (data: { inviteId: string; roomId: string; reconnectToken?: string }) => {
+    const handleInviteAccepted = (data: { inviteId: string; roomId: string; reconnectToken?: string; inviteToken?: string }) => {
+      console.log('[FRIENDS] invite_accepted received:', data);
       // Remove from local list
       setGameInvites((prev) => prev.filter(inv => inv.inviteId !== data.inviteId));
       // Save room ID
       sessionStorage.setItem('zing_current_room', data.roomId);
+      // Save invite token for joining
+      if (data.inviteToken) {
+        console.log('[FRIENDS] Saving inviteToken to sessionStorage:', data.inviteToken);
+        sessionStorage.setItem('zing_current_invite_token', data.inviteToken);
+      } else {
+        console.warn('[FRIENDS] No inviteToken in response!');
+      }
       // Save reconnect token using playerId
       if (data.reconnectToken && authUser?.id) {
         setReconnectToken(data.roomId, data.reconnectToken, authUser.id);
       }
       // Navigate to room
+      console.log('[FRIENDS] Navigating to /room');
       navigate('/room');
     };
 

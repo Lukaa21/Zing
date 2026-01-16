@@ -32,6 +32,31 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomId, myId, guestId, playerNa
 
   const [showTeamSelection, setShowTeamSelection] = useState(false);
   const [showInvitePanel, setShowInvitePanel] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  
+  // Get room credentials from sessionStorage (set when room was created)
+  const accessCode = sessionStorage.getItem('zing_room_access_code');
+  const inviteToken = sessionStorage.getItem('zing_room_invite_token');
+  const inviteLink = inviteToken 
+    ? `${window.location.origin}?room=${roomId}&invite=${inviteToken}`
+    : null;
+
+  const handleCopyCode = () => {
+    if (accessCode) {
+      navigator.clipboard.writeText(accessCode);
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2000);
+    }
+  };
+
+  const handleCopyLink = () => {
+    if (inviteLink) {
+      navigator.clipboard.writeText(inviteLink);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+    }
+  };
 
   const canStart1v1 = roomState.isHost && roomState.playerCount === 2 && !inMatchmaking;
   const canStart2v2Random = roomState.isHost && roomState.playerCount === 2 && !inMatchmaking;
@@ -97,6 +122,63 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomId, myId, guestId, playerNa
           </button>
         )}
       </div>
+
+      {/* Room Credentials - Show if available (creator of private room) */}
+      {(accessCode || inviteLink) && (
+        <div className="room-screen__credentials">
+          <h3>Share with Friends</h3>
+          
+          {accessCode && (
+            <div className="credential-item">
+              <label className="credential-label">Access Code</label>
+              <div className="credential-row">
+                <input
+                  type="text"
+                  className="credential-input"
+                  value={accessCode}
+                  readOnly
+                />
+                <div className="credential-copy-wrapper">
+                  <img 
+                    src="/src/media/copy.png" 
+                    alt="Copy" 
+                    className="credential-copy-icon"
+                    onClick={handleCopyCode}
+                  />
+                  {copiedCode && (
+                    <div className="credential-tooltip">Copied to clipboard!</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {inviteLink && (
+            <div className="credential-item">
+              <label className="credential-label">Invite Link</label>
+              <div className="credential-row">
+                <input
+                  type="text"
+                  className="credential-input"
+                  value={inviteLink}
+                  readOnly
+                />
+                <div className="credential-copy-wrapper">
+                  <img 
+                    src="/src/media/copy.png" 
+                    alt="Copy" 
+                    className="credential-copy-icon"
+                    onClick={handleCopyLink}
+                  />
+                  {copiedLink && (
+                    <div className="credential-tooltip">Copied to clipboard!</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Member List */}
       <div className="room-screen__members">

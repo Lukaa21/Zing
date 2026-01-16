@@ -46,7 +46,6 @@ const Lobby: React.FC<LobbyProps> = ({
 }) => {
   const { token } = useAuth();
   const [socket, setSocket] = useState<Socket | null>(null);
-  const [credentials, setCredentials] = useState<AccessCredentials | null>(null);
   const [joinCode, setJoinCode] = useState<string>('');
   const [joinError, setJoinError] = useState<string>('');
 
@@ -66,17 +65,19 @@ const Lobby: React.FC<LobbyProps> = ({
     s.off('room_created');
     s.off('join_error');
 
-    // Private room creation listener
+    // Private room creation listener - auto-join immediately
     s.on(
       'room_created',
       (payload: { roomId: string; visibility?: string; accessCode?: string; inviteToken?: string }) => {
         if (payload.visibility === 'private') {
-          setCredentials({
-            roomId: payload.roomId,
-            visibility: 'private',
-            accessCode: payload.accessCode,
-            inviteToken: payload.inviteToken,
-          });
+          // Save credentials to sessionStorage so RoomScreen can display them
+          sessionStorage.setItem('zing_room_access_code', payload.accessCode || '');
+          sessionStorage.setItem('zing_room_invite_token', payload.inviteToken || '');
+          
+          // Auto-join the room immediately
+          const guestId = getOrCreateGuestId();
+          s.emit('auth', { guestId, name: playerName, role: 'player', token: token || undefined });
+          onJoin(payload.roomId, playerName, undefined, payload.inviteToken);
         }
       }
     );
@@ -230,21 +231,6 @@ const Lobby: React.FC<LobbyProps> = ({
       cleanupJoinListeners();
     }, 5000);
   };
-
-  const handleJoinFromCredentials = () => {
-    if (!credentials || !socket) return;
-    setJoinError('');
-
-    const guestId = getOrCreateGuestId();
-    socket.emit('auth', { guestId, name: playerName, role: 'player' });
-
-    setCredentials(null);
-    onJoin(credentials.roomId, playerName, undefined, credentials.inviteToken);
-  };
-
-  const inviteLink = credentials
-    ? `${window.location.origin}?room=${credentials.roomId}&invite=${credentials.inviteToken}`
-    : '';
 
   return (
     <div className="lobby-container">
@@ -434,61 +420,6 @@ const Lobby: React.FC<LobbyProps> = ({
           </div>
           {joinError && <div className="lobby-error">{joinError}</div>}
         </div>
-
-        {/* Credentials Modal */}
-        {credentials && (
-          <div className="credentials-modal">
-            <div className="credentials-modal-content">
-              <h2 className="credentials-modal-title">Room Created!</h2>
-              <p className="credentials-modal-subtitle">
-                Share these credentials with your friends to join
-              </p>
-
-              <div className="credential-item">
-                <label className="credential-label">Access Code</label>
-                <div className="credential-row">
-                  <input
-                    type="text"
-                    className="credential-input"
-                    value={credentials.accessCode || ''}
-                    readOnly
-                  />
-                  <button
-                    className="credential-copy-btn"
-                    onClick={() => navigator.clipboard.writeText(credentials.accessCode || '')}
-                  >
-                    Copy
-                  </button>
-                </div>
-              </div>
-
-              <div className="credential-item">
-                <label className="credential-label">Invite Link</label>
-                <div className="credential-row">
-                  <input
-                    type="text"
-                    className="credential-input"
-                    value={inviteLink}
-                    readOnly
-                  />
-                  <button
-                    className="credential-copy-btn"
-                    onClick={() => navigator.clipboard.writeText(inviteLink)}
-                  >
-                    Copy
-                  </button>
-                </div>
-              </div>
-
-              <button
-                className="lobby-btn lobby-btn-primary credentials-enter-btn"
-                onClick={handleJoinFromCredentials}
-              >
-                Enter Room
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* Match History Modal */}
         {showMatchHistory && <MatchHistory onClose={onMatchHistoryClose || (() => {})} />}

@@ -118,6 +118,133 @@
   margin: 0;
   font-size: 28px;
   font-weight: 800;
+  background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Room Credentials */
+.room-screen__credentials {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border: 2px solid #bae6fd;
+  border-radius: 20px;
+  padding: 24px 32px;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+}
+
+.room-screen__credentials h3 {
+  margin: 0 0 20px 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e40af;
+}
+
+.credential-item {
+  margin-bottom: 16px;
+}
+
+.credential-item:last-child {
+  margin-bottom: 0;
+}
+
+.credential-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.credential-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.credential-input {
+  flex: 1;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-family: 'Monaco', 'Courier New', monospace;
+  background: #ffffff;
+  border: 2px solid #667eea;
+  border-radius: 12px;
+  color: #1e293b;
+  transition: all 0.2s ease;
+}
+
+.credential-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.credential-copy-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.credential-copy-icon {
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: all 0.2s ease;
+}
+
+.credential-copy-icon:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.credential-copy-icon:active {
+  transform: scale(0.95);
+}
+
+.credential-tooltip {
+  position: absolute;
+  right: 0;
+  top: -40px;
+  background: #1e293b;
+  color: #ffffff;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: tooltipFadeIn 0.2s ease-out;
+  pointer-events: none;
+}
+
+.credential-tooltip::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  right: 8px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid #1e293b;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Members List */
+.room-screen__members {
   color: #1e293b;
   letter-spacing: -0.5px;
 }

@@ -1202,6 +1202,7 @@ setActiveUsers(activeUsers);
           inviteId,
           roomId: acceptedInvite.roomId,
           reconnectToken,
+          inviteToken: room.inviteToken, // Send room invite token for joining
         });
 
         // Emit room update to all members
