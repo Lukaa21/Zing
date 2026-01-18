@@ -56,6 +56,9 @@ const Lobby: React.FC<LobbyProps> = ({
   
   // User menu state
   const [showUserMenu, setShowUserMenu] = useState<boolean>(false);
+  
+  // Rules modal state
+  const [showRulesModal, setShowRulesModal] = useState<boolean>(false);
 
   useEffect(() => {
     const s = connect(playerName || 'guest', 'player', token || undefined);
@@ -250,6 +253,14 @@ const Lobby: React.FC<LobbyProps> = ({
                 <nav className="lobby-nav">
                   <button
                     className="lobby-nav-btn"
+                    onClick={() => setShowRulesModal(true)}
+                    title="Rules"
+                  >
+                    <span className="nav-icon">📖</span>
+                    <span className="nav-label">Rules</span>
+                  </button>
+                  <button
+                    className="lobby-nav-btn"
                     onClick={onNavigateToFriends}
                     title="Friends"
                   >
@@ -291,6 +302,14 @@ const Lobby: React.FC<LobbyProps> = ({
                 </nav>
               ) : (
                 <nav className="lobby-nav lobby-nav-guest">
+                  <button
+                    className="lobby-nav-btn"
+                    onClick={() => setShowRulesModal(true)}
+                    title="Rules"
+                  >
+                    <span className="nav-icon">📖</span>
+                    <span className="nav-label">Rules</span>
+                  </button>
                   <button
                     className="lobby-nav-btn lobby-nav-btn-login"
                     onClick={onNavigateToLogin}
@@ -423,6 +442,114 @@ const Lobby: React.FC<LobbyProps> = ({
 
         {/* Match History Modal */}
         {showMatchHistory && <MatchHistory onClose={onMatchHistoryClose || (() => {})} />}
+        
+        {/* Rules Modal */}
+        {showRulesModal && (
+          <div className="rules-modal-overlay" onClick={() => setShowRulesModal(false)}>
+            <div className="rules-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="rules-modal-header">
+                <h2>📖 Pravilnik Igre "Zing"</h2>
+                <button className="rules-modal-close" onClick={() => setShowRulesModal(false)}>×</button>
+              </div>
+              <div className="rules-modal-content">
+                <p className="rules-intro">
+                  "Zing" je dinamična kartaška igra za dva ili četiri igrača (u timovima). Igra se standardnim špilom od 52 karte bez džokera. Pobjednik je strana koja prva akumulira 101 ili više poena kroz seriju partija.
+                </p>
+
+                <section className="rules-section">
+                  <h3>1. PRIPREMA IGRE I DIJELJENJE</h3>
+                  
+                  <h4>Sječenje špila:</h4>
+                  <p>Igrač koji ne dijeli (u 2v2 verziji igrač desno od djelitelja) sječe promiješani špil.</p>
+                  
+                  <h4>Postavka talona (Adut karta i početni talon):</h4>
+                  <p>Jedna karta sa dna polovine špila koja je odsječena okreće se licem nagore. To je karta koja u poslednjoj ruci ide djelitelju.</p>
+                  
+                  <h4>Početni talon:</h4>
+                  <p>Četiri karte sa dna iste polovine špila ređaju se jedna pored druge na centar stola, okrenute licem nagore.</p>
+                  
+                  <h4>Podjela karata:</h4>
+                  <p>Djelitelj dijeli po 4 karte svakom igraču.</p>
+                  
+                  <h4>Dopuna ruku:</h4>
+                  <p>Kada svi igrači potroše svoje 4 karte, djelitelj dijeli novih 4 dok se špil ne isprazni. Posljednja karta u špilu (ona koja je od početka bila licem nagore) pripada djelitelju.</p>
+                </section>
+
+                <section className="rules-section">
+                  <h3>2. TOK IGRE I MEHANIKA NOŠENJA</h3>
+                  
+                  <h4>Redoslijed poteza:</h4>
+                  <p>Prvi igra igrač lijevo od djelitelja. U varijanti 2v2, igrači se smjenjuju unakrsno (Tim A → Tim B).</p>
+                  
+                  <h4>Pravila nošenja:</h4>
+                  <ul>
+                    <li>Igrač baca jednu kartu na talon.</li>
+                    <li>Ako je bačena karta iste vrijednosti (npr. 8 na 8) kao karta koja je trenutno na vrhu talona, igrač nosi cijeli talon.</li>
+                    <li>Žandar (J) nosi cijeli talon bez obzira na to koja je karta na vrhu.</li>
+                  </ul>
+                  
+                  <h4>Prazan talon:</h4>
+                  <p>Ako igrač odnese talon, sljedeći igrač mora baciti kartu na prazan prostor, čime započinje novi talon.</p>
+                </section>
+
+                <section className="rules-section">
+                  <h3>3. ZING</h3>
+                  <p>Zing se događa kada na talonu postoji samo jedna karta, a sljedeći igrač je odnese.</p>
+                  <ul>
+                    <li>Običan Zing donosi 10 poena.</li>
+                    <li>Zing Žandarom na Žandara (J na J) donosi 20 poena.</li>
+                  </ul>
+                  <p><strong>Napomena:</strong> Ako se karta odnese Žandarom, a nije u pitanju J na J situacija, to se ne računa kao Zing.</p>
+                </section>
+
+                <section className="rules-section">
+                  <h3>4. BODOVANJE</h3>
+                  <p>Nakon što se sve karte iz špila odigraju, timovi broje poene iz svojih ponesenih karata:</p>
+                  
+                  <h4>Vrijednost karata:</h4>
+                  <table className="rules-table">
+                    <tbody>
+                      <tr>
+                        <td>10 Karo (♦)</td>
+                        <td>2 poena</td>
+                      </tr>
+                      <tr>
+                        <td>A, K, Q, J, 10 (ostali znaci)</td>
+                        <td>1 poen</td>
+                      </tr>
+                      <tr>
+                        <td>Dvojka Tref (♣)</td>
+                        <td>1 poen</td>
+                      </tr>
+                      <tr>
+                        <td>Karte 2-9</td>
+                        <td>0 poena</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  
+                  <h4>Dodatni bodovi:</h4>
+                  <ul>
+                    <li><strong>Većina karata:</strong> Tim koji je sakupio više od polovine ukupnog broja karata (27 ili više) dobija dodatna 3 poena.</li>
+                    <li>U slučaju izjednačenog broja karata (26:26), 3 poena dobija tim koji posjeduje 2 tref (♣).</li>
+                    <li><strong>Zingovi:</strong> Svaki običan Zing se računa kao 10 poena, a J na J kao 20.</li>
+                  </ul>
+                </section>
+
+                <section className="rules-section">
+                  <h3>5. POBJEDA</h3>
+                  <p>Partije se igraju dok jedan tim ne dostigne 101 poen.</p>
+                  
+                  <h4>Produžeci:</h4>
+                  <p>Ako oba tima pređu 101 poen u istoj partiji, granica pobjede se pomjera na 151, zatim 201, i tako dalje.</p>
+                  
+                  <h4>Konačna pobjeda:</h4>
+                  <p>Pobjeđuje tim koji u trenutku završetka partije ima više od granice (npr. 101), dok je protivnički tim ostao ispod te granice.</p>
+                </section>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
