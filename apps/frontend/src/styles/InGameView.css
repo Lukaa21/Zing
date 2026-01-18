@@ -49,6 +49,9 @@
   font-weight: 500;
   color: rgba(255, 255, 255, 0.8);
   letter-spacing: 0.3px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 4px 8px;
 }
 
 /* Header Center - Scoreboard */
@@ -127,31 +130,53 @@
 }
 
 /* Header Right - Timer */
-.game-timer {
+.game-timer-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  justify-self: end;
+  transition: all 0.3s ease;
+}
+
+.game-timer-container.hidden {
+  visibility: hidden;
+}
+
+.game-timer-circle {
   width: 56px;
   height: 56px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(8px);
+  border: 3px solid #8b5cf6;
+  transition: all 0.3s ease;
+}
+
+.game-timer-container.warning .game-timer-circle {
+  border-color: #ef4444;
+  animation: timerPulse 1s ease-in-out infinite;
+}
+
+.game-timer-icon {
+  width: 28px;
+  height: 28px;
+  color: #8b5cf6;
+  transition: color 0.3s ease;
+}
+
+.game-timer-container.warning .game-timer-icon {
+  color: #ef4444;
+}
+
+.game-timer-text {
   font-size: 20px;
   font-weight: 700;
-  position: relative;
-  transition: all 0.3s ease;
-  justify-self: end;
-}
-
-.game-timer.normal {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   color: white;
-  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
-}
-
-.game-timer.warning {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  color: white;
-  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.6);
-  animation: timerPulse 1s ease-in-out infinite;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 @keyframes timerPulse {
@@ -327,7 +352,6 @@
 .deck-pile-card {
   width: 72px;
   height: 100px;
-  background: linear-gradient(135deg, #333 0%, #555 100%);
   border-radius: 8px;
   border: 2px solid rgba(255, 255, 255, 0.15);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -336,12 +360,12 @@
   justify-content: center;
   transform: rotate(90deg);
   transform-origin: center;
+  overflow: hidden;
 }
 
-.deck-pile-card::after {
-  content: '🂠';
-  font-size: 36px;
-  color: rgba(255, 255, 255, 0.25);
+.deck-pile-card svg {
+  width: 100%;
+  height: 100%;
 }
 
 /* Stack effect - first card on top, others peeking below */
@@ -942,12 +966,15 @@
 /* Mobile */
 @media (max-width: 767px) {
   /* Header */
-  .game-header { padding: 8px 12px; height: auto; display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 8px; }
-  .game-info { display: flex; gap: 8px; order: 1; }
+  .game-header { padding: 8px 12px; height: auto; display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: center; }
+  .game-info { display: flex; gap: 8px; justify-self: end; padding-right: 15px; }
   .game-info-text { font-size: 10px; padding: 4px 8px; background: rgba(255, 255, 255, 0.1); border-radius: 6px; }
-  .game-timer { position: static; width: 36px; height: 36px; font-size: 12px; order: 3; }
-  .scoreboard { order: 2; width: auto; max-width: 240px; padding: 6px 8px; gap: 2px; min-width: auto; border-radius: 30px; }
-  .scoreboard-team { padding: 4px 6px; min-width: 50px; }
+  .game-timer-container { gap: 2px; justify-self: start; padding-left: 15px; }
+  .game-timer-circle { width: 36px; height: 36px; border-width: 2px; }
+  .game-timer-icon { width: 18px; height: 18px; }
+  .game-timer-text { font-size: 12px; }
+  .scoreboard { width: auto; max-width: 240px; padding: 6px 8px; gap: 2px; min-width: auto; border-radius: 30px; justify-self: center; }
+  .scoreboard-team { padding: 4px 6px; min-width: 40px; }
   .scoreboard-label { font-size: 8px; margin-bottom: 1px; }
   .scoreboard-value { font-size: 15px; }
   .scoreboard-target { padding: 4px 6px; min-width: 40px; margin: 0 1px; }
@@ -1032,8 +1059,14 @@
   }
 
   /* Deck & Bottom Hand */
-  .game-view.mode-1v1 .deck-container,
-  .game-view.mode-2v2 .deck-container { position: absolute; bottom: 150px; left: 12px; }
+  .game-view.mode-1v1 .deck-container { 
+    position: absolute; 
+    top: 50%;
+    left: 50%;
+    bottom: auto;
+    transform: translate(calc(-50% - 140px), -50%); /* Smaller offset for mobile */
+  }
+  .game-view.mode-2v2 .deck-container { position: absolute; bottom: 150px; left: 20px; transform: none; }
   .deck-last-card { height: 70px; }
   .deck-pile { bottom: 15px; }
   .deck-pile-card { width: 60px; height: 84px; transform: rotate(90deg) scale(0.77); }

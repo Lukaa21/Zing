@@ -1,46 +1,58 @@
 import React from 'react';
+import '../styles/Card.css';
 
-const suitToSymbol: Record<string, string> = {
-  hearts: '♥',
-  diamonds: '♦',
-  clubs: '♣',
-  spades: '♠'
+// Map suit names to SVG sprite IDs
+const suitToSVG: Record<string, string> = {
+  hearts: 'heart',
+  diamonds: 'diamond',
+  clubs: 'club',
+  spades: 'spade'
 };
 
-const suitToColor: Record<string, string> = {
-  hearts: 'red',
-  diamonds: 'red',
-  clubs: 'black',
-  spades: 'black'
+// Map rank to SVG sprite format
+const rankToSVG: Record<string, string> = {
+  '2': '2', '3': '3', '4': '4', '5': '5', '6': '6', 
+  '7': '7', '8': '8', '9': '9', '10': '10',
+  'J': 'jack', 'Q': 'queen', 'K': 'king', 'A': '1'
 };
 
 const Card: React.FC<{ id: string; onClick?: (id: string) => void; faceDown?: boolean; disabled?: boolean }> = ({ id, onClick, faceDown, disabled }) => {
   if (faceDown || id === 'back') {
-    return <div className="card card-back">🂠</div>;
+    return (
+      <svg className="card card-back" viewBox="0 0 169.075 244.640">
+        <use xlinkHref="/cards.svg#back" />
+      </svg>
+    );
   }
+  
   const [suit, rank] = id.split('-');
-  const symbol = suitToSymbol[suit] || '?';
-  const color = suitToColor[suit] || 'black';
+  
+  // Validate card ID - log only errors
+  if (!suitToSVG[suit]) {
+    console.error(`❌ Invalid suit in card ID: "${id}" | suit: "${suit}" | rank: "${rank}"`);
+  }
+  if (!rankToSVG[rank]) {
+    console.error(`❌ Invalid rank in card ID: "${id}" | suit: "${suit}" | rank: "${rank}"`);
+  }
+  
+  const suitSVG = suitToSVG[suit] || 'spade';
+  const rankSVG = rankToSVG[rank] || 'ace';
+  const cardId = `${suitSVG}_${rankSVG}`;
+  
+  // Log only if we had to use fallback
+  if (!suitToSVG[suit] || !rankToSVG[rank]) {
+    console.warn(`⚠️ Using fallback for card "${id}" → SVG ID: "${cardId}"`);
+  }
+  
   return (
-    <div
-      className="card card-front"
+    <svg
+      className={`card card-front ${disabled ? 'disabled' : ''}`}
+      viewBox="0 0 169.075 244.640"
       onClick={() => !disabled && onClick?.(id)}
-      style={{ color, opacity: disabled ? 0.45 : 1, pointerEvents: disabled ? 'none' : 'auto' }}
     >
-      <div className="rank top-left">{rank}</div>
-      <div className="suit center">{symbol}</div>
-      <div className="rank bottom-right">{rank}</div>
-    </div>
+      <use xlinkHref={`/cards.svg#${cardId}`} />
+    </svg>
   );
 };
 
 export default Card;
-
-/* Add basic styles in styles.css:
-.card { display: inline-flex; width: 72px; height: 100px; border-radius: 8px; border: 1px solid #ddd; background: white; align-items: center; justify-content: center; margin: 4px; }
-.card-back { background: linear-gradient(135deg, #333, #555); color: white; }
-.card-front .rank { font-size: 16px; font-weight: 600; position: absolute; }
-.card-front .top-left { position: absolute; left: 6px; top: 6px; }
-.card-front .bottom-right { position: absolute; right: 6px; bottom: 6px; transform: rotate(180deg);} 
-.card-front .suit { font-size: 36px; }
-*/

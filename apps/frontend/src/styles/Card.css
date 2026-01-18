@@ -1,0 +1,26 @@
+/* Card Styles - SVG Based */
+.card {
+  width: 72px;
+  height: 100px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.card-front {
+  cursor: pointer;
+}
+
+.card-front.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.card-back {
+  cursor: default;
+}
+
+.card:hover:not(.disabled):not(.card-back) {
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3)) brightness(1.05);
+}

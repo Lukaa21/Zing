@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Timer } from 'lucide-react';
 import Hand from '../components/Hand';
 import Card from '../components/Card';
 import '../styles/InGameView.css';
@@ -150,7 +151,10 @@ const InGameView: React.FC<InGameViewProps> = ({
   const talonCards = state?.talon || [];
   
   // Check if we're at the start (showing first 4 cards) or during play (showing all played cards)
-  const isInitialDeal = talonCards.length === 4 && state?.handNumber === 1;
+  // Initial deal is only when we have 4 cards on talon AND no cards have been played yet
+  // We check if current player's hand is still full (6 cards in 2v2, 13 in 1v1)
+  const expectedHandSize = gameMode === '2v2' ? 6 : 13;
+  const isInitialDeal = talonCards.length === 4 && myHand.length === expectedHandSize;
 
   return (
     <div className={`game-view mode-${gameMode}`}>
@@ -255,11 +259,19 @@ const InGameView: React.FC<InGameViewProps> = ({
 
         {/* Right: Timer */}
         {timerExpiresAt ? (
-          <div className={`game-timer ${timerSeconds && Number(timerSeconds) <= 3 ? 'warning' : 'normal'}`}>
-            {timerSeconds || '0'}
+          <div className={`game-timer-container ${timerSeconds && Number(timerSeconds) <= 3 ? 'warning' : 'normal'}`}>
+            <div className="game-timer-circle">
+              <Timer className="game-timer-icon" />
+            </div>
+            <div className="game-timer-text">{timerSeconds || '0'}</div>
           </div>
         ) : (
-          <div className="game-timer hidden"></div>
+          <div className="game-timer-container hidden">
+            <div className="game-timer-circle">
+              <Timer className="game-timer-icon" />
+            </div>
+            <div className="game-timer-text">0</div>
+          </div>
         )}
       </div>
 
@@ -353,9 +365,21 @@ const InGameView: React.FC<InGameViewProps> = ({
               <Card id={state.faceUpCard} />
             </div>
             <div className="deck-pile">
-              <div className="deck-pile-card"></div>
-              <div className="deck-pile-card"></div>
-              <div className="deck-pile-card"></div>
+              <div className="deck-pile-card">
+                <svg viewBox="0 0 169.075 244.64" width="100%" height="100%">
+                  <use xlinkHref="/cards.svg#back" />
+                </svg>
+              </div>
+              <div className="deck-pile-card">
+                <svg viewBox="0 0 169.075 244.64" width="100%" height="100%">
+                  <use xlinkHref="/cards.svg#back" />
+                </svg>
+              </div>
+              <div className="deck-pile-card">
+                <svg viewBox="0 0 169.075 244.64" width="100%" height="100%">
+                  <use xlinkHref="/cards.svg#back" />
+                </svg>
+              </div>
             </div>
           </div>
         )}
