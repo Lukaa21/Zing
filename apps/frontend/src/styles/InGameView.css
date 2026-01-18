@@ -941,188 +941,137 @@
 
 /* Mobile */
 @media (max-width: 767px) {
-  .game-header {
-    padding: 0 16px;
-    height: auto;
-    flex-wrap: wrap;
-    padding-top: 12px;
-    padding-bottom: 12px;
-  }
+  /* Header */
+  .game-header { padding: 8px 12px; height: auto; display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 8px; }
+  .game-info { display: flex; gap: 8px; order: 1; }
+  .game-info-text { font-size: 10px; padding: 4px 8px; background: rgba(255, 255, 255, 0.1); border-radius: 6px; }
+  .game-timer { position: static; width: 36px; height: 36px; font-size: 12px; order: 3; }
+  .scoreboard { order: 2; width: auto; max-width: 240px; padding: 6px 8px; gap: 2px; min-width: auto; border-radius: 30px; }
+  .scoreboard-team { padding: 4px 6px; min-width: 50px; }
+  .scoreboard-label { font-size: 8px; margin-bottom: 1px; }
+  .scoreboard-value { font-size: 15px; }
+  .scoreboard-target { padding: 4px 6px; min-width: 40px; margin: 0 1px; }
+  .scoreboard-target-icon { font-size: 14px; margin-bottom: 1px; }
+  .scoreboard-target-value { font-size: 16px; }
+  .game-table { top: 60px; }
 
-  .game-info {
-    order: 1;
-    flex: 1;
-  }
+  /* Players - Mobile alignment */
+  .player-area.position-top { top: 65px; gap: 8px; }
+  .player-area.position-bottom { bottom: 8px; }
 
-  .game-info-text {
-    font-size: 11px;
-  }
-
-  .game-timer {
-    order: 2;
-    width: 40px;
-    height: 40px;
-    font-size: 14px;
-  }
-
-  .scoreboard {
-    order: 3;
-    width: 100%;
-    margin-top: 8px;
-    padding: 3px;
-  }
-
-  .scoreboard-team {
-    padding: 8px 12px;
-    min-width: 70px;
-  }
-
-  .scoreboard-label {
-    font-size: 8px;
-  }
-
-  .scoreboard-value {
-    font-size: 16px;
-  }
-
-  .scoreboard-target {
-    padding: 8px 12px;
-    min-width: 60px;
-    margin: 0 4px;
-  }
-
-  .scoreboard-target-value {
-    font-size: 18px;
-  }
-
-  .talon-area {
-    min-width: 250px;
-    min-height: 150px;
-  }
-
-  /* On mobile, use absolute positioning for deck even in 1v1 */
-  .game-view.mode-1v1 .deck-container {
-    position: absolute;
-    bottom: 16px;
-    left: 16px;
-  }
-
-  .deck-container {
-    bottom: 16px;
-    left: 16px;
-  }
-
-  .deck-last-card {
-    width: 56px;
-    height: 78px;
-  }
-
-  .deck-pile {
-    width: 78px;
-    height: 56px;
-  }
-
-  .deck-pile-card {
-    width: 78px;
-    height: 56px;
-  }
-
-  .deck-pile-card::after {
-    font-size: 28px;
-  }
-
-  .player-avatar {
-    width: 48px;
-    height: 48px;
-  }
-
-  .player-avatar svg {
-    width: 24px;
-    height: 24px;
-  }
-
-  .player-name {
-    font-size: 11px;
-    padding: 4px 10px;
-  }
-
-  .player-area.position-bottom {
-    bottom: 12px;
-  }
-
-  .player-area.position-top {
-    top: 70px;
+  /* FIX: Left and Right players now look like Top player */
+  .player-area.position-left,
+  .player-area.position-right {
+    flex-direction: column !important; /* Stack avatar and hand vertically */
+    gap: 8px;
+    top: 50%;
+    transform: translateY(-50%);
   }
 
   .player-area.position-left {
-    left: 16px;
+    left: -5px
   }
 
   .player-area.position-right {
-    right: 16px;
+    right: -5px;
   }
 
-  .player-area.position-bottom .player-hand .card {
+  /* Ensure the container inside left/right also stacks vertically */
+  .player-area.position-left > div:not(.player-hand),
+  .player-area.position-right > div:not(.player-hand) {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .player-avatar { width: 40px; height: 40px; }
+  .player-avatar svg { width: 20px; height: 20px; }
+  .player-name { font-size: 10px; padding: 3px 8px; }
+
+  .talon-area { min-width: 220px; min-height: 140px; }
+  .talon-area::before { display: none; }
+  .talon-area::before { width: 180px; height: 180px; }
+
+  /* All cards scale */
+  .game-view .card { transform: scale(0.75); }
+
+  /* Talon initial cards - 80% overlap */
+  .talon-initial .card {
     margin-left: -45px;
   }
 
-  .player-area.position-bottom .player-hand .card:hover:not(.disabled) {
-    transform: translateY(-15px) rotate(0deg) scale(1.03);
+  .talon-initial .card:first-child {
+    margin-left: 0;
   }
 
-  .game-controls {
-    bottom: 16px;
-    right: 16px;
+  /* HANDS - All opponent hands (top, left, right) now horizontal */
+  .player-area.position-top .player-hand,
+  .player-area.position-left .player-hand,
+  .player-area.position-right .player-hand {
+    flex-direction: row !important;
+    gap: 0;
   }
 
-  .surrender-btn {
-    padding: 10px 18px;
-    font-size: 12px;
+  /* Reset rotation and margins for left/right cards to match top */
+  .player-area.position-top .player-hand .card {
+    margin-left: -55px;
+    margin-top: 0;
+    transform: rotate(0deg) scale(0.7);
   }
 
-  .surrender-btn svg {
-    width: 14px;
-    height: 14px;
+  .player-area.position-left .player-hand .card,
+  .player-area.position-right .player-hand .card {
+    margin-left: -55px;
+    margin-top: 0;
+    transform: rotate(0deg) scale(0.7);
   }
 
-  .game-modal {
-    padding: 24px;
+  .player-area.position-top .player-hand .card:first-child,
+  .player-area.position-left .player-hand .card:first-child,
+  .player-area.position-right .player-hand .card:first-child {
+    margin-left: 0 !important;
   }
 
-  .game-modal h2,
-  .game-modal h3 {
-    font-size: 22px;
+  /* Deck & Bottom Hand */
+  .game-view.mode-1v1 .deck-container,
+  .game-view.mode-2v2 .deck-container { position: absolute; bottom: 150px; left: 12px; }
+  .deck-last-card { height: 70px; }
+  .deck-pile { bottom: 15px; }
+  .deck-pile-card { width: 60px; height: 84px; transform: rotate(90deg) scale(0.77); }
+  .hand-wrapper { 
+    margin-bottom: 30px;
+    flex-wrap: nowrap;
   }
-}
-
-/* Extra small mobile */
-@media (max-width: 375px) {
-  .scoreboard-team {
-    padding: 6px 10px;
-    min-width: 60px;
-  }
-
-  .scoreboard-value {
-    font-size: 14px;
-  }
-
-  .scoreboard-target {
-    padding: 6px 10px;
-    min-width: 50px;
-  }
-
-  .scoreboard-target-value {
-    font-size: 16px;
-  }
-
   .player-area.position-bottom .player-hand .card {
-    margin-left: -50px;
+    margin-left: -23px;
   }
+  .player-area.position-bottom .player-hand .card:first-child { margin-left: 0; }
+  .player-area.position-bottom .player-hand .card:nth-child(n) { scale: 0.85; }
 
-  .talon-area {
-    min-width: 200px;
-    min-height: 120px;
+  /* Controls - circular button */
+  .game-controls { bottom: 12px; right: 12px; }
+  .surrender-btn { 
+    width: 44px; 
+    height: 44px; 
+    padding: 0; 
+    border-radius: 20%; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    font-size: 0;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    position: relative;
   }
+  .surrender-btn::before {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    background: url('../media/leave.png') center/contain no-repeat;
+    margin-left: 3px;
+    filter: brightness(0) invert(0.9);
+  }
+  .surrender-btn svg { display: none; }
+  .surrender-btn span { display: none; }
 }
 
 /* Hide left/right in 1v1 */

@@ -147,13 +147,13 @@ setActiveUsers(activeUsers);
             }
           }
         }
-      }, 100); // 100ms for testing (change back to 12000 for production)
+      }, 12000); // 12 seconds
 
       // Emit timer start event to all clients
       io.to(roomId).emit('turn_timer_started', { 
         playerId: room.state.currentTurnPlayerId,
-        duration: 100,
-        expiresAt: Date.now() + 100
+        duration: 12000,
+        expiresAt: Date.now() + 12000
       });
     };
 
@@ -167,8 +167,8 @@ setActiveUsers(activeUsers);
         if (room?.state?.currentTurnPlayerId && room.timerEnabled && !room.state.matchOver) {
           io.to(roomId).emit('turn_timer_started', { 
             playerId: room.state.currentTurnPlayerId,
-            duration: 100,
-            expiresAt: Date.now() + 100
+            duration: 12000,
+            expiresAt: Date.now() + 12000
           });
         }
       }, delay);
