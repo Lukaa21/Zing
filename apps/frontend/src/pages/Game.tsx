@@ -66,6 +66,10 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
   const { token } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Debug: Log props to see what's being passed
+  console.log('[Game.tsx] Props received:', { roomId, playerName, inviteToken: inviteToken ? `${inviteToken.slice(0, 8)}...` : 'none', code });
+  
   const [socket, setSocket] = useState<any>(null);
   const [state, setState] = useState<any>(null);
   const [players, setPlayers] = useState<any[]>([]);
@@ -87,6 +91,9 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
     playersRef.current = players;
   }, [players]);
   
+  // Prevent double socket initialization in React Strict Mode
+  const hasInitializedRef = React.useRef(false);
+  
   // Track game ID to detect when a new game starts (after rematch)
   const prevGameIdRef = React.useRef<string | null>(null);
   
@@ -104,6 +111,13 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
   }, [state?.id]);
 
   useEffect(() => {
+    // In React Strict Mode (dev), useEffect runs twice. Prevent double initialization.
+    if (hasInitializedRef.current) {
+      console.log('[Game.tsx] useEffect already initialized, skipping (Strict Mode)');
+      return;
+    }
+    hasInitializedRef.current = true;
+    
     const s = connect(playerName, 'player', token || undefined);
     const currentGuestId = getOrCreateGuestId();
     setGuestId(currentGuestId);

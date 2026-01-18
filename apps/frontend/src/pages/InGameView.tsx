@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Hand from '../components/Hand';
 import Card from '../components/Card';
+import '../styles/InGameView.css';
 
 function shortCardName(cardId: string) {
   const [suit, rank] = cardId.split('-');
@@ -76,66 +77,109 @@ const InGameView: React.FC<InGameViewProps> = ({
         : (timeRemaining / 1000).toFixed(1))
     : null;
 
+  // Determine game mode
+  const gameMode = state?.players?.length === 2 ? '1v1' : '2v2';
+  
+  // Get current player info
+  const me = state?.players?.find((p: any) => p.id === myId) || state?.players?.find((p: any) => p.name === playerName);
+  const myTeam = me?.team;
+  const myHand = me?.hand || [];
+  const myPlayerId = me?.id;
+  
+  // For spectators, show all players' cards
+  // Get all active players (exclude spectators from game state)
+  const allPlayers = state?.players?.filter((p: any) => p.role !== 'spectator') || [];
+  
+  // Get other players (excluding me)
+  const otherPlayers = allPlayers.filter((p: any) => p.id !== myId) || [];
+  
+  // Determine player positions
+  let topPlayer = null;
+  let leftPlayer = null;
+  let rightPlayer = null;
+  let bottomPlayer = null; // For spectators
+  
+  if (isSpectator) {
+    // Spectators see all players
+    if (gameMode === '1v1') {
+      topPlayer = allPlayers[0];
+      bottomPlayer = allPlayers[1];
+    } else {
+      // 2v2: Show all 4 players
+      topPlayer = allPlayers[0];
+      leftPlayer = allPlayers[1];
+      rightPlayer = allPlayers[2];
+      bottomPlayer = allPlayers[3];
+    }
+  } else {
+    // Regular player view
+    if (gameMode === '1v1') {
+      topPlayer = otherPlayers[0];
+    } else {
+      // 2v2: partner top, opponents left/right
+      const partner = otherPlayers.find((p: any) => p.team === myTeam);
+      const opponents = otherPlayers.filter((p: any) => p.team !== myTeam);
+      topPlayer = partner;
+      leftPlayer = opponents[0];
+      rightPlayer = opponents[1];
+    }
+  }
+  
+  // Get scores
+  const team0Score = state?.scores?.team0 || 0;
+  const team1Score = state?.scores?.team1 || 0;
+  const myTeamScore = myTeam === 0 ? team0Score : team1Score;
+  const opponentTeamScore = myTeam === 0 ? team1Score : team0Score;
+  
+  // Determine target score (101, 151, or 201)
+  const targetScore = Math.max(team0Score, team1Score) > 101 
+    ? (Math.max(team0Score, team1Score) > 151 ? 201 : 151)
+    : 101;
+  
+  // Get game info
+  const currentHand = state?.handNumber || 1;
+  const deckCount = state?.deck?.length || 0;
+  
+  // Determine max hands based on game mode (2v2: 3 hands, duo: 6 hands)
+  const maxHands = gameMode === '2v2' ? 3 : 6;
+  
+  // Get set/partija number (hardcoded for now - can be enhanced later)
+  const currentSet = 1;
+  
+  // Get talon cards
+  const talonCards = state?.talon || [];
+  
+  // Check if we're at the start (showing first 4 cards) or during play (showing all played cards)
+  const isInitialDeal = talonCards.length === 4 && state?.handNumber === 1;
+
   return (
-    <div className="in-game">
+    <div className={`game-view mode-${gameMode}`}>
       {/* Surrender Confirmation Modal */}
       {showSurrenderConfirm && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.7)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            padding: '2rem',
-            borderRadius: '8px',
-            maxWidth: '400px',
-            textAlign: 'center'
-          }}>
-            <h3>Surrender Game?</h3>
-            <p>Are you sure you want to surrender? The other team will automatically win with 101 points.</p>
-            {state?.players?.length === 4 && (
-              <p style={{ fontSize: '0.9rem', color: '#666' }}>
-                In 2v2, both team members must agree to surrender.
+        <div className="game-modal-overlay">
+          <div className="game-modal">
+            <h3>Predaja Igre?</h3>
+            <p>Da li ste sigurni da želite da predate igru? Protivnički tim automatski dobija 101 poen.</p>
+            {gameMode === '2v2' && (
+              <p className="surrender-modal-note">
+                U 2v2 modu, oba člana tima moraju se složiti za predaju.
               </p>
             )}
-            <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'center' }}>
+            <div className="modal-buttons">
               <button
                 onClick={() => setShowSurrenderConfirm(false)}
-                style={{
-                  padding: '0.5rem 1.5rem',
-                  fontSize: '1rem',
-                  borderRadius: '4px',
-                  border: '1px solid #ccc',
-                  backgroundColor: 'white',
-                  cursor: 'pointer'
-                }}
+                className="modal-btn secondary"
               >
-                Cancel
+                Otkaži
               </button>
               <button
                 onClick={() => {
                   setShowSurrenderConfirm(false);
                   onSurrender?.();
                 }}
-                style={{
-                  padding: '0.5rem 1.5rem',
-                  fontSize: '1rem',
-                  borderRadius: '4px',
-                  border: 'none',
-                  backgroundColor: '#f44336',
-                  color: 'white',
-                  cursor: 'pointer'
-                }}
+                className="modal-btn danger"
               >
-                Surrender
+                Predaj Se
               </button>
             </div>
           </div>
@@ -144,289 +188,219 @@ const InGameView: React.FC<InGameViewProps> = ({
 
       {/* Game Over Modal */}
       {state?.matchOver && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.7)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            padding: '2rem',
-            borderRadius: '8px',
-            maxWidth: '500px',
-            textAlign: 'center'
-          }}>
-            <h2 style={{ marginBottom: '1rem' }}>Game Over!</h2>
-            <div style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>
-              <div style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>
-                {(() => {
-                  const me = state.players.find((p: any) => p.id === myId);
-                  const myTeam = me?.team;
-                  const winnerTeam = state.scores.team0 > state.scores.team1 ? 0 : 1;
-                  const didIWin = myTeam === winnerTeam;
-                  return didIWin ? '🎉 You Won! 🎉' : '😔 You Lost';
-                })()}
+        <div className="game-modal-overlay">
+          <div className="game-modal">
+            <h2>Igra Završena!</h2>
+            <div className="game-over-result">
+              {(() => {
+                const winnerTeam = team0Score > team1Score ? 0 : 1;
+                const didIWin = myTeam === winnerTeam;
+                return didIWin ? '🎉 Pobedili Ste! 🎉' : '😔 Izgubili Ste';
+              })()}
+            </div>
+            <div className="game-over-scores">
+              <div className={`game-over-score ${team0Score > team1Score ? 'winner' : 'loser'}`}>
+                <div className="game-over-score-label">TIM 0</div>
+                <div className="game-over-score-value">{team0Score}</div>
               </div>
-              <div style={{ display: 'flex', gap: '2rem', justifyContent: 'center', marginTop: '1rem' }}>
-                <div style={{ 
-                  padding: '0.5rem 1rem',
-                  backgroundColor: state.scores.team0 > state.scores.team1 ? '#4CAF50' : '#ccc',
-                  color: 'white',
-                  borderRadius: '4px',
-                  fontWeight: 'bold'
-                }}>
-                  Team 0: {state.scores.team0} pts
-                </div>
-                <div style={{ 
-                  padding: '0.5rem 1rem',
-                  backgroundColor: state.scores.team1 > state.scores.team0 ? '#2196F3' : '#ccc',
-                  color: 'white',
-                  borderRadius: '4px',
-                  fontWeight: 'bold'
-                }}>
-                  Team 1: {state.scores.team1} pts
-                </div>
+              <div className={`game-over-score ${team1Score > team0Score ? 'winner' : 'loser'}`}>
+                <div className="game-over-score-label">TIM 1</div>
+                <div className="game-over-score-value">{team1Score}</div>
               </div>
             </div>
             
-            {/* Rematch voting status */}
             {rematchVotes && (
-              <div style={{ marginBottom: '1rem', padding: '0.5rem', backgroundColor: '#f0f0f0', borderRadius: '4px' }}>
-                <p style={{ margin: 0, fontSize: '0.9rem' }}>
-                  Waiting for rematch votes: {rematchVotes.currentVotes}/{rematchVotes.votesNeeded}
+              <div className="rematch-notification">
+                <p className="rematch-notification-text">
+                  Čekanje glasova za revanš: {rematchVotes.currentVotes}/{rematchVotes.votesNeeded}
                 </p>
               </div>
             )}
             
-            <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'center' }}>
-              <button
-                onClick={onExit}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  fontSize: '1rem',
-                  borderRadius: '4px',
-                  border: '1px solid #ccc',
-                  backgroundColor: 'white',
-                  cursor: 'pointer'
-                }}
-              >
-                Exit Game
+            <div className="modal-buttons">
+              <button onClick={onExit} className="modal-btn secondary">
+                Izađi
               </button>
-              <button
-                onClick={onRematch}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  fontSize: '1rem',
-                  borderRadius: '4px',
-                  border: 'none',
-                  backgroundColor: '#4CAF50',
-                  color: 'white',
-                  cursor: 'pointer'
-                }}
-              >
-                Rematch
+              <button onClick={onRematch} className="modal-btn primary">
+                Revanš
               </button>
             </div>
           </div>
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 24 }}>
-        <div style={{ minWidth: 240 }}>
-          {/* Leave Game / Surrender Button */}
-          {!state?.matchOver && !isSpectator && onSurrender && (
-            <div style={{ marginBottom: '1rem' }}>
-              <button
-                onClick={() => setShowSurrenderConfirm(true)}
-                style={{
-                  width: '100%',
-                  padding: '0.5rem',
-                  fontSize: '0.9rem',
-                  borderRadius: '4px',
-                  border: 'none',
-                  backgroundColor: '#f44336',
-                  color: 'white',
-                  cursor: 'pointer'
-                }}
-              >
-                🏳️ Leave Game
-              </button>
-              {surrenderVotes && (
-                <div style={{ 
-                  marginTop: '0.5rem', 
-                  padding: '0.5rem', 
-                  backgroundColor: '#fff3cd', 
-                  borderRadius: '4px',
-                  fontSize: '0.8rem',
-                  textAlign: 'center'
-                }}>
-                  Teammate wants to surrender ({surrenderVotes.currentVotes}/{surrenderVotes.votesNeeded})
-                </div>
-              )}
-            </div>
-          )}
-          
-          <h3>Players in Room</h3>
-          <ul className="players-list">
-            {players.map((p) => (
-              <li key={p.id} className={p.id === state?.currentTurnPlayerId ? 'current' : ''}>
-                <div>
-                  {p.name} {p.role === 'spectator' ? '(spectator)' : ''} {p.id === state?.currentTurnPlayerId ? ' ← turn' : ''}
-                </div>
-              </li>
-            ))}
-          </ul>
-          <div style={{ marginTop: 12 }}>
-            <h4>Talon</h4>
-            <div className="talon-row">
-              {state?.talon?.length ? (
-                state.talon.map((c: string, i: number) => (
-                  <div key={i} style={{ marginLeft: i === 0 ? 0 : -48 }}>
-                    <Card id={c} />
-                  </div>
-                ))
-              ) : (
-                <em>empty</em>
-              )}
-            </div>
+      {/* Header */}
+      <div className="game-header">
+        {/* Left: Game Info */}
+        <div className="game-info">
+          <div className="game-info-text">Partija: {currentSet}</div>
+          <div className="game-info-text">Ruka: {currentHand}/{maxHands}</div>
+        </div>
+
+        {/* Center: Scoreboard */}
+        <div className="scoreboard">
+          <div className="scoreboard-team team-0">
+            <div className="scoreboard-label">Tim 0</div>
+            <div className="scoreboard-value">{team0Score}</div>
+          </div>
+          <div className="scoreboard-target">
+            <div className="scoreboard-target-icon">🏆</div>
+            <div className="scoreboard-target-value">{targetScore}</div>
+          </div>
+          <div className="scoreboard-team team-1">
+            <div className="scoreboard-label">Tim 1</div>
+            <div className="scoreboard-value">{team1Score}</div>
           </div>
         </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <div>
-              <strong>Turn:</strong> {state?.players?.find((p: any) => p.id === state?.currentTurnPlayerId)?.name || '—'}
-            </div>
-            <div>
-              <strong>Deck:</strong> {state?.deck?.length ?? 0} cards
-            </div>
-            <div>
-              <strong>Hand:</strong> {state?.handNumber ?? 0}
-            </div>
-            {timerSeconds !== null && (
-              <div style={{ 
-                marginLeft: 'auto',
-                padding: '0.5rem 1rem',
-                backgroundColor: Number(timerSeconds) <= 3 ? '#ff4444' : '#4CAF50',
-                color: 'white',
-                borderRadius: '4px',
-                fontWeight: 'bold',
-                fontSize: '1.2rem'
-              }}>
-                ⏱️ {timerSeconds}s
-              </div>
-            )}
-          </div>
-          <div style={{ marginTop: 8 }}>
-            <label style={{ fontSize: 13 }}>
-              <input
-                type="checkbox"
-                checked={devMode}
-                onChange={(e) => {
-                  setDevMode(e.target.checked);
-                  if (e.target.checked) setControlAs(myId);
-                  else setControlAs(null);
-                }}
-              />
-              {' '}
-              Dev/Test Mode (show all hands & control any player)
-            </label>
-          </div>
-        </div>
-      </div>
-      <div className="player-hand" style={{ marginTop: 12 }}>
-        {devMode ? (
-          <div>
-            <h3>All Hands</h3>
-            <div>
-              <div style={{ marginBottom: 8 }}>
-                <strong>Control as:</strong>{' '}
-                <select value={controlAs || ''} onChange={(e) => setControlAs(e.target.value || null)}>
-                  <option value="">(none)</option>
-                  {players.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {players.map((p) => (
-                <div key={p.id} style={{ marginBottom: 12 }}>
-                  <div style={{ fontWeight: 'bold' }}>
-                    {p.name} {p.id === state?.currentTurnPlayerId ? '← turn' : ''}
-                  </div>
-                  <Hand cards={p.hand || []} onPlay={(id) => onPlay(id, p.id)} disabled={!(controlAs === p.id)} />
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : isSpectator ? (
-          <div>
-            <h3>All Hands (Spectator View)</h3>
-            <div>
-              {state?.players?.filter((p: any) => p.role !== 'spectator').map((p: any) => (
-                <div key={p.id} style={{ marginBottom: 12 }}>
-                  <div style={{ fontWeight: 'bold' }}>
-                    {p.name} {p.id === state?.currentTurnPlayerId ? '← turn' : ''}
-                  </div>
-                  <Hand cards={p.hand || []} onPlay={(id) => onPlay(id, p.id)} disabled={true} />
-                </div>
-              ))}
-            </div>
+
+        {/* Right: Timer */}
+        {timerExpiresAt ? (
+          <div className={`game-timer ${timerSeconds && Number(timerSeconds) <= 3 ? 'warning' : 'normal'}`}>
+            {timerSeconds || '0'}
           </div>
         ) : (
-          <div>
-            <h3>Your Hand</h3>
-            {(() => {
-              const me = state?.players?.find((p: any) => p.id === myId) || state?.players?.find((p: any) => p.name === playerName);
-              const hand = me?.hand || [];
-              const myPlayerId = me?.id;
-              return <Hand cards={hand} onPlay={(id) => onPlay(id)} disabled={myPlayerId !== state?.currentTurnPlayerId} />;
-            })()}
-          </div>
+          <div className="game-timer hidden"></div>
         )}
       </div>
-      <div style={{ marginTop: 12 }}>
-        <h4>Team Scores</h4>
-        <div style={{ display: 'flex', gap: '2rem', fontSize: '1.1rem' }}>
-          <div style={{ 
-            padding: '0.5rem 1rem',
-            backgroundColor: '#4CAF50',
-            color: 'white',
-            borderRadius: '4px',
-            fontWeight: 'bold'
-          }}>
-            Team 0: {state?.scores?.team0 || 0} pts
+
+      {/* Game Table */}
+      <div className="game-table">
+        {/* Top Player */}
+        {topPlayer && (
+          <div className="player-area position-top">
+            <div className={`player-avatar ${topPlayer.id === state?.currentTurnPlayerId ? 'active' : ''}`}>
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+              </svg>
+            </div>
+            <div className="player-name">{topPlayer.name}</div>
+            <div className="player-hand">
+              {(topPlayer.hand || []).map((card: any, idx: number) => (
+                <Card key={idx} id={isSpectator ? card : "back"} />
+              ))}
+            </div>
           </div>
-          <div style={{ 
-            padding: '0.5rem 1rem',
-            backgroundColor: '#2196F3',
-            color: 'white',
-            borderRadius: '4px',
-            fontWeight: 'bold'
-          }}>
-            Team 1: {state?.scores?.team1 || 0} pts
+        )}
+
+        {/* Left Player (2v2 only) */}
+        {leftPlayer && (
+          <div className="player-area position-left">
+            <div>
+              <div className={`player-avatar ${leftPlayer.id === state?.currentTurnPlayerId ? 'active' : ''}`}>
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                </svg>
+              </div>
+              <div className="player-name">{leftPlayer.name}</div>
+            </div>
+            <div className="player-hand">
+              {(leftPlayer.hand || []).map((card: any, idx: number) => (
+                <Card key={idx} id={isSpectator ? card : "back"} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Right Player (2v2 only) */}
+        {rightPlayer && (
+          <div className="player-area position-right">
+            <div>
+              <div className={`player-avatar ${rightPlayer.id === state?.currentTurnPlayerId ? 'active' : ''}`}>
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                </svg>
+              </div>
+              <div className="player-name">{rightPlayer.name}</div>
+            </div>
+            <div className="player-hand">
+              {(rightPlayer.hand || []).map((card: any, idx: number) => (
+                <Card key={idx} id={isSpectator ? card : "back"} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Bottom Player (Me or Spectator view) */}
+        <div className="player-area position-bottom">
+          {isSpectator && bottomPlayer && (
+            <div className="player-name spectator-bottom-name">
+              {bottomPlayer.name}
+            </div>
+          )}
+          <div className="player-hand">
+            {isSpectator && bottomPlayer ? (
+              // Spectator: show bottom player's cards (not interactive)
+              <div className="spectator-hand-container">
+                {(bottomPlayer.hand || []).map((card: any, idx: number) => (
+                  <Card key={idx} id={card} />
+                ))}
+              </div>
+            ) : (
+              // Regular player: show interactive hand
+              <Hand 
+                cards={myHand} 
+                onPlay={(id) => onPlay(id)} 
+                disabled={myPlayerId !== state?.currentTurnPlayerId} 
+              />
+            )}
           </div>
         </div>
-      </div>
-      <div style={{ marginTop: 12 }}>
-        <h4>Move Log</h4>
-        <div style={{ maxHeight: 240, overflow: 'auto', background: '#fff', padding: 8, borderRadius: 6 }}>
-          <ul style={{ margin: 0, paddingLeft: 8 }}>
-            {logs.map((l, idx) => (
-              <li key={idx} style={{ fontSize: 13, color: '#222' }}>
-                {l}
-              </li>
-            ))}
-          </ul>
+
+        {/* Deck and Face-Up Card - Hide on last hand when all cards are dealt */}
+        {state?.faceUpCard && currentHand < maxHands && (
+          <div className="deck-container">
+            <div className="deck-last-card">
+              <Card id={state.faceUpCard} />
+            </div>
+            <div className="deck-pile">
+              <div className="deck-pile-card"></div>
+              <div className="deck-pile-card"></div>
+              <div className="deck-pile-card"></div>
+            </div>
+          </div>
+        )}
+
+        {/* Talon Area (Center) */}
+        <div className="talon-area">
+          {isInitialDeal ? (
+            // State A: Initial 4 cards visible horizontally
+            <div className="talon-initial">
+              {talonCards.slice(0, 4).map((cardId: string, idx: number) => (
+                <Card key={idx} id={cardId} />
+              ))}
+            </div>
+          ) : (
+            // State B: Cards stacked during play - show all talon cards
+            <div className="talon-stack">
+              {talonCards.map((cardId: string, idx: number) => (
+                <div key={idx} className="card-wrapper played">
+                  <Card id={cardId} />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Controls (Bottom Right) */}
+      {!state?.matchOver && !isSpectator && onSurrender && (
+        <div className="game-controls">
+          {surrenderVotes && (
+            <div className="surrender-notification">
+              Partner želi predaju ({surrenderVotes.currentVotes}/{surrenderVotes.votesNeeded})
+            </div>
+          )}
+          <button
+            onClick={() => setShowSurrenderConfirm(true)}
+            className="surrender-btn"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 3h18M3 9h18M3 15h18M3 21h18" />
+            </svg>
+            {gameMode === '1v1' ? 'Napusti Igru' : 'Predaja'}
+          </button>
+        </div>
+      )}
     </div>
   );
 };

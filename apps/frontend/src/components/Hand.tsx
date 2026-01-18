@@ -3,7 +3,7 @@ import Card from './Card';
 
 const Hand: React.FC<{ cards: string[]; onPlay: (id: string) => void; disabled?: boolean }> = ({ cards, onPlay, disabled }) => {
   return (
-    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+    <div className="hand-wrapper">
       {cards.map((c) => (
         <Card key={c} id={c} onClick={() => onPlay(c)} disabled={!!disabled} />
       ))}

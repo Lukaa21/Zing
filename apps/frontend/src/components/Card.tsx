@@ -15,7 +15,7 @@ const suitToColor: Record<string, string> = {
 };
 
 const Card: React.FC<{ id: string; onClick?: (id: string) => void; faceDown?: boolean; disabled?: boolean }> = ({ id, onClick, faceDown, disabled }) => {
-  if (faceDown) {
+  if (faceDown || id === 'back') {
     return <div className="card card-back">🂠</div>;
   }
   const [suit, rank] = id.split('-');

@@ -509,7 +509,7 @@ setActiveUsers(activeUsers);
         }
         
         logger.info({ roomId: actualRoomId, playersAfterJoin: room.players.map((p: any) => ({ id: p.id, name: p.name })) }, 'join_room: emitting room_update');
-        io.to(actualRoomId).emit('room_update', { roomId: actualRoomId, players: room.players.map((p: any) => ({ id: p.id, name: p.name ?? p.id, role: p.role, taken: p.taken })), ownerId: room.ownerId, accessCode: room.accessCode, inviteToken: room.inviteToken });
+        io.to(actualRoomId).emit('room_update', { roomId: actualRoomId, players: room.players.map((p: any) => ({ id: p.id, name: p.name ?? p.id, role: p.role, taken: p.taken })), ownerId: room.ownerId, accessCode: room.accessCode, inviteToken: room.inviteToken, timerEnabled: room.timerEnabled });
         
         // If game has already started (e.g., matchmaking auto-start), send game state to this player
         if (room.state) {
@@ -637,7 +637,7 @@ setActiveUsers(activeUsers);
       const playerId = socket.data.identity?.id ?? socket.id;
       leaveRoom(room, playerId);
       socket.leave(roomId);
-      io.to(roomId).emit('room_update', { roomId, players: room.players.map((p) => ({ id: p.id, name: p.name, role: p.role, taken: p.taken })), ownerId: room.ownerId, accessCode: room.accessCode, inviteToken: room.inviteToken });
+      io.to(roomId).emit('room_update', { roomId, players: room.players.map((p) => ({ id: p.id, name: p.name, role: p.role, taken: p.taken })), ownerId: room.ownerId, accessCode: room.accessCode, inviteToken: room.inviteToken, timerEnabled: room.timerEnabled });
     });
 
     socket.on('intent_play_card', async ({ roomId, cardId, playerId }) => {
@@ -957,7 +957,8 @@ setActiveUsers(activeUsers);
             })),
             ownerId: originalRoom.ownerId,
             accessCode: originalRoom.accessCode,
-            inviteToken: originalRoom.inviteToken
+            inviteToken: originalRoom.inviteToken,
+            timerEnabled: originalRoom.timerEnabled
           });
           
           logger.info({ roomId, originalRoomId, playerId }, 'Player returned to original private room');
@@ -1003,6 +1004,28 @@ setActiveUsers(activeUsers);
         // Notify room that game ended
         io.to(roomId).emit('game_exited', { roomId });
         socket.emit('stayed_in_room', { roomId, room });
+        
+        // Send room_update with current timer setting so frontend UI syncs correctly
+        io.to(roomId).emit('room_update', {
+          roomId: room.id,
+          players: room.players.map((p: any) => ({ 
+            id: p.id, 
+            name: p.name ?? p.id, 
+            role: p.role, 
+            taken: p.taken 
+          })),
+          members: room.members?.map(m => ({
+            userId: m.userId,
+            name: m.name,
+            roleInRoom: m.roleInRoom,
+            joinedAt: m.joinedAt,
+          })) || [],
+          hostId: room.hostId,
+          ownerId: room.ownerId,
+          accessCode: room.accessCode,
+          inviteToken: room.inviteToken,
+          timerEnabled: room.timerEnabled
+        });
         
         logger.info({ roomId, playerId }, 'Player exited game, staying in private room');
         return;

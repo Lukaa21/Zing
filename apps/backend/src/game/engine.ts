@@ -50,6 +50,8 @@ export function initialDeal(state: GameState, seed?: string, dealerSeat = 0): Ga
   state.talon = talon;
   // initial deck is dealDeck followed by remaining cutterHalf and reserved card
   state.deck = dealDeck.concat(cutterHalf).concat(reserved ? [reserved] : []);
+  // Set face-up card (the bottom/first card in deck array, which dealer gets last)
+  state.faceUpCard = state.deck[0];
   // deal first small hands (up to 4 cards each)
   dealNextHands(state);
   state.handNumber = 1;

@@ -20,9 +20,13 @@ const App: React.FC = () => {
   const [roomId, setRoomId] = useState<string | null>(() => {
     return sessionStorage.getItem('zing_current_room') || null;
   });
-  // Don't initialize name from localStorage yet - let user explicitly choose identity
-  // This prevents invited players from getting the room creator's name
-  const [name, setName] = useState<string>('');
+  // Initialize name immediately to avoid empty string -> actual name transition
+  const [name, setName] = useState<string>(() => {
+    // Don't auto-set name if there's a pending invite (let user choose identity)
+    const pendingRoom = sessionStorage.getItem('zing_pending_invite_room');
+    if (pendingRoom) return '';
+    return getGuestName() || '';
+  });
   const [inviteToken, setInviteToken] = useState<string | null>(() => {
     return sessionStorage.getItem('zing_current_invite_token') || null;
   });
@@ -69,20 +73,22 @@ const App: React.FC = () => {
     const pendingRoom = sessionStorage.getItem('zing_pending_invite_room');
     const pendingToken = sessionStorage.getItem('zing_pending_invite_token');
     
-    // Initialize name from authUser or localStorage if no pending invite
-    // This prevents invited players from inheriting the room creator's guest name
-    if (!name && !pendingRoom && !r) {
-      const existingName = authUser?.username || getGuestName();
-      if (existingName) {
-        setName(existingName);
-      }
+    // If user is authenticated and name is not set, use their username
+    if (!name && authUser?.username && !pendingRoom && !r) {
+      setName(authUser.username);
     }
 
     // If we have pending invite and now we have a name (after auth or guest name entry), join the game
     if (pendingRoom && pendingToken && name) {
+      console.log('[App.tsx] Processing pending invite:', { pendingRoom, pendingToken: pendingToken.slice(0, 8) + '...', name });
+      
       sessionStorage.removeItem('zing_pending_invite_room');
       sessionStorage.removeItem('zing_pending_invite_token');
       sessionStorage.removeItem('zing_pending_invite_name');
+      
+      // Store in current session for persistence
+      sessionStorage.setItem('zing_current_room', pendingRoom);
+      sessionStorage.setItem('zing_current_invite_token', pendingToken);
       
       setRoomId(pendingRoom);
       setInviteToken(pendingToken);
@@ -94,6 +100,9 @@ const App: React.FC = () => {
     if (r && i && storedRoomId === r) {
       setRoomId(r);
       setInviteToken(i);
+      
+      // Ensure invite token is stored in sessionStorage for persistence
+      sessionStorage.setItem('zing_current_invite_token', i);
       
       // Use existing name from authenticated user or localStorage
       const existingName = authUser?.username || getGuestName();
@@ -131,6 +140,13 @@ const App: React.FC = () => {
     // If we have a roomId stored in sessionStorage (from previous game session), rejoin
     if (storedRoomId) {
       setRoomId(storedRoomId);
+      
+      // Also restore inviteToken if present in sessionStorage
+      const storedInviteToken = sessionStorage.getItem('zing_current_invite_token');
+      if (storedInviteToken) {
+        setInviteToken(storedInviteToken);
+      }
+      
       navigate('/game');
     }
   }, [isLoading, authUser, name, navigate]);
@@ -237,8 +253,8 @@ const App: React.FC = () => {
           key="game-view"
           roomId={roomId!} 
           playerName={name}
-          inviteToken={inviteToken || undefined}
-          code={code || undefined}
+          inviteToken={inviteToken || sessionStorage.getItem('zing_current_invite_token') || undefined}
+          code={code || sessionStorage.getItem('zing_current_code') || undefined}
           onRoomChange={(newRoomId) => {
             setRoomId(newRoomId);
             sessionStorage.setItem('zing_current_room', newRoomId);
@@ -257,8 +273,8 @@ const App: React.FC = () => {
           key="room-view"
           roomId={roomId!}
           playerName={name}
-          inviteToken={inviteToken || undefined}
-          code={code || undefined}
+          inviteToken={inviteToken || sessionStorage.getItem('zing_current_invite_token') || undefined}
+          code={code || sessionStorage.getItem('zing_current_code') || undefined}
           initialRoute="room"
           onRoomChange={(newRoomId) => {
             setRoomId(newRoomId);

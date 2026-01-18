@@ -1,4 +1,4 @@
-/* Team Selection Modal Styles */
+/* Team Selection Modal Styles - Dark Theme */
 
 .team-modal-overlay {
   position: fixed;
@@ -6,7 +6,8 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -14,14 +15,15 @@
 }
 
 .team-modal {
-  background-color: white;
-  border-radius: 8px;
+  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+  border: 1px solid rgba(147, 51, 234, 0.3);
+  border-radius: 16px;
   padding: 2rem;
   max-width: 800px;
   width: 90%;
   max-height: 80vh;
   overflow-y: auto;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
 .team-modal__header {
@@ -29,11 +31,15 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.2);
 }
 
 .team-modal__header h3 {
   margin: 0;
-  color: #333;
+  color: #ffffff;
+  font-size: 1.5rem;
+  font-weight: 600;
 }
 
 .team-modal__close {
@@ -41,11 +47,12 @@
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: #666;
+  color: rgba(255, 255, 255, 0.6);
+  transition: color 0.2s;
 }
 
 .team-modal__close:hover {
-  color: #333;
+  color: #ffffff;
 }
 
 /* Content Layout */
@@ -57,15 +64,20 @@
 
 /* Unassigned Players */
 .team-modal__unassigned {
-  padding: 1rem;
-  background-color: #f5f5f5;
-  border-radius: 8px;
+  padding: 1.25rem;
+  background: rgba(30, 27, 75, 0.5);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 12px;
 }
 
 .team-modal__unassigned h4 {
   margin-top: 0;
   margin-bottom: 1rem;
-  color: #666;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .player-list {
@@ -81,14 +93,21 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem;
-  background-color: white;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  padding: 0.875rem 1rem;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.player-list__item:hover {
+  background: rgba(15, 23, 42, 0.8);
+  border-color: rgba(147, 51, 234, 0.4);
 }
 
 .player-list__item span {
-  font-weight: 600;
+  font-weight: 500;
+  color: #ffffff;
 }
 
 .player-list__actions {
@@ -97,57 +116,66 @@
 }
 
 .player-list__btn {
-  padding: 0.5rem 0.75rem;
+  padding: 0.5rem 1rem;
   border: none;
-  border-radius: 4px;
-  font-size: 0.9rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .player-list__btn:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
 .player-list__btn--team0 {
-  background-color: #2196F3;
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
   color: white;
 }
 
 .player-list__btn--team0:hover:not(:disabled) {
-  background-color: #1976D2;
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
 }
 
 .player-list__btn--team1 {
-  background-color: #FF9800;
+  background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%);
   color: white;
 }
 
 .player-list__btn--team1:hover:not(:disabled) {
-  background-color: #F57C00;
+  background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.4);
 }
 
 /* Teams */
 .team-modal__team {
-  padding: 1rem;
-  border-radius: 8px;
-  border: 2px solid;
+  padding: 1.25rem;
+  border-radius: 12px;
+  border: 1px solid;
+  background: rgba(30, 27, 75, 0.4);
 }
 
 .team-modal__team--0 {
-  border-color: #2196F3;
-  background-color: #e3f2fd;
+  border-color: rgba(139, 92, 246, 0.4);
 }
 
 .team-modal__team--1 {
-  border-color: #FF9800;
-  background-color: #fff3e0;
+  border-color: rgba(168, 85, 247, 0.4);
 }
 
 .team-modal__team h4 {
   margin-top: 0;
   margin-bottom: 1rem;
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .team-list {
@@ -163,43 +191,57 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem;
-  background-color: white;
-  border-radius: 4px;
+  padding: 0.875rem 1rem;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.team-list__item:hover:not(.team-list__item--empty) {
+  background: rgba(15, 23, 42, 0.8);
+  border-color: rgba(147, 51, 234, 0.4);
 }
 
 .team-list__item--empty {
-  color: #999;
+  color: rgba(255, 255, 255, 0.4);
   font-style: italic;
   justify-content: center;
-  border: 2px dashed #ccc;
+  border: 1px dashed rgba(139, 92, 246, 0.3);
+  background: rgba(30, 27, 75, 0.3);
 }
 
 .team-list__item span {
-  font-weight: 600;
+  font-weight: 500;
+  color: #ffffff;
 }
 
 .team-list__remove {
-  background-color: #f44336;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   color: white;
   border: none;
   border-radius: 50%;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.2s;
 }
 
 .team-list__remove:hover {
-  background-color: #d32f2f;
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
 }
 
 /* Footer */
 .team-modal__footer {
   margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(139, 92, 246, 0.2);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -208,30 +250,33 @@
 
 .team-modal__hint {
   margin: 0;
-  color: #666;
-  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.875rem;
 }
 
 .team-modal__confirm {
-  padding: 1rem 2rem;
-  font-size: 1.1rem;
+  padding: 0.875rem 2.5rem;
+  font-size: 1rem;
   font-weight: 600;
-  background-color: #4CAF50;
+  background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%);
   color: white;
-  border: none;
-  border-radius: 4px;
+  border: 1px solid rgba(147, 51, 234, 0.3);
+  border-radius: 50px;
   cursor: pointer;
   transition: all 0.2s;
+  box-shadow: 0 4px 16px rgba(147, 51, 234, 0.3);
 }
 
 .team-modal__confirm:hover:not(:disabled) {
-  background-color: #45a049;
+  background: linear-gradient(135deg, #7e22ce 0%, #6b21a8 100%);
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 6px 24px rgba(147, 51, 234, 0.5);
 }
 
 .team-modal__confirm:disabled {
-  background-color: #ccc;
-  color: #666;
+  background: rgba(30, 27, 75, 0.5);
+  border-color: rgba(139, 92, 246, 0.2);
+  color: rgba(255, 255, 255, 0.3);
   cursor: not-allowed;
+  box-shadow: none;
 }
