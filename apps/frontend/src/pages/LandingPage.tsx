@@ -14,7 +14,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
   return (
     <div className="landing-page">
       <div className="landing-content">
-        <h1 className="landing-title">Zing</h1>
+        <img src="/zing_logo.png" alt="Zing Logo" className="landing-logo" />
         <p className="landing-subtitle">Card game — play with friends in seconds.</p>
         
         <div className="landing-buttons">

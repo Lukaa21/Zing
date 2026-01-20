@@ -243,15 +243,16 @@
   animation: rotateCircle 60s linear infinite;
 }
 
-/* Initial state - 4 cards visible horizontally with 30% overlap */
+/* Initial state - 4 cards visible horizontally with 60% overlap */
 .talon-initial {
   display: flex;
   gap: 0;
   align-items: center;
+  justify-content: center;
 }
 
 .talon-initial .card {
-  margin-left: -22px;
+  margin-left: -43px; /* 60% overlap (72px * 0.6 = 43px) */
 }
 
 .talon-initial .card:first-child {

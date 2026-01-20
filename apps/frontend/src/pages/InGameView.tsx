@@ -151,10 +151,8 @@ const InGameView: React.FC<InGameViewProps> = ({
   const talonCards = state?.talon || [];
   
   // Check if we're at the start (showing first 4 cards) or during play (showing all played cards)
-  // Initial deal is only when we have 4 cards on talon AND no cards have been played yet
-  // We check if current player's hand is still full (6 cards in 2v2, 13 in 1v1)
-  const expectedHandSize = gameMode === '2v2' ? 6 : 13;
-  const isInitialDeal = talonCards.length === 4 && myHand.length === expectedHandSize;
+  // Initial deal is when we have exactly 4 cards on talon AND it's the first hand AND deck is full
+  const isInitialDeal = talonCards.length === 4 && state?.handNumber === 1 && state?.deck?.length === 40;
 
   return (
     <div className={`game-view mode-${gameMode}`}>
