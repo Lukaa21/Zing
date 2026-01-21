@@ -1183,7 +1183,7 @@ export function startTurnTimer(
   roomId: string,
   playerId: string,
   onTimeout: () => void,
-  duration: number = 12000
+  duration = 12000
 ): void {
   const room = rooms.get(roomId);
   if (!room || !room.timerEnabled) return;

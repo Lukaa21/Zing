@@ -543,7 +543,7 @@ setActiveUsers(activeUsers);
       }
 
       // Find member by playerId in the room (check members first, fallback to legacy players)
-      let member = room.members?.find((m: any) => m.userId === playerId);
+      const member = room.members?.find((m: any) => m.userId === playerId);
       const player = room.players.find((p: any) => p.id === playerId);
       
       if (!member && !player) {
@@ -715,7 +715,7 @@ setActiveUsers(activeUsers);
           return;
         }
         
-        let surrenderVotes = gameRecord.surrenderVotes || [];
+        const surrenderVotes = gameRecord.surrenderVotes || [];
         
         // Add vote if not already voted
         if (!surrenderVotes.includes(playerId)) {
@@ -836,7 +836,7 @@ setActiveUsers(activeUsers);
           return;
         }
         
-        let rematchVotes = gameRecord.rematchVotes || [];
+        const rematchVotes = gameRecord.rematchVotes || [];
         
         // Add vote if not already voted
         if (!rematchVotes.includes(playerId)) {
