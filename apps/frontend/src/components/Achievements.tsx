@@ -106,8 +106,10 @@ export default function Achievements({ userId, token, onClose }: AchievementsPro
       try {
         setLoading(true);
         
+        const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
+        
         // Fetch achievement progress (includes all achievements with progress info)
-        const progressRes = await fetch(`http://localhost:4000/api/achievements/progress/${userId}`, {
+        const progressRes = await fetch(`${BACKEND_URL}/api/achievements/progress/${userId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         
@@ -116,7 +118,7 @@ export default function Achievements({ userId, token, onClose }: AchievementsPro
         setAchievements(progressData);
 
         // Fetch user stats
-        const statsRes = await fetch(`http://localhost:4000/api/achievements/stats/${userId}`, {
+        const statsRes = await fetch(`${BACKEND_URL}/api/achievements/stats/${userId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         

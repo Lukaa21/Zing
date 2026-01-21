@@ -47,9 +47,10 @@ export default function Leaderboard({ token, currentUserId, onClose }: Leaderboa
       setLoading(true);
       setError(null);
 
+      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
       const endpoint = showPrevious && period !== 'ALL_TIME'
-        ? `http://localhost:4000/api/leaderboard/${category}/${period}/previous`
-        : `http://localhost:4000/api/leaderboard/${category}/${period}`;
+        ? `${BACKEND_URL}/api/leaderboard/${category}/${period}/previous`
+        : `${BACKEND_URL}/api/leaderboard/${category}/${period}`;
 
       const res = await fetch(endpoint, {
         headers: { Authorization: `Bearer ${token}` },
