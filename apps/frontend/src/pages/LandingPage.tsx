@@ -7,9 +7,9 @@ interface LandingPageProps {
 }
 
 const LandingPage: React.FC<LandingPageProps> = ({
-  onPlayAsGuest = () => {},
-  onLogin = () => {},
-  onRegister = () => {},
+  onPlayAsGuest = () => undefined,
+  onLogin = () => undefined,
+  onRegister = () => undefined,
 }) => {
   return (
     <div className="landing-page">

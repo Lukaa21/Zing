@@ -441,7 +441,7 @@ const Lobby: React.FC<LobbyProps> = ({
         </div>
 
         {/* Match History Modal */}
-        {showMatchHistory && <MatchHistory onClose={onMatchHistoryClose || (() => {})} />}
+        {showMatchHistory && <MatchHistory onClose={onMatchHistoryClose || (() => undefined)} />}
         
         {/* Rules Modal */}
         {showRulesModal && (
