@@ -106,7 +106,7 @@ export default function Achievements({ userId, token, onClose }: AchievementsPro
       try {
         setLoading(true);
         
-        const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
+        const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
         
         // Fetch achievement progress (includes all achievements with progress info)
         const progressRes = await fetch(`${BACKEND_URL}/api/achievements/progress/${userId}`, {

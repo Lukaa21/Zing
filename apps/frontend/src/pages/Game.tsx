@@ -50,7 +50,7 @@ function formatEvent(ev: any, actorName?: string) {
   }
 }
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
+const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 interface GameProps {
   roomId: string;
