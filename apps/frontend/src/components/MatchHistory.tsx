@@ -34,7 +34,7 @@ const MatchHistory: React.FC<MatchHistoryProps> = ({ onClose }) => {
         console.log('Fetching match history with token:', token ? 'present' : 'missing');
         
         if (!token) {
-          setError('You must be logged in to view match history');
+          setError('Morate biti prijavljeni da vidite historiju mečeva');
           setLoading(false);
           return;
         }
@@ -53,13 +53,13 @@ const MatchHistory: React.FC<MatchHistoryProps> = ({ onClose }) => {
         if (!response.ok) {
           const errorText = await response.text();
           console.error('Match history error response:', errorText);
-          throw new Error('Failed to fetch match history');
+          throw new Error('Neuspješno učitavanje historije mečeva');
         }
 
         const data = await response.json();
         setMatches(data.matches || []);
       } catch (err: any) {
-        setError(err.message || 'Failed to load match history');
+        setError(err.message || 'Neuspješno učitavanje historije mečeva');
       } finally {
         setLoading(false);
       }
@@ -83,10 +83,10 @@ const MatchHistory: React.FC<MatchHistoryProps> = ({ onClose }) => {
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
+    if (diffMins < 1) return 'Upravo sad';
+    if (diffMins < 60) return `Prije ${diffMins}m`;
+    if (diffHours < 24) return `Prije ${diffHours}h`;
+    if (diffDays < 7) return `Prije ${diffDays}d`;
     return date.toLocaleDateString();
   };
 
@@ -94,16 +94,16 @@ const MatchHistory: React.FC<MatchHistoryProps> = ({ onClose }) => {
     <div className="match-history-overlay">
       <div className="match-history-modal">
         <div className="match-history-header">
-          <h2>Match History</h2>
+          <h2>Historija Mečeva</h2>
           <button onClick={onClose} className="close-btn">×</button>
         </div>
 
         <div className="match-history-content">
-          {loading && <p className="loading-text">Loading...</p>}
+          {loading && <p className="loading-text">Učitavam...</p>}
           {error && <p className="error-text">{error}</p>}
           
           {!loading && !error && matches.length === 0 && (
-            <p className="empty-text">No matches played yet</p>
+            <p className="empty-text">Još uvijek nema odigranih mečeva</p>
           )}
 
           {!loading && !error && matches.length > 0 && (
@@ -112,7 +112,7 @@ const MatchHistory: React.FC<MatchHistoryProps> = ({ onClose }) => {
                 <div key={match.id} className={`match-card ${match.won ? 'won' : 'lost'}`}>
                   <div className="match-header-row">
                     <span className={`result-badge ${match.won ? 'victory' : 'defeat'}`}>
-                      {match.won ? 'VICTORY' : 'DEFEAT'}
+                      {match.won ? 'POBJEDA' : 'PORAZ'}
                     </span>
                     <span className="mode-badge">{match.mode.toUpperCase()}</span>
                     <span className="time-text">{formatDate(match.createdAt)}</span>
@@ -121,7 +121,7 @@ const MatchHistory: React.FC<MatchHistoryProps> = ({ onClose }) => {
                   <div className="match-details">
                     <div className="teams-section">
                       <div className={`team-box ${match.userTeam === 0 ? 'user-team' : ''}`}>
-                        <div className="team-label">Team 0</div>
+                        <div className="team-label">Tim 0</div>
                         {match.team0.map((player, idx) => (
                           <div key={idx} className="player-name">{player}</div>
                         ))}
@@ -134,7 +134,7 @@ const MatchHistory: React.FC<MatchHistoryProps> = ({ onClose }) => {
                       </div>
 
                       <div className={`team-box ${match.userTeam === 1 ? 'user-team' : ''}`}>
-                        <div className="team-label">Team 1</div>
+                        <div className="team-label">Tim 1</div>
                         {match.team1.map((player, idx) => (
                           <div key={idx} className="player-name">{player}</div>
                         ))}
@@ -142,7 +142,7 @@ const MatchHistory: React.FC<MatchHistoryProps> = ({ onClose }) => {
                     </div>
 
                     {match.duration && (
-                      <div className="duration-text">Duration: {formatDuration(match.duration)}</div>
+                      <div className="duration-text">Trajanje: {formatDuration(match.duration)}</div>
                     )}
                   </div>
                 </div>

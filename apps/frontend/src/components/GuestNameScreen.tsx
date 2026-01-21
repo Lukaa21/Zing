@@ -14,12 +14,12 @@ const GuestNameScreen: React.FC<GuestNameScreenProps> = ({ onConfirm }) => {
     setError('');
 
     if (!name.trim()) {
-      setError('Please enter a name');
+      setError('Molimo unesite ime');
       return;
     }
 
     if (name.trim().length > 20) {
-      setError('Name must be 20 characters or less');
+      setError('Ime može imati maksimalno 20 karaktera');
       return;
     }
 
@@ -30,21 +30,21 @@ const GuestNameScreen: React.FC<GuestNameScreenProps> = ({ onConfirm }) => {
   return (
     <div className="guest-name-screen">
       <div className="guest-name-content">
-        <h2>Join as Guest</h2>
-        <p>What's your name?</p>
+        <h2>Pridruži se kao Gost</h2>
+        <p>Kako se zoveš?</p>
 
         <form onSubmit={handleSubmit}>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Enter your name"
+            placeholder="Unesi svoje ime"
             autoFocus
             maxLength={20}
           />
           {error && <div className="guest-name-error">{error}</div>}
           <button type="submit" className="guest-name-btn">
-            Play
+            Igraj
           </button>
         </form>
       </div>

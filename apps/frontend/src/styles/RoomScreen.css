@@ -513,6 +513,10 @@
     padding: 12px 20px;
   }
 
+  .credential-row {
+    flex-direction: row;
+  }
+
   .room-screen__members {
     padding: 16px;
   }

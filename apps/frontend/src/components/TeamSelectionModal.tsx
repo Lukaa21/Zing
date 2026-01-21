@@ -57,7 +57,7 @@ const TeamSelectionModal: React.FC<TeamSelectionModalProps> = ({
     <div className="team-modal-overlay">
       <div className="team-modal">
         <div className="team-modal__header">
-          <h3>Select Teams for 2v2 Party</h3>
+          <h3>Izaberi Timove za 2v2 Party</h3>
           <button className="team-modal__close" onClick={onCancel}>✕</button>
         </div>
 
@@ -65,7 +65,7 @@ const TeamSelectionModal: React.FC<TeamSelectionModalProps> = ({
           {/* Unassigned Players */}
           {unassigned.length > 0 && (
             <div className="team-modal__unassigned">
-              <h4>Unassigned Players</h4>
+              <h4>Nedodijeljeni Igrači</h4>
               <ul className="player-list">
                 {unassigned.map(member => (
                   <li key={member.userId} className="player-list__item">
@@ -76,14 +76,14 @@ const TeamSelectionModal: React.FC<TeamSelectionModalProps> = ({
                         onClick={() => assignToTeam0(member.userId)}
                         disabled={team0.length >= 2}
                       >
-                        → Team 0
+                        Tim 0
                       </button>
                       <button
                         className="player-list__btn player-list__btn--team1"
                         onClick={() => assignToTeam1(member.userId)}
                         disabled={team1.length >= 2}
                       >
-                        → Team 1
+                        Tim 1
                       </button>
                     </div>
                   </li>
@@ -94,7 +94,7 @@ const TeamSelectionModal: React.FC<TeamSelectionModalProps> = ({
 
           {/* Team 0 */}
           <div className="team-modal__team team-modal__team--0">
-            <h4>Team 0 ({team0.length}/2)</h4>
+            <h4>Tim 0 ({team0.length}/2)</h4>
             <ul className="team-list">
               {team0.map(userId => (
                 <li key={userId} className="team-list__item">
@@ -109,7 +109,7 @@ const TeamSelectionModal: React.FC<TeamSelectionModalProps> = ({
               ))}
               {team0.length < 2 && (
                 <li className="team-list__item team-list__item--empty">
-                  Empty slot
+                  Prazno mjesto
                 </li>
               )}
             </ul>
@@ -117,7 +117,7 @@ const TeamSelectionModal: React.FC<TeamSelectionModalProps> = ({
 
           {/* Team 1 */}
           <div className="team-modal__team team-modal__team--1">
-            <h4>Team 1 ({team1.length}/2)</h4>
+            <h4>Tim 1 ({team1.length}/2)</h4>
             <ul className="team-list">
               {team1.map(userId => (
                 <li key={userId} className="team-list__item">
@@ -132,7 +132,7 @@ const TeamSelectionModal: React.FC<TeamSelectionModalProps> = ({
               ))}
               {team1.length < 2 && (
                 <li className="team-list__item team-list__item--empty">
-                  Empty slot
+                  Prazno mjesto
                 </li>
               )}
             </ul>
@@ -142,7 +142,7 @@ const TeamSelectionModal: React.FC<TeamSelectionModalProps> = ({
         <div className="team-modal__footer">
           {!canConfirm && (
             <p className="team-modal__hint">
-              Assign 2 players to each team to continue
+              Dodijeli po 2 igrača svakom timu da nastaviš
             </p>
           )}
           <button
@@ -150,7 +150,7 @@ const TeamSelectionModal: React.FC<TeamSelectionModalProps> = ({
             onClick={handleConfirm}
             disabled={!canConfirm}
           >
-            Confirm Teams
+            Potvrdi Timove
           </button>
         </div>
       </div>

@@ -15,17 +15,17 @@ const LandingPage: React.FC<LandingPageProps> = ({
     <div className="landing-page">
       <div className="landing-content">
         <img src="/zing_logo.png" alt="Zing Logo" className="landing-logo" />
-        <p className="landing-subtitle">Card game — play with friends in seconds.</p>
+        <p className="landing-subtitle">Igrajte sa prijateljima za par sekundi.</p>
         
         <div className="landing-buttons">
           <button className="landing-btn landing-btn-primary" onClick={onPlayAsGuest}>
-            Play as Guest
+            Igraj kao Gost
           </button>
           <button className="landing-btn landing-btn-secondary" onClick={onLogin}>
-            Login
+            Prijava
           </button>
           <button className="landing-btn landing-btn-secondary" onClick={onRegister}>
-            Register
+            Registracija
           </button>
         </div>
       </div>

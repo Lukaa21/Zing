@@ -196,7 +196,7 @@ export default function FriendsPage() {
   const handleRemoveFriend = async (friendshipId: string) => {
     if (!token) return;
 
-    const confirmed = window.confirm('Are you sure you want to remove this friend?');
+    const confirmed = window.confirm('Da li si siguran da želiš ukloniti ovog prijatelja?');
     if (!confirmed) return;
 
     try {
@@ -226,21 +226,21 @@ export default function FriendsPage() {
   return (
     <div className="friends-page">
       <div className="friends-header">
-        <h1>Friends</h1>
+        <h1>Prijatelji</h1>
         <button onClick={() => navigate('/lobby')} className="friends-back-btn">
-          ← Back to Lobby
+          ← Nazad na Lobby
         </button>
       </div>
 
       {/* Add Friend Form */}
       <div className="add-friend-section">
-        <h2>Add Friend</h2>
+        <h2>Dodaj Prijatelja</h2>
         <form onSubmit={handleAddFriend} className="add-friend-form">
           <input
             type="text"
             value={addFriendUsername}
             onChange={(e) => setAddFriendUsername(e.target.value)}
-            placeholder="Enter username"
+            placeholder="Unesi korisničko ime"
             className="add-friend-input"
           />
           <button
@@ -248,14 +248,14 @@ export default function FriendsPage() {
             disabled={!addFriendUsername.trim()}
             className="add-friend-submit"
           >
-            Send Request
+            Pošalji Zahtjev
           </button>
         </form>
         {addFriendError && (
           <p className="add-friend-error">{addFriendError}</p>
         )}
         {addFriendSuccess && (
-          <p className="add-friend-success">Friend request sent!</p>
+          <p className="add-friend-success">Zahtjev za prijateljstvo poslat!</p>
         )}
       </div>
 
@@ -265,25 +265,25 @@ export default function FriendsPage() {
           onClick={() => setActiveTab('friends')}
           className={`friends-tab ${activeTab === 'friends' ? 'active' : ''}`}
         >
-          Friends ({friends.length})
+          Prijatelji ({friends.length})
         </button>
         <button
           onClick={() => setActiveTab('requests')}
           className={`friends-tab ${activeTab === 'requests' ? 'active' : ''}`}
         >
-          Requests ({requests.length})
+          Zahtjevi ({requests.length})
         </button>
         <button
           onClick={() => setActiveTab('sent')}
           className={`friends-tab ${activeTab === 'sent' ? 'active' : ''}`}
         >
-          Sent ({sentRequests.length})
+          Poslati ({sentRequests.length})
         </button>
         <button
           onClick={() => setActiveTab('invites')}
           className={`friends-tab ${activeTab === 'invites' ? 'active' : ''}`}
         >
-          Game Invites ({gameInvites.length})
+          Pozivi za Igru ({gameInvites.length})
         </button>
       </div>
 
@@ -291,14 +291,14 @@ export default function FriendsPage() {
       {error && <div className="friends-error">{error}</div>}
 
       {/* Loading State */}
-      {loading && <p className="friends-loading">Loading...</p>}
+      {loading && <p className="friends-loading">Učitavam...</p>}
 
       {/* Friends List */}
       {!loading && activeTab === 'friends' && (
         <div className="friends-content-section">
-          <h2>Your Friends</h2>
+          <h2>Tvoji Prijatelji</h2>
           {friends.length === 0 ? (
-            <p className="friends-empty">You don't have any friends yet. Add some using the form above!</p>
+            <p className="friends-empty">Još nemaš prijatelja. Dodaj ih koristeći formu iznad!</p>
           ) : (
             <div className="friends-list">
               {friends.map((friend) => (
@@ -307,14 +307,14 @@ export default function FriendsPage() {
                     {friend.isOnline && <div className="friend-online-indicator" />}
                     <div className="friend-details">
                       <strong>{friend.username}</strong>
-                      <p>Friends since {new Date(friend.since).toLocaleDateString()}</p>
+                      <p>Prijatelji od {new Date(friend.since).toLocaleDateString()}</p>
                     </div>
                   </div>
                   <button
                     onClick={() => handleRemoveFriend(friend.id)}
                     className="friend-remove-btn"
                   >
-                    Remove
+                    Ukloni
                   </button>
                 </div>
               ))}
@@ -326,29 +326,29 @@ export default function FriendsPage() {
       {/* Friend Requests */}
       {!loading && activeTab === 'requests' && (
         <div className="friends-content-section">
-          <h2>Friend Requests</h2>
+          <h2>Zahtjevi za Prijateljstvo</h2>
           {requests.length === 0 ? (
-            <p className="friends-empty">No pending friend requests.</p>
+            <p className="friends-empty">Nema zahtjeva na čekanju.</p>
           ) : (
             <div className="friends-list">
               {requests.map((request) => (
                 <div key={request.id} className="request-card">
                   <div className="request-details">
                     <strong>{request.username}</strong>
-                    <p>Sent {new Date(request.createdAt).toLocaleDateString()}</p>
+                    <p>Poslato {new Date(request.createdAt).toLocaleDateString()}</p>
                   </div>
                   <div className="request-actions">
                     <button
                       onClick={() => handleAcceptRequest(request.id)}
                       className="friend-accept-btn"
                     >
-                      Accept
+                      Prihvati
                     </button>
                     <button
                       onClick={() => handleRejectRequest(request.id)}
                       className="friend-reject-btn"
                     >
-                      Reject
+                      Odbij
                     </button>
                   </div>
                 </div>
@@ -361,17 +361,17 @@ export default function FriendsPage() {
       {/* Sent Requests */}
       {!loading && activeTab === 'sent' && (
         <div className="friends-content-section">
-          <h2>Sent Requests</h2>
+          <h2>Poslati Zahtjevi</h2>
           {sentRequests.length === 0 ? (
-            <p className="friends-empty">No pending sent requests.</p>
+            <p className="friends-empty">Nema poslatih zahtjeva na čekanju.</p>
           ) : (
             <div className="friends-list">
               {sentRequests.map((request) => (
                 <div key={request.id} className="sent-request-card">
                   <div className="request-details">
                     <strong>{request.username}</strong>
-                    <p>Sent {new Date(request.createdAt).toLocaleDateString()}</p>
-                    <p className="pending">Waiting for response...</p>
+                    <p>Poslato {new Date(request.createdAt).toLocaleDateString()}</p>
+                    <p className="pending">Čekam odgovor...</p>
                   </div>
                 </div>
               ))}
@@ -383,29 +383,29 @@ export default function FriendsPage() {
       {/* Game Invites */}
       {!loading && activeTab === 'invites' && (
         <div className="friends-content-section">
-          <h2>Game Invites</h2>
+          <h2>Pozivi za Igru</h2>
           {gameInvites.length === 0 ? (
-            <p className="friends-empty">No pending game invites.</p>
+            <p className="friends-empty">Nema poziva za igru na čekanju.</p>
           ) : (
             <div className="friends-list">
               {gameInvites.map((invite) => (
                 <div key={invite.inviteId} className="request-card">
                   <div className="request-details">
                     <strong>{invite.inviterUsername}</strong>
-                    <p>Invited you to play • {new Date(invite.createdAt).toLocaleString()}</p>
+                    <p>Pozvao te da igraš • {new Date(invite.createdAt).toLocaleString()}</p>
                   </div>
                   <div className="request-actions">
                     <button
                       onClick={() => handleAcceptInvite(invite.inviteId)}
                       className="friend-accept-btn"
                     >
-                      Accept
+                      Prihvati
                     </button>
                     <button
                       onClick={() => handleDeclineInvite(invite.inviteId)}
                       className="friend-reject-btn"
                     >
-                      Decline
+                      Odbij
                     </button>
                   </div>
                 </div>

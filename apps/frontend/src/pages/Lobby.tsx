@@ -209,7 +209,7 @@ const Lobby: React.FC<LobbyProps> = ({
 
     const handleJoinError = (err: { reason: string; message?: string }) => {
       cleanupJoinListeners();
-      setJoinError(err.message || 'Failed to join room');
+      setJoinError(err.message || 'Ne postoji soba za uneseni kod');
     };
 
     // Wait for auth_ok before emitting join_room
@@ -244,7 +244,7 @@ const Lobby: React.FC<LobbyProps> = ({
             <div className="lobby-header-left">
               <h1 className="lobby-title">Zing</h1>
               <p className="lobby-player-info">
-                Welcome, <span className="lobby-player-name">{playerName}</span>
+                Dobrodošao, <span className="lobby-player-name">{playerName}</span>
               </p>
             </div>
             
@@ -254,50 +254,50 @@ const Lobby: React.FC<LobbyProps> = ({
                   <button
                     className="lobby-nav-btn"
                     onClick={() => setShowRulesModal(true)}
-                    title="Rules"
+                    title="Pravila"
                   >
                     <span className="nav-icon">📖</span>
-                    <span className="nav-label">Rules</span>
+                    <span className="nav-label">Pravila</span>
                   </button>
                   <button
                     className="lobby-nav-btn"
                     onClick={onNavigateToFriends}
-                    title="Friends"
+                    title="Prijatelji"
                   >
                     <span className="nav-icon">👥</span>
-                    <span className="nav-label">Friends</span>
+                    <span className="nav-label">Prijatelji</span>
                   </button>
                   <button
                     className="lobby-nav-btn"
                     onClick={onShowMatchHistory}
-                    title="Match History"
+                    title="Historija"
                   >
                     <span className="nav-icon">📜</span>
-                    <span className="nav-label">History</span>
+                    <span className="nav-label">Historija</span>
                   </button>
                   <button
                     className="lobby-nav-btn"
                     onClick={onShowLeaderboard}
-                    title="Leaderboard"
+                    title="Rang Lista"
                   >
                     <span className="nav-icon">📊</span>
-                    <span className="nav-label">Leaderboard</span>
+                    <span className="nav-label">Rang Lista</span>
                   </button>
                   <button
                     className="lobby-nav-btn"
                     onClick={onShowAchievements}
-                    title="Achievements"
+                    title="Dostignuća"
                   >
                     <span className="nav-icon">🏆</span>
-                    <span className="nav-label">Achievements</span>
+                    <span className="nav-label">Dostignuća</span>
                   </button>
                   <button
                     className="lobby-nav-btn lobby-nav-btn-logout"
                     onClick={onLogout}
-                    title="Logout"
+                    title="Odjavi se"
                   >
                     <span className="nav-icon">🚪</span>
-                    <span className="nav-label">Logout</span>
+                    <span className="nav-label">Odjavi se</span>
                   </button>
                 </nav>
               ) : (
@@ -305,26 +305,26 @@ const Lobby: React.FC<LobbyProps> = ({
                   <button
                     className="lobby-nav-btn"
                     onClick={() => setShowRulesModal(true)}
-                    title="Rules"
+                    title="Pravila"
                   >
                     <span className="nav-icon">📖</span>
-                    <span className="nav-label">Rules</span>
+                    <span className="nav-label">Pravila</span>
                   </button>
                   <button
                     className="lobby-nav-btn lobby-nav-btn-login"
                     onClick={onNavigateToLogin}
-                    title="Login"
+                    title="Prijava"
                   >
                     <span className="nav-icon">🔐</span>
-                    <span className="nav-label">Login</span>
+                    <span className="nav-label">Prijava</span>
                   </button>
                   <button
                     className="lobby-nav-btn lobby-nav-btn-register"
                     onClick={onNavigateToRegister}
-                    title="Register"
+                    title="Registracija"
                   >
                     <span className="nav-icon">✨</span>
-                    <span className="nav-label">Register</span>
+                    <span className="nav-label">Registracija</span>
                   </button>
                 </nav>
               )}
@@ -337,9 +337,9 @@ const Lobby: React.FC<LobbyProps> = ({
           {/* Find Game Card */}
           <div className="lobby-card">
             <div className="lobby-card-icon">🎮</div>
-            <h2 className="lobby-card-title">Find Game</h2>
+            <h2 className="lobby-card-title">Pronađi Igru</h2>
             <p className="lobby-card-description">
-              Jump into quick matchmaking and compete against other players
+              Brzo uđi u matchmaking i takmiči se protiv drugih igrača
             </p>
 
             {!isSearching ? (
@@ -375,7 +375,7 @@ const Lobby: React.FC<LobbyProps> = ({
                   onClick={handleFindGame}
                   disabled={!playerName}
                 >
-                  Start Matchmaking
+                  Pokreni Matchmaking
                 </button>
               </>
             ) : (
@@ -383,13 +383,13 @@ const Lobby: React.FC<LobbyProps> = ({
                 <div className="searching-animation">
                   <div className="searching-spinner"></div>
                 </div>
-                <p className="searching-text">Finding match...</p>
-                {queuePosition && <p className="queue-position">Queue position: {queuePosition}</p>}
+                <p className="searching-text">Tražim protivnika...</p>
+                {queuePosition && <p className="queue-position">Pozicija u redu: {queuePosition}</p>}
                 <button
                   className="lobby-btn lobby-btn-secondary"
                   onClick={handleCancelSearch}
                 >
-                  Cancel Search
+                  Otkaži Pretragu
                 </button>
               </div>
             )}
@@ -398,9 +398,9 @@ const Lobby: React.FC<LobbyProps> = ({
           {/* Private Room Card */}
           <div className="lobby-card">
             <div className="lobby-card-icon">🏠</div>
-            <h2 className="lobby-card-title">Private Room</h2>
+            <h2 className="lobby-card-title">Privatna Soba</h2>
             <p className="lobby-card-description">
-              Create a private room to play with friends
+              Napravi privatnu sobu za igru sa prijateljima
             </p>
 
             <button
@@ -408,7 +408,7 @@ const Lobby: React.FC<LobbyProps> = ({
               onClick={handleCreatePrivate}
               disabled={!playerName}
             >
-              Create Private Room
+              Napravi Privatnu Sobu
             </button>
           </div>
         </div>
@@ -417,13 +417,13 @@ const Lobby: React.FC<LobbyProps> = ({
         <div className="lobby-join-section">
           <div className="lobby-join-header">
             <div className="lobby-join-icon">🔑</div>
-            <h2 className="lobby-join-title">Join by Room Code</h2>
+            <h2 className="lobby-join-title">Pridruži se Koristeći Kod</h2>
           </div>
           <div className="join-input-group">
             <input
               type="text"
               className="join-input"
-              placeholder="Enter 6-digit room code..."
+              placeholder="Unesi 6-cifreni kod sobe..."
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleJoinByCode()}
@@ -434,7 +434,7 @@ const Lobby: React.FC<LobbyProps> = ({
               onClick={handleJoinByCode}
               disabled={!joinCode.trim()}
             >
-              Join Room
+              Pridruži se Sobi
             </button>
           </div>
           {joinError && <div className="lobby-error">{joinError}</div>}

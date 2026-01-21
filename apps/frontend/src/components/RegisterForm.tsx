@@ -37,12 +37,12 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
     <div className="auth-container">
       <div className="auth-card">
         <button className="auth-back-btn" onClick={() => navigate('/')}>
-          ← Back to Home
+          ← Nazad na Početnu
         </button>
         
         <div className="auth-header">
-          <h1 className="auth-title">Create Account</h1>
-          <p className="auth-subtitle">Join the game in seconds</p>
+          <h1 className="auth-title">Napravi Nalog</h1>
+          <p className="auth-subtitle">Pridruži se igri za par sekundi</p>
         </div>
 
         {error && <div className="auth-error">{error}</div>}
@@ -56,13 +56,13 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
               onChange={(e) => setEmail(e.target.value)}
               required
               className="auth-input"
-              placeholder="your@email.com"
+              placeholder="vas@email.com"
               autoComplete="email"
             />
           </div>
 
           <div className="auth-form-group">
-            <label className="auth-label">Username</label>
+            <label className="auth-label">Korisničko ime</label>
             <input
               type="text"
               value={username}
@@ -71,14 +71,14 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
               maxLength={30}
               pattern="[a-zA-Z0-9_]+"
               className="auth-input"
-              placeholder="username123"
+              placeholder="korisnik123"
               autoComplete="username"
             />
-            <span className="auth-input-hint">Letters, numbers, and underscores only</span>
+            <span className="auth-input-hint">Samo slova, brojevi i donja crta</span>
           </div>
 
           <div className="auth-form-group">
-            <label className="auth-label">Password</label>
+            <label className="auth-label">Lozinka</label>
             <input
               type="password"
               value={password}
@@ -89,19 +89,19 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
               placeholder="••••••••"
               autoComplete="new-password"
             />
-            <span className="auth-input-hint">Minimum 8 characters</span>
+            <span className="auth-input-hint">Minimum 8 karaktera</span>
           </div>
 
           <button type="submit" disabled={isLoading} className="auth-submit-btn">
-            {isLoading ? 'Creating account...' : 'Create Account'}
+            {isLoading ? 'Kreiram nalog...' : 'Napravi Nalog'}
           </button>
         </form>
 
         <div className="auth-footer">
           <span className="auth-footer-text">
-            Already have an account?{' '}
+            Već imaš nalog?{' '}
             <button className="auth-footer-link" onClick={() => navigate('/login')}>
-              Sign in
+              Prijavi se
             </button>
           </span>
         </div>

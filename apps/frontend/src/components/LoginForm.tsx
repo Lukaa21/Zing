@@ -36,12 +36,12 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
     <div className="auth-container">
       <div className="auth-card">
         <button className="auth-back-btn" onClick={() => navigate('/')}>
-          ← Back to Home
+          ← Nazad na Početnu
         </button>
         
         <div className="auth-header">
-          <h1 className="auth-title">Welcome Back</h1>
-          <p className="auth-subtitle">Sign in to continue playing</p>
+          <h1 className="auth-title">Dobrodošli Nazad</h1>
+          <p className="auth-subtitle">Prijavite se da nastavite igru</p>
         </div>
 
         {error && <div className="auth-error">{error}</div>}
@@ -55,13 +55,13 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
               onChange={(e) => setEmail(e.target.value)}
               required
               className="auth-input"
-              placeholder="your@email.com"
+              placeholder="vas@email.com"
               autoComplete="email"
             />
           </div>
 
           <div className="auth-form-group">
-            <label className="auth-label">Password</label>
+            <label className="auth-label">Lozinka</label>
             <input
               type="password"
               value={password}
@@ -74,15 +74,15 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
           </div>
 
           <button type="submit" disabled={isLoading} className="auth-submit-btn">
-            {isLoading ? 'Signing in...' : 'Sign In'}
+            {isLoading ? 'Prijavljujem...' : 'Prijavi se'}
           </button>
         </form>
 
         <div className="auth-footer">
           <span className="auth-footer-text">
-            Don't have an account?{' '}
+            Nemaš nalog?{' '}
             <button className="auth-footer-link" onClick={() => navigate('/register')}>
-              Create one
+              Registruj se
             </button>
           </span>
         </div>

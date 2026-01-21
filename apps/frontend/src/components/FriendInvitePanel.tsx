@@ -77,15 +77,15 @@ const FriendInvitePanel: React.FC<FriendInvitePanelProps> = ({
     <div className="friend-panel-overlay" onClick={onClose}>
       <div className="friend-panel" onClick={e => e.stopPropagation()}>
         <div className="friend-panel__header">
-          <h3>Invite Friends</h3>
+          <h3>Pozovi prijatelje</h3>
           <button className="friend-panel__close" onClick={onClose}>✕</button>
         </div>
 
         {loading ? (
-          <div className="friend-panel__loading">Loading friends...</div>
+          <div className="friend-panel__loading">Učitavanje prijatelja...</div>
         ) : onlineFriends.length === 0 ? (
           <div className="friend-panel__empty">
-            No online friends to invite
+            Nema online prijatelja za pozvati
           </div>
         ) : (
           <ul className="friend-panel__list">

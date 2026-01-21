@@ -18,16 +18,16 @@ type Category = 'WINS' | 'ZINGS' | 'POINTS';
 type Period = 'WEEKLY' | 'MONTHLY' | 'YEARLY' | 'ALL_TIME';
 
 const categoryLabels: Record<Category, string> = {
-  WINS: 'Total Wins',
-  ZINGS: 'Zings Scored',
-  POINTS: 'Points Taken',
+  WINS: 'Ukupne Pobjede',
+  ZINGS: 'Napravljeni Zingovi',
+  POINTS: 'Osvojeni Poeni',
 };
 
 const periodLabels: Record<Period, string> = {
-  WEEKLY: 'This Week',
-  MONTHLY: 'This Month',
-  YEARLY: 'This Year',
-  ALL_TIME: 'All Time',
+  WEEKLY: 'Ova Sedmica',
+  MONTHLY: 'Ovaj Mjesec',
+  YEARLY: 'Ova Godina',
+  ALL_TIME: 'Svih Vremena',
 };
 
 export default function Leaderboard({ token, currentUserId, onClose }: LeaderboardProps) {
@@ -81,10 +81,10 @@ export default function Leaderboard({ token, currentUserId, onClose }: Leaderboa
         <div className="leaderboard-header">
           <div className="leaderboard-title-section">
             <span className="leaderboard-icon">🏆</span>
-            <h2 className="leaderboard-title">Leaderboard</h2>
+            <h2 className="leaderboard-title">Rang Lista</h2>
           </div>
           <button className="leaderboard-close-btn" onClick={onClose}>
-            Close
+            Zatvori
           </button>
         </div>
 
@@ -94,7 +94,7 @@ export default function Leaderboard({ token, currentUserId, onClose }: Leaderboa
           <div className="leaderboard-filters">
             {/* Category Selection */}
             <div className="filter-group">
-              <label className="filter-label">Category</label>
+              <label className="filter-label">Kategorija</label>
               <div className="filter-buttons">
                 {(['WINS', 'ZINGS', 'POINTS'] as Category[]).map(cat => (
                   <button
@@ -110,7 +110,7 @@ export default function Leaderboard({ token, currentUserId, onClose }: Leaderboa
 
             {/* Period Selection */}
             <div className="filter-group">
-              <label className="filter-label">Time Period</label>
+              <label className="filter-label">Vremenski Period</label>
               <div className="filter-buttons">
                 {(['WEEKLY', 'MONTHLY', 'YEARLY', 'ALL_TIME'] as Period[]).map(per => (
                   <button
@@ -133,7 +133,7 @@ export default function Leaderboard({ token, currentUserId, onClose }: Leaderboa
                   onChange={(e) => setShowPrevious(e.target.checked)}
                 />
                 <span className="previous-toggle-label">
-                  Show Previous {period === 'WEEKLY' ? 'Week' : period === 'MONTHLY' ? 'Month' : 'Year'}
+                  Prikaži Prethodni {period === 'WEEKLY' ? 'Sedmicu' : period === 'MONTHLY' ? 'Mjesec' : 'Godinu'}
                 </span>
               </label>
             )}
@@ -142,30 +142,30 @@ export default function Leaderboard({ token, currentUserId, onClose }: Leaderboa
           {/* Current Selection Display */}
           <div className="leaderboard-current">
             <h3 className="leaderboard-current-title">
-              {categoryLabels[category]} - {showPrevious ? `Previous ${periodLabels[period]}` : periodLabels[period]}
+              {categoryLabels[category]} - {showPrevious ? `Prethodni ${periodLabels[period]}` : periodLabels[period]}
             </h3>
           </div>
 
           {/* Loading State */}
-          {loading && <div className="leaderboard-loading">Loading leaderboard...</div>}
+          {loading && <div className="leaderboard-loading">Učitavam rang listu...</div>}
 
           {/* Error State */}
-          {error && <div className="leaderboard-error">⚠️ Error: {error}</div>}
+          {error && <div className="leaderboard-error">⚠️ Greška: {error}</div>}
 
           {/* Leaderboard Table */}
           {!loading && !error && (
             <>
               {leaderboard.length === 0 ? (
                 <div className="leaderboard-empty">
-                  📊 No data available for this period yet.
+                  📊 Nema dostupnih podataka za ovaj period.
                 </div>
               ) : (
                 <table className="leaderboard-table">
                   <thead>
                     <tr>
-                      <th>Rank</th>
-                      <th>Player</th>
-                      <th>{category === 'WINS' ? 'Wins' : category === 'ZINGS' ? 'Zings' : 'Points'}</th>
+                      <th>Rang</th>
+                      <th>Igrač</th>
+                      <th>{category === 'WINS' ? 'Pobjede' : category === 'ZINGS' ? 'Zingovi' : 'Poeni'}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -188,7 +188,7 @@ export default function Leaderboard({ token, currentUserId, onClose }: Leaderboa
                           </td>
                           <td>
                             <span className="player-name">{entry.username}</span>
-                            {isCurrentUser && <span className="player-you">(You)</span>}
+                            {isCurrentUser && <span className="player-you">(Ti)</span>}
                           </td>
                           <td>{formatValue(entry.value)}</td>
                         </tr>

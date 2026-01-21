@@ -63,7 +63,7 @@ const AchievementCard: React.FC<{
         <div className="achievement-title-group">
           <h3 className="achievement-category">{typeLabel}</h3>
           <p className="achievement-description">
-            {activeAchievement?.description || 'Complete all tiers!'}
+            {activeAchievement?.description || 'Završi sve nivoe!'}
           </p>
         </div>
         <div className="achievement-stars">
@@ -81,7 +81,7 @@ const AchievementCard: React.FC<{
       <div className="achievement-progress-section">
         <div className="progress-info">
           <span className="progress-text">
-            Progress: <span className="progress-fraction">{currentProgress} / {targetThreshold}</span>
+            Progres: <span className="progress-fraction">{currentProgress} / {targetThreshold}</span>
           </span>
         </div>
         <div className="progress-bar-container">
@@ -145,13 +145,13 @@ export default function Achievements({ userId, token, onClose }: AchievementsPro
   });
 
   const typeLabels: Record<string, string> = {
-    GAMES_PLAYED: 'Games Played',
-    SOLO_WINS: 'Solo Wins',
-    DUO_WINS: 'Duo Wins',
-    POINTS_TAKEN: 'Points Taken',
-    ZINGS_MADE: 'Zings Scored',
-    GAMES_HOSTED: 'Games Hosted',
-    FRIENDS_ADDED: 'Friends Added',
+    GAMES_PLAYED: 'Odigrane Partije',
+    SOLO_WINS: 'Solo Pobjede',
+    DUO_WINS: 'Duo Pobjede',
+    POINTS_TAKEN: 'Osvojeni Poeni',
+    ZINGS_MADE: 'Napravljeni Zingovi',
+    GAMES_HOSTED: 'Hostovane Igre',
+    FRIENDS_ADDED: 'Dodati Prijatelji',
   };
 
   return (
@@ -161,50 +161,50 @@ export default function Achievements({ userId, token, onClose }: AchievementsPro
         <div className="achievements-header">
           <div className="achievements-title-section">
             <span className="achievements-icon">🏆</span>
-            <h2 className="achievements-title">Achievements</h2>
+            <h2 className="achievements-title">Dostignuća</h2>
           </div>
           <button className="achievements-close-btn" onClick={onClose}>
-            Close
+            Zatvori
           </button>
         </div>
 
         {/* Content */}
         <div className="achievements-content">
-          {loading && <div className="achievements-loading">Loading achievements...</div>}
-          {error && <div className="achievements-error">⚠️ Error: {error}</div>}
+          {loading && <div className="achievements-loading">Učitavam dostignuća...</div>}
+          {error && <div className="achievements-error">⚠️ Greška: {error}</div>}
 
           {!loading && !error && stats && (
             <>
               {/* Stats Summary */}
               <div className="stats-summary">
-                <h3 className="stats-summary-title">Your Statistics</h3>
+                <h3 className="stats-summary-title">Tvoje Statistike</h3>
                 <div className="stats-grid">
                   <div className="stat-item">
-                    <span className="stat-label">Games Played:</span>
+                    <span className="stat-label">Odigrane Partije:</span>
                     <span className="stat-value">{stats.gamesPlayed}</span>
                   </div>
                   <div className="stat-item">
-                    <span className="stat-label">Solo Wins:</span>
+                    <span className="stat-label">Solo Pobjede:</span>
                     <span className="stat-value">{stats.soloWins}</span>
                   </div>
                   <div className="stat-item">
-                    <span className="stat-label">Duo Wins:</span>
+                    <span className="stat-label">Duo Pobjede:</span>
                     <span className="stat-value">{stats.duoWins}</span>
                   </div>
                   <div className="stat-item">
-                    <span className="stat-label">Points Taken:</span>
+                    <span className="stat-label">Osvojeni Poeni:</span>
                     <span className="stat-value">{stats.pointsTaken.toLocaleString()}</span>
                   </div>
                   <div className="stat-item">
-                    <span className="stat-label">Zings Made:</span>
+                    <span className="stat-label">Napravljeni Zingovi:</span>
                     <span className="stat-value">{stats.zingsMade}</span>
                   </div>
                   <div className="stat-item">
-                    <span className="stat-label">Games Hosted:</span>
+                    <span className="stat-label">Hostovane Igre:</span>
                     <span className="stat-value">{stats.gamesHosted}</span>
                   </div>
                   <div className="stat-item">
-                    <span className="stat-label">Friends Added:</span>
+                    <span className="stat-label">Dodati Prijatelji:</span>
                     <span className="stat-value">{stats.friendsAdded}</span>
                   </div>
                 </div>
@@ -222,7 +222,7 @@ export default function Achievements({ userId, token, onClose }: AchievementsPro
 
               {achievements.length === 0 && (
                 <div className="achievements-empty">
-                  🎯 No achievements available yet. Start playing to unlock achievements!
+                  🎯 Dostignuća još nisu dostupna. Počni da igraš da ih otključaš!
                 </div>
               )}
             </>

@@ -111,14 +111,14 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomId, myId, guestId, playerNa
       <div className="room-screen__header">
         <div>
           <h2>Room {roomId}</h2>
-          <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#666' }}>Playing as: {playerName}</p>
+          <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#666' }}>igraš kao: {playerName}</p>
         </div>
         {authUser && (
           <button 
             className="room-screen__invite-btn"
             onClick={() => setShowInvitePanel(!showInvitePanel)}
           >
-            Invite Friends
+            Pozovi Prijatelje
           </button>
         )}
       </div>
@@ -126,11 +126,11 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomId, myId, guestId, playerNa
       {/* Room Credentials - Show if available (creator of private room) */}
       {(accessCode || inviteLink) && (
         <div className="room-screen__credentials">
-          <h3>Share with Friends</h3>
+          <h3>Podijeli sa Prijateljima</h3>
           
           {accessCode && (
             <div className="credential-item">
-              <label className="credential-label">Access Code</label>
+              <label className="credential-label">Kod Pristupa</label>
               <div className="credential-row">
                 <input
                   type="text"
@@ -146,7 +146,7 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomId, myId, guestId, playerNa
                     onClick={handleCopyCode}
                   />
                   {copiedCode && (
-                    <div className="credential-tooltip">Copied to clipboard!</div>
+                    <div className="credential-tooltip">Kopirano u clipboard!</div>
                   )}
                 </div>
               </div>
@@ -155,7 +155,7 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomId, myId, guestId, playerNa
 
           {inviteLink && (
             <div className="credential-item">
-              <label className="credential-label">Invite Link</label>
+              <label className="credential-label">Link za Poziv</label>
               <div className="credential-row">
                 <input
                   type="text"
@@ -171,7 +171,7 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomId, myId, guestId, playerNa
                     onClick={handleCopyLink}
                   />
                   {copiedLink && (
-                    <div className="credential-tooltip">Copied to clipboard!</div>
+                    <div className="credential-tooltip">Kopirano u clipboard!</div>
                   )}
                 </div>
               </div>
@@ -182,7 +182,7 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomId, myId, guestId, playerNa
 
       {/* Member List */}
       <div className="room-screen__members">
-        <h3>Members ({roomState.members.length})</h3>
+        <h3>Članovi ({roomState.members.length})</h3>
         <ul className="member-list">
           {roomState.members.map(member => (
             <li key={member.userId} className="member-list__item">
@@ -206,17 +206,17 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomId, myId, guestId, playerNa
                       member.roleInRoom === 'PLAYER' ? 'SPECTATOR' : 'PLAYER'
                     )}
                   >
-                    {member.roleInRoom === 'PLAYER' ? 'Make Spectator' : 'Make Player'}
+                    {member.roleInRoom === 'PLAYER' ? 'Učini Posmatračem' : 'Učini Igračem'}
                   </button>
                   <button
                     className="member-list__btn member-list__btn--kick"
                     onClick={() => {
-                      if (window.confirm(`Kick ${member.name}?`)) {
+                      if (window.confirm(`Izbaci ${member.name}?`)) {
                         actions.kickMember(member.userId);
                       }
                     }}
                   >
-                    Kick
+                    Izbaci
                   </button>
                 </div>
               )}
@@ -228,7 +228,7 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomId, myId, guestId, playerNa
       {/* Host Start Controls */}
       {roomState.isHost && (
         <div className="room-screen__start-controls">
-          <h3>Game Options</h3>
+          <h3>Opcije Igre</h3>
           <div style={{ marginBottom: '1rem' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
               <input 
@@ -236,16 +236,16 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomId, myId, guestId, playerNa
                 checked={roomState.timerEnabled || false}
                 onChange={(e) => actions.toggleTimer(e.target.checked)}
               />
-              <span>Enable turn timer (12s per turn)</span>
+              <span>Uključi tajmer za potez (12s po potezu)</span>
             </label>
           </div>
-          <h3>Start Game</h3>
+          <h3>Pokreni Igru</h3>
           <div className="start-controls__buttons">
             <button
               className="start-controls__btn"
               disabled={!canStart1v1}
               onClick={handleStart1v1}
-              title={!canStart1v1 ? 'Need exactly 2 players' : ''}
+              title={!canStart1v1 ? 'Potrebna su tačno 2 igrača' : ''}
             >
               1v1
             </button>
@@ -253,7 +253,7 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomId, myId, guestId, playerNa
               className="start-controls__btn"
               disabled={!canStart2v2Random}
               onClick={handleStart2v2Random}
-              title={!canStart2v2Random ? 'Need exactly 2 players' : ''}
+              title={!canStart2v2Random ? 'Potrebna su tačno 2 igrača' : ''}
             >
               2v2 Random
             </button>
@@ -261,19 +261,19 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomId, myId, guestId, playerNa
               className="start-controls__btn"
               disabled={!canStart2v2Party}
               onClick={handleStart2v2Party}
-              title={!canStart2v2Party ? 'Need exactly 4 players' : ''}
+              title={!canStart2v2Party ? 'Potrebna su tačno 4 igrača' : ''}
             >
-              {roomState.teamAssignment ? 'Start 2v2 Party' : '2v2 Party (Set Teams)'}
+              {roomState.teamAssignment ? 'Pokreni 2v2 Party' : '2v2 Party (Postavi Timove)'}
             </button>
           </div>
           {roomState.playerCount !== 2 && roomState.playerCount !== 4 && (
             <p className="start-controls__hint">
-              Need 2 or 4 players to start. Current: {roomState.playerCount}
+              Potrebno 2 ili 4 igrača za početak. Trenutno: {roomState.playerCount}
             </p>
           )}
           {roomState.teamAssignment && (
             <p className="start-controls__hint" style={{ color: '#4CAF50' }}>
-              ✓ Teams assigned: Team 0 ({roomState.teamAssignment.team0.length}) vs Team 1 ({roomState.teamAssignment.team1.length})
+              ✓ Timovi postavljeni: Tim 0 ({roomState.teamAssignment.team0.length}) vs Tim 1 ({roomState.teamAssignment.team1.length})
             </p>
           )}
         </div>
@@ -284,12 +284,12 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomId, myId, guestId, playerNa
         <button
           className="room-screen__leave-btn"
           onClick={() => {
-            if (window.confirm('Leave this room?')) {
+            if (window.confirm('Napustiti ovu sobu?')) {
               actions.leaveRoom(roomId);
             }
           }}
         >
-          Leave Room
+          Napusti Sobu
         </button>
       </div>
 

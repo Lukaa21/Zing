@@ -228,12 +228,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
 }
 
 .team-list__remove:hover {
   background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-  transform: scale(1.1);
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
 }
 
