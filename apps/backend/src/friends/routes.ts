@@ -1,7 +1,13 @@
 import { Router, Response } from 'express';
 import { requireAuth, AuthRequest } from '../auth/middleware';
 import { prisma } from '../db/prisma';
-import { FriendshipStatus } from '@prisma/client';
+
+// FriendshipStatus enum values
+const FriendshipStatus = {
+  PENDING: 'PENDING',
+  ACCEPTED: 'ACCEPTED',
+  REJECTED: 'REJECTED',
+} as const;
 
 const router = Router();
 
@@ -41,7 +47,7 @@ router.get('/status', async (req: AuthRequest, res: Response) => {
     });
 
     // Transform to show the friend (not self) and check if online
-    const friends = friendships.map((f) => {
+    const friends = friendships.map((f: any) => {
       const iAmRequester = f.requesterId === userId;
       const friend = iAmRequester ? f.addressee : f.requester;
       const isOnline = activeUsers.has(friend.id);
@@ -185,7 +191,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
     });
 
     // Transform to show the friend (not self) for each friendship
-    const friends = friendships.map((f) => {
+    const friends = friendships.map((f: any) => {
       const iAmRequester = f.requesterId === userId;
       const friend = iAmRequester ? f.addressee : f.requester;
       
@@ -222,7 +228,7 @@ router.get('/requests', async (req: AuthRequest, res: Response) => {
       orderBy: { createdAt: 'desc' },
     });
 
-    const friendRequests = requests.map((r) => ({
+    const friendRequests = requests.map((r: any) => ({
       id: r.id,
       requesterId: r.requester.id,
       username: r.requester.username,
@@ -254,7 +260,7 @@ router.get('/sent', async (req: AuthRequest, res: Response) => {
       orderBy: { createdAt: 'desc' },
     });
 
-    const requests = sentRequests.map((r) => ({
+    const requests = sentRequests.map((r: any) => ({
       id: r.id,
       addresseeId: r.addressee.id,
       username: r.addressee.username,

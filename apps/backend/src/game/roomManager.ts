@@ -315,7 +315,7 @@ async function checkAndUnlockAchievements(userId: string, stats: any) {
       where: { userId },
       select: { achievementId: true },
     });
-    const unlockedIds = new Set(unlockedAchievements.map(a => a.achievementId));
+    const unlockedIds = new Set(unlockedAchievements.map((a: any) => a.achievementId));
 
     // Check each achievement
     for (const achievement of achievements) {

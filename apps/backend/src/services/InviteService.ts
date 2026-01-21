@@ -1,4 +1,11 @@
-import { RoomInviteStatus } from '@prisma/client';
+// RoomInviteStatus enum values
+const RoomInviteStatus = {
+  PENDING: 'PENDING',
+  ACCEPTED: 'ACCEPTED',
+  DECLINED: 'DECLINED',
+  CANCELLED: 'CANCELLED',
+  EXPIRED: 'EXPIRED',
+} as const;
 import * as inviteRepo from './inviteRepository';
 
 // Error codes

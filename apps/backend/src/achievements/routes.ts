@@ -105,7 +105,7 @@ router.get('/progress/:userId', async (req, res) => {
       where: { userId },
       select: { achievementId: true },
     });
-    const unlockedIds = new Set(unlockedAchievements.map(a => a.achievementId));
+    const unlockedIds = new Set(unlockedAchievements.map((a: any) => a.achievementId));
 
     // Build progress for each achievement type
     const statMap: Record<string, number> = {
@@ -118,7 +118,7 @@ router.get('/progress/:userId', async (req, res) => {
       FRIENDS_ADDED: statValues.friendsAdded,
     };
 
-    const progress = allAchievements.map(achievement => ({
+    const progress = allAchievements.map((achievement: any) => ({
       ...achievement,
       unlocked: unlockedIds.has(achievement.id),
       currentProgress: statMap[achievement.type],

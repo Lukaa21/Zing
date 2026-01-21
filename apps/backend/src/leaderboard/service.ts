@@ -49,7 +49,7 @@ async function updateLeaderboardSnapshot(
 
   // Calculate values and sort
   const leaderboardData = allStats
-    .map(stat => {
+    .map((stat: any) => {
       const value = category === 'WINS' ? stat.soloWins + stat.duoWins :
                     category === 'ZINGS' ? stat.zingsMade : stat.pointsTaken;
       
@@ -59,8 +59,8 @@ async function updateLeaderboardSnapshot(
         value,
       };
     })
-    .filter(entry => entry.value > 0) // Only include users with scores
-    .sort((a, b) => b.value - a.value)
+    .filter((entry: any) => entry.value > 0) // Only include users with scores
+    .sort((a: any, b: any) => b.value - a.value)
     .slice(0, 100); // Top 100
 
   // Upsert snapshots

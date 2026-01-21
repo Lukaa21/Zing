@@ -730,7 +730,7 @@ setActiveUsers(activeUsers);
         // Check if team has fully surrendered
         const playerTeam = gamePlayer.team;
         const teamPlayers = room.state.players.filter(p => p.team === playerTeam);
-        const teamVotes = surrenderVotes.filter(vid => teamPlayers.some(p => p.id === vid));
+        const teamVotes = surrenderVotes.filter((vid: string) => teamPlayers.some(p => p.id === vid));
         
         if (teamVotes.length === teamPlayers.length) {
           // Team has surrendered! End game

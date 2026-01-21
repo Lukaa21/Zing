@@ -1,4 +1,13 @@
-import { PrismaClient, RoomInviteStatus } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
+
+// RoomInviteStatus enum values
+const RoomInviteStatus = {
+  PENDING: 'PENDING',
+  ACCEPTED: 'ACCEPTED',
+  DECLINED: 'DECLINED',
+  CANCELLED: 'CANCELLED',
+  EXPIRED: 'EXPIRED',
+} as const;
 
 const prisma = new PrismaClient();
 
@@ -15,7 +24,7 @@ export interface InviteWithUsers {
   roomId: string;
   inviterId: string;
   inviteeId: string;
-  status: RoomInviteStatus;
+  status: typeof RoomInviteStatus[keyof typeof RoomInviteStatus];
   createdAt: Date;
   updatedAt: Date;
   expiresAt: Date;

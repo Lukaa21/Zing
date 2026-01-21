@@ -176,7 +176,7 @@ router.get('/:category/:period/previous', async (req, res) => {
       },
     });
 
-    const leaderboard = snapshots.map((snap, index) => ({
+      const leaderboard = snapshots.map((snap: any, index: number) => ({
       rank: index + 1,
       userId: snap.userId,
       username: snap.username,
