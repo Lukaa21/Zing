@@ -22,13 +22,25 @@ const logger = pino();
 const app = express();
 app.use(cors({
   origin: (origin, callback) => {
-    // Accept all localhost origins (5173, 5174, etc.)
-    if (!origin || origin.match(/^http:\/\/localhost(:\d+)?$/)) {
+    const allowedOrigins = [
+      /^http:\/\/localhost(:\d+)?$/,           // localhost development
+      'https://www.igrajzing.me',               // production domain
+      'https://igrajzing.me',                   // production domain (www-less)
+      'https://zing-frontend.vercel.app',       // Vercel preview/production
+    ];
+    
+    if (!origin) {
+      // Allow requests with no origin (mobile apps, curl, etc.)
+      callback(null, true);
+    } else if (allowedOrigins.some(allowed => 
+      typeof allowed === 'string' ? allowed === origin : allowed.test(origin)
+    )) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
     }
-  }
+  },
+  credentials: true
 }));
 app.use(express.json());
 const server = http.createServer(app);
