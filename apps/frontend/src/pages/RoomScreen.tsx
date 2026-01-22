@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import InviteModal from '../components/InviteModal';
 import TeamSelectionModal from '../components/TeamSelectionModal';
 import FriendInvitePanel from '../components/FriendInvitePanel';
+import copyIcon from '../media/copy.png';
 import '../styles/RoomScreen.css';
 
 interface RoomScreenProps {
@@ -140,7 +141,7 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomId, myId, guestId, playerNa
                 />
                 <div className="credential-copy-wrapper">
                   <img 
-                    src="/src/media/copy.png" 
+                    src={copyIcon} 
                     alt="Copy" 
                     className="credential-copy-icon"
                     onClick={handleCopyCode}
@@ -165,7 +166,7 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomId, myId, guestId, playerNa
                 />
                 <div className="credential-copy-wrapper">
                   <img 
-                    src="/src/media/copy.png" 
+                    src={copyIcon} 
                     alt="Copy" 
                     className="credential-copy-icon"
                     onClick={handleCopyLink}
