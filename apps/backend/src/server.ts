@@ -2,8 +2,6 @@ import './env';
 import express, { type Request, type Response } from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
-import { createAdapter } from 'socket.io-redis';
-import Redis from 'ioredis';
 import pino from 'pino';
 import { createRoom, joinRoom, startGame, getRoom, handleIntent, leaveRoom, removePlayerFromAllRooms, getRoomByAccessCode, validateRoomAccess, generateAndStoreReconnectToken, validateReconnectToken, getAllRooms, addMemberToRoom, setMemberRole, kickMember, leaveMemberRoom, countPlayers, canStart1v1, canStart2v2, getUserCurrentRoom, isHost, RoomRole, deleteRoom, setTeamAssignment, getTeamAssignment, getPlayersInRoom, startTurnTimer, clearTurnTimer, getTurnTimeRemaining, saveMatchHistory, cleanupInactiveRooms, Room } from './game/roomManager';
 import { matchmakingManager } from './game/matchmakingManager';
@@ -80,19 +78,6 @@ setActiveUsers(activeUsers);
   const io = new Server(server, {
     cors: { origin: '*' }
   });
-
-  // Redis adapter for scaling — if REDIS_URL exists attach adapters
-  const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
-  const pubClient = new Redis(REDIS_URL);
-  const subClient = pubClient.duplicate();
-  try {
-    await pubClient.ping();
-    await subClient.ping();
-    io.adapter(createAdapter({ pubClient, subClient } as any));
-    logger.info('Redis adapter attached to Socket.IO');
-  } catch (e) {
-    logger.warn('Could not attach Redis adapter. Running single-node socket server');
-  }
 
   // Initialize InviteService with dependencies
   const inviteService = new InviteService({
