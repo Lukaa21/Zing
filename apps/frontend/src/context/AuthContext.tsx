@@ -12,7 +12,7 @@ interface AuthContextType {
   token: string | null;
   isLoading: boolean;
   register: (email: string, password: string, username: string) => Promise<{ token: string; user: AuthUser }>;
-  login: (email: string, password: string) => Promise<{ token: string; user: AuthUser }>;
+  login: (emailOrUsername: string, password: string) => Promise<{ token: string; user: AuthUser }>;
   logout: () => void;
   bootstrap: () => Promise<void>;
   forceGuestMode: () => void;
@@ -93,11 +93,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return data;
   };
 
-  const login = async (email: string, password: string) => {
+  const login = async (emailOrUsername: string, password: string) => {
     const res = await fetch(`${BACKEND_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ emailOrUsername, password }),
     });
 
     if (!res.ok) {

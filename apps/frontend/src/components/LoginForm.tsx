@@ -10,8 +10,9 @@ interface LoginFormProps {
 const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const [emailOrUsername, setEmailOrUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -21,7 +22,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
     setIsLoading(true);
 
     try {
-      const data = await login(email, password);
+      const data = await login(emailOrUsername, password);
       // Clear old guest name from localStorage
       localStorage.removeItem('zing_guest_name');
       onSuccess(data.user);
@@ -48,29 +49,39 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
 
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="auth-form-group">
-            <label className="auth-label">Email</label>
+            <label className="auth-label">Email ili Korisničko ime</label>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="text"
+              value={emailOrUsername}
+              onChange={(e) => setEmailOrUsername(e.target.value)}
               required
               className="auth-input"
-              placeholder="vas@email.com"
-              autoComplete="email"
+              placeholder="vas@email.com ili korisnik123"
+              autoComplete="username"
             />
           </div>
 
           <div className="auth-form-group">
             <label className="auth-label">Lozinka</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="auth-input"
-              placeholder="••••••••"
-              autoComplete="current-password"
-            />
+            <div className="password-input-wrapper">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="auth-input"
+                placeholder="••••••••"
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                className="password-toggle-btn"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label="Toggle password visibility"
+              >
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
           </div>
 
           <button type="submit" disabled={isLoading} className="auth-submit-btn">

@@ -75,19 +75,25 @@ router.post('/register', async (req: Request, res: Response) => {
 // POST /api/auth/login
 router.post('/login', async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
+    const { emailOrUsername, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'email and password are required' });
+    if (!emailOrUsername || !password) {
+      return res.status(400).json({ error: 'email/username and password are required' });
     }
 
-    // Find user
-    const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
+    // Find user by email or username
+    const input = emailOrUsername.toLowerCase();
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: input },
+          { username: input },
+        ],
+      },
     });
 
     if (!user) {
-      return res.status(401).json({ error: 'invalid email or password' });
+      return res.status(401).json({ error: 'invalid email/username or password' });
     }
 
     // Compare password

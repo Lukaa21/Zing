@@ -249,48 +249,48 @@ const Lobby: React.FC<LobbyProps> = ({
             </div>
             
             <div className="lobby-header-right">
-              {isAuthenticated ? (
-                <nav className="lobby-nav">
-                  <button
-                    className="lobby-nav-btn"
-                    onClick={() => setShowRulesModal(true)}
-                    title="Pravila"
-                  >
-                    <span className="nav-icon">📖</span>
-                    <span className="nav-label">Pravila</span>
-                  </button>
-                  <button
-                    className="lobby-nav-btn"
-                    onClick={onNavigateToFriends}
-                    title="Prijatelji"
-                  >
-                    <span className="nav-icon">👥</span>
-                    <span className="nav-label">Prijatelji</span>
-                  </button>
-                  <button
-                    className="lobby-nav-btn"
-                    onClick={onShowMatchHistory}
-                    title="Historija"
-                  >
-                    <span className="nav-icon">📜</span>
-                    <span className="nav-label">Historija</span>
-                  </button>
-                  <button
-                    className="lobby-nav-btn"
-                    onClick={onShowLeaderboard}
-                    title="Rang Lista"
-                  >
-                    <span className="nav-icon">📊</span>
-                    <span className="nav-label">Rang Lista</span>
-                  </button>
-                  <button
-                    className="lobby-nav-btn"
-                    onClick={onShowAchievements}
-                    title="Dostignuća"
-                  >
-                    <span className="nav-icon">🏆</span>
-                    <span className="nav-label">Dostignuća</span>
-                  </button>
+              <nav className="lobby-nav">
+                <button
+                  className="lobby-nav-btn"
+                  onClick={() => setShowRulesModal(true)}
+                  title="Pravila"
+                >
+                  <span className="nav-icon">📖</span>
+                  <span className="nav-label">Pravila</span>
+                </button>
+                <button
+                  className="lobby-nav-btn"
+                  onClick={isAuthenticated ? onNavigateToFriends : onNavigateToRegister}
+                  title="Prijatelji"
+                >
+                  <span className="nav-icon">👥</span>
+                  <span className="nav-label">Prijatelji</span>
+                </button>
+                <button
+                  className="lobby-nav-btn"
+                  onClick={isAuthenticated ? onShowMatchHistory : onNavigateToRegister}
+                  title="Historija"
+                >
+                  <span className="nav-icon">📜</span>
+                  <span className="nav-label">Historija</span>
+                </button>
+                <button
+                  className="lobby-nav-btn"
+                  onClick={isAuthenticated ? onShowLeaderboard : onNavigateToRegister}
+                  title="Rang Lista"
+                >
+                  <span className="nav-icon">📊</span>
+                  <span className="nav-label">Rang Lista</span>
+                </button>
+                <button
+                  className="lobby-nav-btn"
+                  onClick={isAuthenticated ? onShowAchievements : onNavigateToRegister}
+                  title="Dostignuća"
+                >
+                  <span className="nav-icon">🏆</span>
+                  <span className="nav-label">Dostignuća</span>
+                </button>
+                {isAuthenticated ? (
                   <button
                     className="lobby-nav-btn lobby-nav-btn-logout"
                     onClick={onLogout}
@@ -299,35 +299,27 @@ const Lobby: React.FC<LobbyProps> = ({
                     <span className="nav-icon">🚪</span>
                     <span className="nav-label">Odjavi se</span>
                   </button>
-                </nav>
-              ) : (
-                <nav className="lobby-nav lobby-nav-guest">
-                  <button
-                    className="lobby-nav-btn"
-                    onClick={() => setShowRulesModal(true)}
-                    title="Pravila"
-                  >
-                    <span className="nav-icon">📖</span>
-                    <span className="nav-label">Pravila</span>
-                  </button>
-                  <button
-                    className="lobby-nav-btn lobby-nav-btn-login"
-                    onClick={onNavigateToLogin}
-                    title="Prijava"
-                  >
-                    <span className="nav-icon">🔐</span>
-                    <span className="nav-label">Prijava</span>
-                  </button>
-                  <button
-                    className="lobby-nav-btn lobby-nav-btn-register"
-                    onClick={onNavigateToRegister}
-                    title="Registracija"
-                  >
-                    <span className="nav-icon">✨</span>
-                    <span className="nav-label">Registracija</span>
-                  </button>
-                </nav>
-              )}
+                ) : (
+                  <>
+                    <button
+                      className="lobby-nav-btn lobby-nav-btn-login"
+                      onClick={onNavigateToLogin}
+                      title="Prijava"
+                    >
+                      <span className="nav-icon">🔐</span>
+                      <span className="nav-label">Prijava</span>
+                    </button>
+                    <button
+                      className="lobby-nav-btn lobby-nav-btn-register"
+                      onClick={onNavigateToRegister}
+                      title="Registracija"
+                    >
+                      <span className="nav-icon">✨</span>
+                      <span className="nav-label">Registracija</span>
+                    </button>
+                  </>
+                )}
+              </nav>
             </div>
           </div>
         </div>
