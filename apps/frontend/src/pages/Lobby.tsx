@@ -98,39 +98,6 @@ const Lobby: React.FC<LobbyProps> = ({
     s.off('room_created');
     s.off('join_error');
 
-    // Real-time room invite listeners
-    if (isAuthenticated && token) {
-      const handlePendingInvites = (data: { invites: any[] }) => {
-        setHasRoomInvites(data.invites.length > 0);
-      };
-
-      const handleInviteReceived = () => {
-        // Immediately show badge and refresh list
-        setHasRoomInvites(true);
-        s.emit('get_pending_invites');
-      };
-
-      const handleInviteStatusChanged = () => {
-        // Refresh list when invite is accepted/declined
-        s.emit('get_pending_invites');
-      };
-
-      s.on('pending_invites', handlePendingInvites);
-      s.on('invite_received', handleInviteReceived);
-      s.on('invite_accepted', handleInviteStatusChanged);
-      s.on('invite_declined', handleInviteStatusChanged);
-
-      // Request pending invites immediately
-      s.emit('get_pending_invites');
-
-      return () => {
-        s.off('pending_invites', handlePendingInvites);
-        s.off('invite_received', handleInviteReceived);
-        s.off('invite_accepted', handleInviteStatusChanged);
-        s.off('invite_declined', handleInviteStatusChanged);
-      };
-    }
-
     // Private room creation listener - auto-join immediately
     s.on(
       'room_created',
@@ -180,18 +147,48 @@ const Lobby: React.FC<LobbyProps> = ({
       setJoinError(err.message || 'Failed to join room');
     });
 
+    // Real-time room invite listeners (only for authenticated users)
+    if (isAuthenticated && token) {
+      const handlePendingInvites = (data: { invites: any[] }) => {
+        setHasRoomInvites(data.invites.length > 0);
+      };
+
+      const handleInviteReceived = () => {
+        // Immediately show badge and refresh list
+        setHasRoomInvites(true);
+        s.emit('get_pending_invites');
+      };
+
+      const handleInviteStatusChanged = () => {
+        // Refresh list when invite is accepted/declined
+        s.emit('get_pending_invites');
+      };
+
+      s.on('pending_invites', handlePendingInvites);
+      s.on('invite_received', handleInviteReceived);
+      s.on('invite_accepted', handleInviteStatusChanged);
+      s.on('invite_declined', handleInviteStatusChanged);
+
+      // Request pending invites immediately
+      s.emit('get_pending_invites');
+    }
+
     setSocket(s);
 
     return () => {
-      // Cleanup listeners when component unmounts
+      // Cleanup all listeners when component unmounts
       s.off('room_created');
       s.off('queue_joined');
       s.off('queue_left');
       s.off('match_found');
       s.off('matchmaking_error');
       s.off('join_error');
+      s.off('pending_invites');
+      s.off('invite_received');
+      s.off('invite_accepted');
+      s.off('invite_declined');
     };
-  }, [playerName, onJoin, token]);
+  }, [playerName, onJoin, token, isAuthenticated]);
 
   const handleFindGame = () => {
     if (!socket || !playerName) return;
