@@ -4,6 +4,7 @@ import { connect } from '../services/socket';
 import { getOrCreateGuestId } from '../utils/guest';
 import { useAuth } from '../context/AuthContext';
 import MatchHistory from '../components/MatchHistory';
+import { getFriendRequests } from '../services/friends';
 import '../styles/Lobby.css';
 
 type LobbyProps = {
@@ -60,6 +61,35 @@ const Lobby: React.FC<LobbyProps> = ({
   // Rules modal state
   const [showRulesModal, setShowRulesModal] = useState<boolean>(false);
 
+  // Notification state
+  const [hasFriendRequests, setHasFriendRequests] = useState<boolean>(false);
+  const [hasRoomInvites, setHasRoomInvites] = useState<boolean>(false);
+  const hasNotifications = hasFriendRequests || hasRoomInvites;
+
+  // Fetch friend requests count for notifications (polling every 10s)
+  useEffect(() => {
+    if (!isAuthenticated || !token) {
+      setHasFriendRequests(false);
+      return;
+    }
+
+    const checkFriendRequests = async () => {
+      try {
+        const { requests } = await getFriendRequests(token);
+        setHasFriendRequests(requests.length > 0);
+      } catch (err) {
+        console.error('Failed to check friend requests:', err);
+      }
+    };
+
+    checkFriendRequests();
+    
+    // Check every 10 seconds
+    const interval = setInterval(checkFriendRequests, 10000);
+    
+    return () => clearInterval(interval);
+  }, [isAuthenticated, token]);
+
   useEffect(() => {
     const s = connect(playerName || 'guest', 'player', token || undefined);
 
@@ -67,6 +97,39 @@ const Lobby: React.FC<LobbyProps> = ({
     s.off('rooms_list');
     s.off('room_created');
     s.off('join_error');
+
+    // Real-time room invite listeners
+    if (isAuthenticated && token) {
+      const handlePendingInvites = (data: { invites: any[] }) => {
+        setHasRoomInvites(data.invites.length > 0);
+      };
+
+      const handleInviteReceived = () => {
+        // Immediately show badge and refresh list
+        setHasRoomInvites(true);
+        s.emit('get_pending_invites');
+      };
+
+      const handleInviteStatusChanged = () => {
+        // Refresh list when invite is accepted/declined
+        s.emit('get_pending_invites');
+      };
+
+      s.on('pending_invites', handlePendingInvites);
+      s.on('invite_received', handleInviteReceived);
+      s.on('invite_accepted', handleInviteStatusChanged);
+      s.on('invite_declined', handleInviteStatusChanged);
+
+      // Request pending invites immediately
+      s.emit('get_pending_invites');
+
+      return () => {
+        s.off('pending_invites', handlePendingInvites);
+        s.off('invite_received', handleInviteReceived);
+        s.off('invite_accepted', handleInviteStatusChanged);
+        s.off('invite_declined', handleInviteStatusChanged);
+      };
+    }
 
     // Private room creation listener - auto-join immediately
     s.on(
@@ -263,7 +326,10 @@ const Lobby: React.FC<LobbyProps> = ({
                   onClick={isAuthenticated ? onNavigateToFriends : onNavigateToRegister}
                   title="Prijatelji"
                 >
-                  <span className="nav-icon">👥</span>
+                  <span className="nav-icon">
+                    👥
+                    {hasNotifications && <span className="nav-notification-badge"></span>}
+                  </span>
                   <span className="nav-label">Prijatelji</span>
                 </button>
                 <button

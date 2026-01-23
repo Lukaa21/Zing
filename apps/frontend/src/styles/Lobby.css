@@ -129,6 +129,18 @@
 .nav-icon {
   font-size: 20px;
   line-height: 1;
+  position: relative;
+}
+
+.nav-notification-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 10px;
+  height: 10px;
+  background: #10b981;
+  border: 2px solid white;
+  border-radius: 50%;
 }
 
 .nav-label {
