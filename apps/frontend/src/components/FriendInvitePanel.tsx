@@ -20,6 +20,7 @@ const FriendInvitePanel: React.FC<FriendInvitePanelProps> = ({
   const { token } = useAuth();
   const [friends, setFriends] = useState<FriendWithStatus[]>([]);
   const [sentInvites, setSentInvites] = useState<Set<string>>(new Set());
+  const [pendingInvitees, setPendingInvitees] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -55,14 +56,25 @@ const FriendInvitePanel: React.FC<FriendInvitePanelProps> = ({
       console.error('Invite error:', data.message);
     };
 
+    const handleRoomPendingInvites = (data: { invitees: string[] }) => {
+      console.log('[FriendInvitePanel] Received pending invitees:', data.invitees);
+      setPendingInvitees(new Set(data.invitees));
+    };
+
     socket.on('invite_sent', handleInviteSent);
     socket.on('invite_error', handleInviteError);
+    socket.on('room_pending_invites', handleRoomPendingInvites);
+
+    // Get pending invites from database for this room
+    console.log('[FriendInvitePanel] Requesting pending invites for room:', currentRoomId);
+    socket.emit('get_room_pending_invites', { roomId: currentRoomId });
 
     return () => {
       socket.off('invite_sent', handleInviteSent);
       socket.off('invite_error', handleInviteError);
+      socket.off('room_pending_invites', handleRoomPendingInvites);
     };
-  }, []);
+  }, [currentRoomId]);
 
   const handleSendInvite = (friendId: string) => {
     onSendInvite(friendId);
@@ -90,7 +102,7 @@ const FriendInvitePanel: React.FC<FriendInvitePanelProps> = ({
         ) : (
           <ul className="friend-panel__list">
             {onlineFriends.map(friend => {
-              const inviteSent = sentInvites.has(friend.friendId);
+              const hasPendingInvite = pendingInvitees.has(friend.friendId) || sentInvites.has(friend.friendId);
               return (
                 <li key={friend.friendId} className="friend-panel__item">
                   <div className="friend-panel__info">
@@ -102,9 +114,9 @@ const FriendInvitePanel: React.FC<FriendInvitePanelProps> = ({
                   <button
                     className="friend-panel__invite-btn"
                     onClick={() => handleSendInvite(friend.friendId)}
-                    disabled={inviteSent}
+                    disabled={hasPendingInvite}
                   >
-                    {inviteSent ? 'Invited' : 'Invite'}
+                    {hasPendingInvite ? 'Invited' : 'Invite'}
                   </button>
                 </li>
               );

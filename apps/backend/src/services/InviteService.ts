@@ -230,6 +230,13 @@ export class InviteService {
   }
 
   /**
+   * Get pending invites for a room
+   */
+  async getPendingInvitesByRoom(roomId: string) {
+    return await inviteRepo.getPendingInvitesByRoom(roomId);
+  }
+
+  /**
    * Check if a pending invite exists for (roomId, inviteeId)
    * Useful for UI to disable invite button
    */

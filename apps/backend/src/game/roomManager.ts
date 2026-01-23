@@ -750,6 +750,25 @@ export function getAllRooms(): Room[] {
 // ============================================
 
 /**
+ * Make a unique name in room by adding #2, #3, etc. if needed
+ */
+function makeUniqueNameInRoom(room: Room, baseName: string, userId: string): string {
+  const existingNames = room.members
+    .filter(m => m.userId !== userId)
+    .map(m => m.name);
+  
+  let finalName = baseName;
+  let counter = 2;
+  
+  while (existingNames.includes(finalName)) {
+    finalName = `${baseName}#${counter}`;
+    counter++;
+  }
+  
+  return finalName;
+}
+
+/**
  * Add member to room
  * Default role: PLAYER
  */
@@ -775,9 +794,12 @@ export function addMemberToRoom(room: Room, userId: string, name: string, socket
     return existing;
   }
 
+  // Make name unique by adding #2, #3 etc if needed
+  const uniqueName = makeUniqueNameInRoom(room, name, userId);
+
   const member: RoomMember = {
     userId,
-    name,
+    name: uniqueName,
     roleInRoom: 'PLAYER',
     joinedAt: new Date(),
     socketId,
@@ -794,7 +816,7 @@ export function addMemberToRoom(room: Room, userId: string, name: string, socket
   if (!existingLegacyPlayer) {
     room.players.push({
       id: userId,
-      name,
+      name: uniqueName,
       role: 'player',
       hand: [],
       taken: [],
@@ -805,7 +827,7 @@ export function addMemberToRoom(room: Room, userId: string, name: string, socket
     });
   } else {
     // Update existing legacy player
-    existingLegacyPlayer.name = name;
+    existingLegacyPlayer.name = uniqueName;
     existingLegacyPlayer.socketId = socketId;
     existingLegacyPlayer.connected = true;
   }

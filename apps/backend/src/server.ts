@@ -1360,6 +1360,24 @@ setActiveUsers(activeUsers);
       }
     });
 
+    socket.on('get_room_pending_invites', async (payload: { roomId: string }) => {
+      
+      if (!payload.roomId) {
+        socket.emit('room_pending_invites', { invitees: [] });
+        return;
+      }
+
+      try {
+        const invites = await inviteService.getPendingInvitesByRoom(payload.roomId);
+        
+        socket.emit('room_pending_invites', {
+          invitees: invites.map(inv => inv.inviteeId),
+        });
+      } catch (error: any) {
+        socket.emit('room_pending_invites', { invitees: [] });
+      }
+    });
+
     /**
      * Set member role (host only)
      * Payload: { roomId: string, targetUserId: string, role: 'PLAYER' | 'SPECTATOR' }
