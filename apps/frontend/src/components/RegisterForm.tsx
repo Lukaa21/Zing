@@ -37,8 +37,8 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
   return (
     <div className="auth-container">
       <div className="auth-card">
-        <button className="auth-back-btn" onClick={() => navigate('/')}>
-          ← Nazad na Početnu
+        <button className="auth-back-btn" onClick={() => navigate(-1)}>
+          ← Nazad
         </button>
         
         <div className="auth-header">

@@ -553,11 +553,13 @@
   transform: rotate(8deg) scale(1.2);
 }
 
-/* Hover effect - card lifts up */
-.player-area.position-bottom .player-hand .card:hover:not(.disabled) {
-  transform: translateY(-20px) rotate(0deg) scale(1.26);
-  z-index: 100;
-  filter: brightness(1.1);
+/* Hover effect - card lifts up (desktop only) */
+@media (hover: hover) and (pointer: fine) {
+  .player-area.position-bottom .player-hand .card:hover:not(.disabled) {
+    transform: translateY(-20px) rotate(0deg) scale(1.26);
+    z-index: 100;
+    filter: brightness(1.1);
+  }
 }
 
 .player-area.position-bottom .player-hand .card:active:not(.disabled) {
@@ -943,8 +945,11 @@
     transform: rotate(8deg);
   }
 
-  .player-area.position-bottom .player-hand .card:hover:not(.disabled) {
-    transform: translateY(-20px) rotate(0deg) scale(1.26);
+  /* Hover effect (desktop only) */
+  @media (hover: hover) and (pointer: fine) {
+    .player-area.position-bottom .player-hand .card:hover:not(.disabled) {
+      transform: translateY(-20px) rotate(0deg) scale(1.26);
+    }
   }
 
   .player-area.position-bottom .player-hand .card:active:not(.disabled) {
