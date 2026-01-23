@@ -52,6 +52,27 @@ export function initialDeal(state: GameState, seed?: string, dealerSeat = 0): Ga
   state.deck = dealDeck.concat(cutterHalf).concat(reserved ? [reserved] : []);
   // Set face-up card (the bottom/first card in deck array, which dealer gets last)
   state.faceUpCard = state.deck[0];
+  
+  // Check if top of talon is Jack - if so, move it to faceUpCard and draw new card
+  while (state.talon.length > 0 && state.deck.length > 0) {
+    const topOfTalon = state.talon[state.talon.length - 1];
+    const topRank = parseCard(topOfTalon).rank;
+    
+    if (topRank === 'J') {
+      // Remove Jack from top of talon
+      state.talon.pop();
+      // Draw new card from deck for talon top
+      const newCard = state.deck.pop();
+      if (newCard) {
+        state.talon.push(newCard);
+      }
+      // Note: Jack goes with faceUpCard but we don't need to track it explicitly
+      // The dealer will get both at the end
+    } else {
+      break; // Stop if top card is not a Jack
+    }
+  }
+  
   // deal first small hands (up to 4 cards each)
   dealNextHands(state);
   state.handNumber = 1;

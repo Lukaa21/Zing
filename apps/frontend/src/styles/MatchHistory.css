@@ -225,11 +225,14 @@
 .player-name {
   font-size: 14px;
   color: #1e293b;
-  margin-bottom: 6px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   font-weight: 600;
+}
+
+.team-box .player-name {
+  margin-bottom: 4px;
 }
 
 .player-name:last-child {
