@@ -52,6 +52,27 @@ const InGameView: React.FC<InGameViewProps> = ({
 }) => {
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [showSurrenderConfirm, setShowSurrenderConfirm] = useState(false);
+  const [zingInfo, setZingInfo] = useState<{ playerName: string; points: number } | null>(null);
+
+  // Detect zing from logs
+  useEffect(() => {
+    if (!logs || logs.length === 0) return;
+    
+    const latestLog = logs[0];
+    const zingMatch = latestLog.match(/(.+?) took \d+ cards \(zing \+(\d+)\)/);
+    
+    if (zingMatch) {
+      const playerName = zingMatch[1];
+      const points = parseInt(zingMatch[2]);
+      setZingInfo({ playerName, points });
+      
+      const timer = setTimeout(() => {
+        setZingInfo(null);
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [logs]);
 
   // Update timer countdown
   useEffect(() => {
@@ -384,6 +405,18 @@ const InGameView: React.FC<InGameViewProps> = ({
 
         {/* Talon Area (Center) */}
         <div className="talon-area">
+          {/* Zing Notification */}
+          {zingInfo && (
+            <div className="zing-flash">
+              <div className="zing-flash-stars">✨</div>
+              <div className="zing-flash-text">
+                <div className="zing-flash-player">{zingInfo.playerName}</div>
+                <div className="zing-flash-points">ZING +{zingInfo.points}</div>
+              </div>
+              <div className="zing-flash-stars">✨</div>
+            </div>
+          )}
+          
           {isInitialDeal ? (
             // State A: Initial 4 cards visible horizontally
             <div className="talon-initial">

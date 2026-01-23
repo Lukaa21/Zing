@@ -12,17 +12,17 @@ router.post('/register', async (req: Request, res: Response) => {
 
     // Validate input
     if (!email || !password || !username) {
-      return res.status(400).json({ error: 'email, password, and username are required' });
+      return res.status(400).json({ error: 'email, lozinka i korisničko ime su obavezni' });
     }
 
     if (password.length < 8) {
-      return res.status(400).json({ error: 'password must be at least 8 characters' });
+      return res.status(400).json({ error: 'lozinka mora imati najmanje 8 karaktera' });
     }
 
-    // Validate username format (alphanumeric + underscore, max 30 chars)
-    const usernameRegex = /^[a-zA-Z0-9_]{1,30}$/;
+    // Validate username format (alphanumeric + underscore, max 15 chars)
+    const usernameRegex = /^[a-zA-Z0-9_]{1,15}$/;
     if (!usernameRegex.test(username)) {
-      return res.status(400).json({ error: 'username must be 1-30 characters and contain only letters, numbers, and underscores' });
+      return res.status(400).json({ error: 'Korisničko ime mora imati 1-15 karaktera i sadržati samo slova, brojeve i donje crte' });
     }
 
     // Check if user already exists (case-insensitive)
@@ -31,7 +31,7 @@ router.post('/register', async (req: Request, res: Response) => {
     });
 
     if (existingUser) {
-      return res.status(409).json({ error: 'user with this email already exists' });
+      return res.status(409).json({ error: 'Korisnik s ovim emailom već postoji' });
     }
 
     // Check if username is already taken
@@ -40,7 +40,7 @@ router.post('/register', async (req: Request, res: Response) => {
     });
 
     if (existingUsername) {
-      return res.status(409).json({ error: 'username is already taken' });
+      return res.status(409).json({ error: 'Korisničko ime je zauzeto' });
     }
 
     // Hash password
@@ -78,7 +78,7 @@ router.post('/login', async (req: Request, res: Response) => {
     const { emailOrUsername, password } = req.body;
 
     if (!emailOrUsername || !password) {
-      return res.status(400).json({ error: 'email/username and password are required' });
+      return res.status(400).json({ error: 'email/korisničko ime i lozinka su obavezni' });
     }
 
     // Find user by email or username
@@ -93,14 +93,14 @@ router.post('/login', async (req: Request, res: Response) => {
     });
 
     if (!user) {
-      return res.status(401).json({ error: 'invalid email/username or password' });
+      return res.status(401).json({ error: 'Neispravan email, korisničko ime ili lozinka' });
     }
 
     // Compare password
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
 
     if (!isPasswordValid) {
-      return res.status(401).json({ error: 'invalid email or password' });
+      return res.status(401).json({ error: 'Neispravna lozinka' });
     }
 
     // Sign JWT
@@ -142,7 +142,7 @@ router.get('/me', async (req: Request, res: Response) => {
     });
 
     if (!user) {
-      return res.status(404).json({ error: 'user not found' });
+      return res.status(404).json({ error: 'Korisnik nije pronađen' });
     }
 
     return res.json({

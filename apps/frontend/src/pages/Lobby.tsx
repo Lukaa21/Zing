@@ -332,10 +332,10 @@ const Lobby: React.FC<LobbyProps> = ({
                 <button
                   className="lobby-nav-btn"
                   onClick={isAuthenticated ? onShowMatchHistory : onNavigateToRegister}
-                  title="Historija"
+                  title="Istorija"
                 >
                   <span className="nav-icon">📜</span>
-                  <span className="nav-label">Historija</span>
+                  <span className="nav-label">Istorija</span>
                 </button>
                 <button
                   className="lobby-nav-btn"

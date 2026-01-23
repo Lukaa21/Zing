@@ -101,9 +101,9 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomId, myId, guestId, playerNa
       {/* Matchmaking Status */}
       {inMatchmaking && (
         <div className="room-screen__matchmaking">
-          <p>Searching for match...</p>
+          <p>Traženje meča...</p>
           {roomState.isHost && (
-            <button onClick={actions.cancelMatchmaking}>Cancel</button>
+            <button onClick={actions.cancelMatchmaking}>Otkaži</button>
           )}
         </div>
       )}
@@ -131,7 +131,7 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomId, myId, guestId, playerNa
           
           {accessCode && (
             <div className="credential-item">
-              <label className="credential-label">Kod Pristupa</label>
+              <label className="credential-label">Kod za Pristup</label>
               <div className="credential-row">
                 <input
                   type="text"
@@ -190,10 +190,10 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomId, myId, guestId, playerNa
               <div className="member-list__info">
                 <span className="member-list__name">{member.name}</span>
                 {member.userId === roomState.hostId && (
-                  <span className="member-list__badge member-list__badge--host">HOST</span>
+                  <span className="member-list__badge member-list__badge--host">Domaćin</span>
                 )}
                 <span className={`member-list__badge member-list__badge--${member.roleInRoom.toLowerCase()}`}>
-                  {member.roleInRoom}
+                  {member.roleInRoom === 'PLAYER' ? 'Igrač' : 'Posmatrač'}
                 </span>
               </div>
               

@@ -94,7 +94,7 @@ const MatchHistory: React.FC<MatchHistoryProps> = ({ onClose }) => {
     <div className="match-history-overlay">
       <div className="match-history-modal">
         <div className="match-history-header">
-          <h2>Historija Mečeva</h2>
+          <h2>Istorija Mečeva</h2>
           <button onClick={onClose} className="close-btn">×</button>
         </div>
 

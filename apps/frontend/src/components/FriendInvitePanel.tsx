@@ -116,7 +116,7 @@ const FriendInvitePanel: React.FC<FriendInvitePanelProps> = ({
                     onClick={() => handleSendInvite(friend.friendId)}
                     disabled={hasPendingInvite}
                   >
-                    {hasPendingInvite ? 'Invited' : 'Invite'}
+                    {hasPendingInvite ? 'Pozvan' : 'Pozovi'}
                   </button>
                 </li>
               );
