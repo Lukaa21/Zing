@@ -221,12 +221,6 @@ export default function Achievements({ userId, token, onClose }: AchievementsPro
                   typeLabel={typeLabels[type] || type}
                 />
               ))}
-
-              {achievements.length === 0 && (
-                <div className="achievements-empty">
-                  🎯 Dostignuća još nisu dostupna. Počni da igraš da ih otključaš!
-                </div>
-              )}
             </>
           )}
         </div>
