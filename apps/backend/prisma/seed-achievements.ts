@@ -10,21 +10,21 @@ async function seedAchievements() {
       tier: 1,
       threshold: 10,
       name: 'Beginner Player',
-      description: 'Play 10 games',
+      description: 'Odigraj 10 partija',
     },
     {
       type: AchievementType.GAMES_PLAYED,
       tier: 2,
       threshold: 100,
       name: 'Experienced Player',
-      description: 'Play 100 games',
+      description: 'Odigraj 100 partija',
     },
     {
       type: AchievementType.GAMES_PLAYED,
       tier: 3,
       threshold: 300,
       name: 'Veteran Player',
-      description: 'Play 300 games',
+      description: 'Odigraj 300 partija',
     },
 
     // SOLO_WINS - 5, 50, 150 wins
@@ -33,21 +33,21 @@ async function seedAchievements() {
       tier: 1,
       threshold: 5,
       name: 'Solo Champion',
-      description: 'Win 5 solo games',
+      description: 'Pobijedi u 5 solo partija',
     },
     {
       type: AchievementType.SOLO_WINS,
       tier: 2,
       threshold: 50,
       name: 'Solo Master',
-      description: 'Win 50 solo games',
+      description: 'Pobijedi u 50 solo partija',
     },
     {
       type: AchievementType.SOLO_WINS,
       tier: 3,
       threshold: 150,
       name: 'Solo Legend',
-      description: 'Win 150 solo games',
+      description: 'Pobijedi u 150 solo partija',
     },
 
     // DUO_WINS - 10, 100, 250 wins
@@ -56,21 +56,21 @@ async function seedAchievements() {
       tier: 1,
       threshold: 10,
       name: 'Duo Champion',
-      description: 'Win 10 duo games',
+      description: 'Pobijedi u 10 duo partija',
     },
     {
       type: AchievementType.DUO_WINS,
       tier: 2,
       threshold: 100,
       name: 'Duo Master',
-      description: 'Win 100 duo games',
+      description: 'Pobijedi u 100 duo partija',
     },
     {
       type: AchievementType.DUO_WINS,
       tier: 3,
       threshold: 250,
       name: 'Duo Legend',
-      description: 'Win 250 duo games',
+      description: 'Pobijedi u 250 duo partija',
     },
 
     // POINTS_TAKEN - 1000, 10000, 50000 points
@@ -79,21 +79,21 @@ async function seedAchievements() {
       tier: 1,
       threshold: 1000,
       name: 'Point Collector',
-      description: 'Take 1,000 points',
+      description: 'Osvoji 1,000 poena',
     },
     {
       type: AchievementType.POINTS_TAKEN,
       tier: 2,
       threshold: 10000,
       name: 'Point Hunter',
-      description: 'Take 10,000 points',
+      description: 'Osvoji 10,000 poena',
     },
     {
       type: AchievementType.POINTS_TAKEN,
       tier: 3,
       threshold: 50000,
       name: 'Point Master',
-      description: 'Take 50,000 points',
+      description: 'Osvoji 50,000 poena',
     },
 
     // ZINGS_MADE - 10, 100, 500 zings
@@ -102,21 +102,21 @@ async function seedAchievements() {
       tier: 1,
       threshold: 10,
       name: 'Zing Starter',
-      description: 'Score 10 zings',
+      description: 'Napravi 10 zingova',
     },
     {
       type: AchievementType.ZINGS_MADE,
       tier: 2,
       threshold: 100,
       name: 'Zing Expert',
-      description: 'Score 100 zings',
+      description: 'Napravi 100 zingova',
     },
     {
       type: AchievementType.ZINGS_MADE,
       tier: 3,
       threshold: 500,
       name: 'Zing God',
-      description: 'Score 500 zings',
+      description: 'Napravi 500 zingova',
     },
 
     // GAMES_HOSTED - 5, 50, 200 games
@@ -125,21 +125,21 @@ async function seedAchievements() {
       tier: 1,
       threshold: 5,
       name: 'Host Beginner',
-      description: 'Host 5 games',
+      description: 'Hostuj 5 igara',
     },
     {
       type: AchievementType.GAMES_HOSTED,
       tier: 2,
       threshold: 50,
       name: 'Host Veteran',
-      description: 'Host 50 games',
+      description: 'Hostuj 50 igara',
     },
     {
       type: AchievementType.GAMES_HOSTED,
       tier: 3,
       threshold: 200,
       name: 'Host Master',
-      description: 'Host 200 games',
+      description: 'Hostuj 200 igara',
     },
 
     // FRIENDS_ADDED - 5, 20, 50 friends
@@ -148,21 +148,21 @@ async function seedAchievements() {
       tier: 1,
       threshold: 5,
       name: 'Social Starter',
-      description: 'Add 5 friends',
+      description: 'Dodaj 5 prijatelja',
     },
     {
       type: AchievementType.FRIENDS_ADDED,
       tier: 2,
       threshold: 20,
       name: 'Social Butterfly',
-      description: 'Add 20 friends',
+      description: 'Dodaj 20 prijatelja',
     },
     {
       type: AchievementType.FRIENDS_ADDED,
       tier: 3,
       threshold: 50,
       name: 'Social Legend',
-      description: 'Add 50 friends',
+      description: 'Dodaj 50 prijatelja',
     },
   ];
 
