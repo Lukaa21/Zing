@@ -28,6 +28,12 @@
   text-align: left;
 }
 
+.lobby-logo {
+  height: 130px;
+  width: auto;
+  filter: drop-shadow(0 2px 20px rgba(0, 0, 0, 0.2));
+}
+
 .lobby-header-right {
   flex-shrink: 0;
 }
@@ -58,10 +64,11 @@
 .lobby-nav {
   display: flex;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.85);
   padding: 8px;
   border-radius: 16px;
   backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
 
 .lobby-nav-btn {
@@ -70,20 +77,21 @@
   gap: 8px;
   padding: 12px 20px;
   background: transparent;
-  border: 2px solid transparent;
+  border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
   font-family: inherit;
   font-size: 15px;
   font-weight: 600;
-  color: white;
+  color: #1a202c;
 }
 
 .lobby-nav-btn:hover {
-  background: rgba(255, 255, 255, 0.25);
-  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(102, 126, 234, 0.4);
   transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .lobby-nav-btn:active {
@@ -91,12 +99,13 @@
 }
 
 .lobby-nav-btn-logout {
-  border-color: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 100, 100, 0.3);
 }
 
 .lobby-nav-btn-logout:hover {
-  background: rgba(255, 100, 100, 0.3);
-  border-color: rgba(255, 100, 100, 0.6);
+  background: rgba(255, 200, 200, 0.3);
+  border-color: rgba(255, 100, 100, 0.5);
+  box-shadow: 0 2px 8px rgba(255, 100, 100, 0.15);
 }
 
 /* Guest Navigation Buttons */
@@ -105,13 +114,15 @@
 }
 
 .lobby-nav-btn-login {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.4);
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.4) 0%, rgba(118, 75, 162, 0.4) 100%);
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
 .lobby-nav-btn-login:hover {
-  background: rgba(255, 255, 255, 0.35);
-  border-color: rgba(255, 255, 255, 0.6);
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.6) 0%, rgba(118, 75, 162, 0.6) 100%);
+  border-color: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
 }
 
 .lobby-nav-btn-register {
@@ -130,6 +141,16 @@
   font-size: 20px;
   line-height: 1;
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-icon img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  filter: brightness(0.3);
 }
 
 .nav-notification-badge {
@@ -172,13 +193,21 @@
 .lobby-card-icon {
   width: 64px;
   height: 64px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: rgba(255, 255, 255, 0.95);
   border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 32px;
   margin-bottom: 24px;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+.lobby-card-icon img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  filter: brightness(0.7) saturate(1.2);
 }
 
 .lobby-card-title {
@@ -232,7 +261,12 @@
 .mode-option-emoji {
   font-size: 32px;
   display: block;
-  margin-bottom: 8px;
+}
+
+.mode-option-emoji img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
 }
 
 .mode-option-label {
@@ -350,12 +384,20 @@
 .lobby-join-icon {
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: rgba(255, 255, 255, 0.95);
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 24px;
+  box-shadow: 0 3px 10px rgba(102, 126, 234, 0.15);
+}
+
+.lobby-join-icon img {
+  width: 32px;
+  height: 32px;
+  filter: brightness(0.7) saturate(1.2);
+  object-fit: contain;
 }
 
 .lobby-join-title {
@@ -537,6 +579,10 @@
     padding: 40px 32px;
   }
 
+  .lobby-logo {
+    height: 115px;
+  }
+
   .lobby-title {
     font-size: 48px;
   }
@@ -566,6 +612,10 @@
 
   .lobby-header {
     margin-bottom: 32px;
+  }
+
+  .lobby-logo {
+    height: 100px;
   }
 
   .lobby-title {

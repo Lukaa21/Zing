@@ -302,7 +302,7 @@ const Lobby: React.FC<LobbyProps> = ({
         <div className="lobby-header">
           <div className="lobby-header-content">
             <div className="lobby-header-left">
-              <h1 className="lobby-title">Zing</h1>
+              <img src="/zing_logo.png" alt="Zing Logo" className="lobby-logo" />
               <p className="lobby-player-info">
                 Dobrodošao, <span className="lobby-player-name">{playerName}</span>
               </p>
@@ -315,7 +315,7 @@ const Lobby: React.FC<LobbyProps> = ({
                   onClick={() => setShowRulesModal(true)}
                   title="Pravila"
                 >
-                  <span className="nav-icon">📖</span>
+                  <span className="nav-icon"><img src="/open-book.png" alt="Rules" /></span>
                   <span className="nav-label">Pravila</span>
                 </button>
                 <button
@@ -324,7 +324,7 @@ const Lobby: React.FC<LobbyProps> = ({
                   title="Prijatelji"
                 >
                   <span className="nav-icon">
-                    👥
+                    <img src="/high-five.png" alt="Friends" />
                     {hasNotifications && <span className="nav-notification-badge"></span>}
                   </span>
                   <span className="nav-label">Prijatelji</span>
@@ -334,7 +334,7 @@ const Lobby: React.FC<LobbyProps> = ({
                   onClick={isAuthenticated ? onShowMatchHistory : onNavigateToRegister}
                   title="Istorija"
                 >
-                  <span className="nav-icon">📜</span>
+                  <span className="nav-icon"><img src="/scoreboard.png" alt="Scoreboard" /></span>
                   <span className="nav-label">Istorija</span>
                 </button>
                 <button
@@ -342,7 +342,7 @@ const Lobby: React.FC<LobbyProps> = ({
                   onClick={isAuthenticated ? onShowLeaderboard : onNavigateToRegister}
                   title="Rang Lista"
                 >
-                  <span className="nav-icon">📊</span>
+                  <span className="nav-icon"><img src="/podium.png" alt="Leaderboard" /></span>
                   <span className="nav-label">Rang Lista</span>
                 </button>
                 <button
@@ -350,7 +350,7 @@ const Lobby: React.FC<LobbyProps> = ({
                   onClick={isAuthenticated ? onShowAchievements : onNavigateToRegister}
                   title="Dostignuća"
                 >
-                  <span className="nav-icon">🏆</span>
+                  <span className="nav-icon"><img src="/trophy.png" alt="Achievements" /></span>
                   <span className="nav-label">Dostignuća</span>
                 </button>
                 {isAuthenticated ? (
@@ -359,7 +359,7 @@ const Lobby: React.FC<LobbyProps> = ({
                     onClick={onLogout}
                     title="Odjavi se"
                   >
-                    <span className="nav-icon">🚪</span>
+                    <span className="nav-icon"><img src="/logout.png" alt="Logout" /></span>
                     <span className="nav-label">Odjavi se</span>
                   </button>
                 ) : (
@@ -369,7 +369,7 @@ const Lobby: React.FC<LobbyProps> = ({
                       onClick={onNavigateToLogin}
                       title="Prijava"
                     >
-                      <span className="nav-icon">🔐</span>
+                      <span className="nav-icon"><img src="/enter.png" alt="Login" /></span>
                       <span className="nav-label">Prijava</span>
                     </button>
                     <button
@@ -377,7 +377,7 @@ const Lobby: React.FC<LobbyProps> = ({
                       onClick={onNavigateToRegister}
                       title="Registracija"
                     >
-                      <span className="nav-icon">✨</span>
+                      <span className="nav-icon"><img src="/lock.png" alt="Register" /></span>
                       <span className="nav-label">Registracija</span>
                     </button>
                   </>
@@ -391,7 +391,7 @@ const Lobby: React.FC<LobbyProps> = ({
         <div className="lobby-main-grid">
           {/* Find Game Card */}
           <div className="lobby-card">
-            <div className="lobby-card-icon">🎮</div>
+            <div className="lobby-card-icon"><img src="/playing-cards.png" alt="Playing Cards" /></div>
             <h2 className="lobby-card-title">Pronađi Igru</h2>
             <p className="lobby-card-description">
               Brzo uđi u matchmaking i takmiči se protiv drugih igrača
@@ -409,7 +409,7 @@ const Lobby: React.FC<LobbyProps> = ({
                       checked={selectedMode === '1v1'}
                       onChange={(e) => setSelectedMode(e.target.value as MatchmakingMode)}
                     />
-                    <span className="mode-option-emoji">⚔️</span>
+                    <span className="mode-option-emoji"><img src="/meeting 2.png" alt="1v1" /></span>
                     <span className="mode-option-label">1v1</span>
                   </label>
                   <label className={`mode-option ${selectedMode === '2v2' ? 'active' : ''}`}>
@@ -420,7 +420,7 @@ const Lobby: React.FC<LobbyProps> = ({
                       checked={selectedMode === '2v2'}
                       onChange={(e) => setSelectedMode(e.target.value as MatchmakingMode)}
                     />
-                    <span className="mode-option-emoji">👥</span>
+                    <span className="mode-option-emoji"><img src="/meeting 4.png" alt="2v2" /></span>
                     <span className="mode-option-label">2v2</span>
                   </label>
                 </div>
@@ -452,7 +452,7 @@ const Lobby: React.FC<LobbyProps> = ({
 
           {/* Private Room Card */}
           <div className="lobby-card">
-            <div className="lobby-card-icon">🏠</div>
+            <div className="lobby-card-icon"><img src="/meeting 3.png" alt="Meeting" /></div>
             <h2 className="lobby-card-title">Privatna Soba</h2>
             <p className="lobby-card-description">
               Napravi privatnu sobu za igru sa prijateljima
@@ -471,7 +471,7 @@ const Lobby: React.FC<LobbyProps> = ({
         {/* Join By Code - Full Width */}
         <div className="lobby-join-section">
           <div className="lobby-join-header">
-            <div className="lobby-join-icon">🔑</div>
+            <div className="lobby-join-icon"><img src="/passkey.png" alt="Passkey" /></div>
             <h2 className="lobby-join-title">Pridruži se Koristeći Kod</h2>
           </div>
           <div className="join-input-group">

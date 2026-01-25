@@ -157,7 +157,7 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
       }
     });
     s.on('game_event', (ev: any) => {
-      const actorName = playersRef.current?.find((p: any) => p.id === ev.actor)?.name || ev.actor;
+      const actorName = playersRef.current?.find((p: any) => p.id === ev.actor)?.name || 'Player';
       const msg = formatEvent(ev, actorName);
       setLogs((l: string[]) => [msg, ...l].slice(0, 200));
       console.log('event', ev);

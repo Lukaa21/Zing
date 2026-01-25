@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Timer } from 'lucide-react';
 import Hand from '../components/Hand';
 import Card from '../components/Card';
@@ -53,6 +53,8 @@ const InGameView: React.FC<InGameViewProps> = ({
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [showSurrenderConfirm, setShowSurrenderConfirm] = useState(false);
   const [zingInfo, setZingInfo] = useState<{ playerName: string; points: number } | null>(null);
+  const [previousTalonLength, setPreviousTalonLength] = useState<number>(0);
+  const lastZingLogRef = useRef<string | null>(null);
 
   // Detect zing from logs
   useEffect(() => {
@@ -61,18 +63,28 @@ const InGameView: React.FC<InGameViewProps> = ({
     const latestLog = logs[0];
     const zingMatch = latestLog.match(/(.+?) took \d+ cards \(zing \+(\d+)\)/);
     
-    if (zingMatch) {
+    if (zingMatch && latestLog !== lastZingLogRef.current) {
+      // New zing detected
+      lastZingLogRef.current = latestLog;
       const playerName = zingMatch[1];
       const points = parseInt(zingMatch[2]);
+      
       setZingInfo({ playerName, points });
       
       const timer = setTimeout(() => {
         setZingInfo(null);
+        lastZingLogRef.current = null; // Reset ref after animation ends
       }, 2000);
       
       return () => clearTimeout(timer);
     }
   }, [logs]);
+
+  // Track talon length changes
+  useEffect(() => {
+    const currentTalonLength = state?.talon?.length || 0;
+    setPreviousTalonLength(currentTalonLength);
+  }, [state?.talon?.length]);
 
   // Update timer countdown
   useEffect(() => {
@@ -172,8 +184,9 @@ const InGameView: React.FC<InGameViewProps> = ({
   const talonCards = state?.talon || [];
   
   // Check if we're at the start (showing first 4 cards) or during play (showing all played cards)
-  // Initial deal is when we have exactly 4 cards on talon AND it's the first hand AND deck is full
-  const isInitialDeal = talonCards.length === 4 && state?.handNumber === 1 && state?.deck?.length === 40;
+  // Initial deal is ONLY at the very start of the first hand (handNumber === 1) when all players have 4 cards
+  const allPlayersHave4Cards = allPlayers.every((p: any) => p.hand?.length === 4);
+  const isInitialDeal = talonCards.length === 4 && allPlayersHave4Cards && state?.handNumber === 1;
 
   return (
     <div className={`game-view mode-${gameMode}`}>
@@ -218,7 +231,7 @@ const InGameView: React.FC<InGameViewProps> = ({
               {(() => {
                 const winnerTeam = team0Score > team1Score ? 0 : 1;
                 const didIWin = myTeam === winnerTeam;
-                return didIWin ? '🎉 Pobedili Ste! 🎉' : '😔 Izgubili Ste';
+                return didIWin ? 'Pobijedili Ste!' : 'Izgubili Ste';
               })()}
             </div>
             <div className="game-over-scores">
