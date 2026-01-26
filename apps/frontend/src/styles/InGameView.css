@@ -406,6 +406,12 @@
   height: 100px;
   position: relative;
   z-index: 1;
+  display: flex;
+  align-items: center;
+}
+
+.deck-last-card > * + * {
+  margin-left: -40px; /* 60% overlap for multiple face-up cards */
 }
 
 .deck-pile {
@@ -1048,9 +1054,21 @@
   .game-timer-circle { width: 36px; height: 36px; border-width: 2px; }
   .game-timer-icon { width: 18px; height: 18px; }
   .game-timer-text { font-size: 12px; }
-  .scoreboard { width: auto; max-width: 240px; padding: 6px 8px; gap: 2px; min-width: auto; border-radius: 30px; justify-self: center; }
-  .scoreboard-team { padding: 4px 6px; min-width: 40px; }
-  .scoreboard-label { font-size: 8px; margin-bottom: 1px; }
+  .scoreboard { width: auto; max-width: 320px; padding: 6px 8px; gap: 2px; min-width: auto; border-radius: 30px; justify-self: center; }
+  .scoreboard-team { padding: 4px 8px; min-width: 50px; }
+  .scoreboard-label { 
+    font-size: 9px; 
+    margin-bottom: 1px; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+    max-width: 100px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-height: 1.2;
+    max-height: calc(9px * 1.2 * 2);
+    word-break: break-word;
+  }
   .scoreboard-value { font-size: 15px; }
   .scoreboard-target { padding: 4px 6px; min-width: 40px; margin: 0 1px; }
   .scoreboard-target-icon { font-size: 14px; margin-bottom: 1px; }

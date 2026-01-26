@@ -50,28 +50,31 @@ export function initialDeal(state: GameState, seed?: string, dealerSeat = 0): Ga
   state.talon = talon;
   // initial deck is dealDeck followed by remaining cutterHalf and reserved card
   state.deck = dealDeck.concat(cutterHalf).concat(reserved ? [reserved] : []);
-  // Set face-up card (the bottom/first card in deck array, which dealer gets last)
-  state.faceUpCard = state.deck[0];
   
-  // Check if top of talon is Jack - if so, move it to faceUpCard and draw new card
+  // Set face-up card (the bottom/first card in deck array, which dealer gets last)
+  const faceUpCards: string[] = [state.deck[0]];
+  
+  // Check if top of talon is Jack - if so, add Jack to faceUpCards and draw new card for talon
   while (state.talon.length > 0 && state.deck.length > 0) {
     const topOfTalon = state.talon[state.talon.length - 1];
     const topRank = parseCard(topOfTalon).rank;
     
     if (topRank === 'J') {
-      // Remove Jack from top of talon
-      state.talon.pop();
+      // Remove Jack from top of talon and add to faceUpCards
+      const jack = state.talon.pop();
+      if (jack) faceUpCards.push(jack);
+      
       // Draw new card from deck for talon top
       const newCard = state.deck.pop();
       if (newCard) {
         state.talon.push(newCard);
       }
-      // Note: Jack goes with faceUpCard but we don't need to track it explicitly
-      // The dealer will get both at the end
     } else {
       break; // Stop if top card is not a Jack
     }
   }
+  
+  state.faceUpCard = faceUpCards;
   
   // deal first small hands (up to 4 cards each)
   dealNextHands(state);
@@ -91,6 +94,11 @@ export function dealNextHands(state: GameState, countPerPlayer = 4) {
   for (const p of state.players) {
     dealt[p.id] = [];
   }
+  
+  // Check if this is the last deal (only faceUpCard(s) left in deck)
+  const numFaceUpCards = state.faceUpCard?.length || 1;
+  const isLastDeal = state.deck.length === numFaceUpCards;
+  
   for (let i = 0; i < countPerPlayer; i++) {
     for (const p of state.players) {
       if (state.deck.length === 0) break;
@@ -99,12 +107,38 @@ export function dealNextHands(state: GameState, countPerPlayer = 4) {
       dealt[p.id].push(c);
     }
   }
+  
+  // If this is the last deal, give dealer all faceUpCard(s)
+  if (isLastDeal && state.faceUpCard && state.faceUpCard.length > 0) {
+    const dealerIdx = state.players.findIndex((p) => p.id === state.dealerId);
+    if (dealerIdx !== -1) {
+      const dealer = state.players[dealerIdx];
+      for (const card of state.faceUpCard) {
+        dealer.hand.push(card);
+        dealt[dealer.id].push(card);
+      }
+    }
+  }
+  
   // after dealing, set the next turn to player after dealer
   const dealerIdx = state.players.findIndex((p) => p.id === state.dealerId);
   const dealerSeat = dealerIdx === -1 ? 0 : dealerIdx;
   state.currentTurnPlayerId = state.players[(dealerSeat + 1) % state.players.length]?.id;
-  state.handNumber = (state.handNumber || 0) + 1;
-  return { type: 'hands_dealt', actor: undefined, payload: { dealt, handNumber: state.handNumber } } as any;
+  
+  // Determine max hands based on game mode
+  const gameMode = state.players.length === 2 ? '1v1' : '2v2';
+  const maxHandsPerSet = gameMode === '2v2' ? 3 : 6;
+  
+  const previousHandNumber = state.handNumber || 0;
+  state.handNumber = previousHandNumber + 1;
+  
+  // Check if we completed a set and need to start a new one
+  if (previousHandNumber > 0 && previousHandNumber % maxHandsPerSet === 0) {
+    state.setNumber = (state.setNumber || 1) + 1;
+    state.handNumber = 1; // Reset hand number for new set
+  }
+  
+  return { type: 'hands_dealt', actor: undefined, payload: { dealt, handNumber: state.handNumber, setNumber: state.setNumber } } as any;
 }
 
 function parseCard(cardId: string) {

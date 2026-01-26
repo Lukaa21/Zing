@@ -368,7 +368,7 @@
 
 @media (max-width: 480px) {
   .leaderboard-overlay {
-    padding: 12px;
+    padding: 20px 12px;
   }
 
   .leaderboard-modal {
@@ -377,9 +377,6 @@
 
   .leaderboard-header {
     padding: 20px;
-    flex-direction: column;
-    gap: 16px;
-    align-items: flex-start;
   }
 
   .leaderboard-title {
@@ -387,7 +384,7 @@
   }
 
   .leaderboard-close-btn {
-    width: 100%;
+    width: 40px;
   }
 
   .leaderboard-content {

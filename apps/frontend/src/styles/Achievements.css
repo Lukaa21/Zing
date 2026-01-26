@@ -366,7 +366,7 @@
 
 @media (max-width: 480px) {
   .achievements-overlay {
-    padding: 12px;
+    padding: 20px 12px;
   }
 
   .achievements-modal {
@@ -375,9 +375,6 @@
 
   .achievements-header {
     padding: 20px;
-    flex-direction: column;
-    gap: 16px;
-    align-items: flex-start;
   }
 
   .achievements-title {
@@ -385,7 +382,7 @@
   }
 
   .achievements-close-btn {
-    width: 100%;
+    width: 40px;
   }
 
   .achievements-content {

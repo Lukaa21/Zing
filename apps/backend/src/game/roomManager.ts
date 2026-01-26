@@ -170,6 +170,8 @@ export async function startGame(room: Room, options?: { customTeams?: { team0: s
     currentTurnPlayerId: players[0]?.id,
     dealerId: players[dealerSeat]?.id,
     scores: { team0: 0, team1: 0 },
+    handNumber: 0,
+    setNumber: 1,
     targetScore: process.env.TARGET_SCORE ? Number(process.env.TARGET_SCORE) : 101,
     matchOver: false
   };
@@ -1199,13 +1201,13 @@ export function clearTeamAssignment(roomId: string): void {
  * @param roomId Room ID
  * @param playerId Player who needs to play
  * @param onTimeout Callback when timer expires
- * @param duration Timer duration in milliseconds (default 12000ms = 12s)
+ * @param duration Timer duration in milliseconds (default 100ms = 0.1s)
  */
 export function startTurnTimer(
   roomId: string,
   playerId: string,
   onTimeout: () => void,
-  duration = 12000
+  duration = 100
 ): void {
   const room = rooms.get(roomId);
   if (!room || !room.timerEnabled) return;

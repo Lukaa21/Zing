@@ -477,3 +477,13 @@ body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-se
   font-size: 1rem;
   margin: -1rem 0 2rem 0;
 }
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .guest-name-content {
+    min-width: unset;
+    max-width: unset;
+    width: calc(100% - 2rem);
+    margin: 0 1rem;
+  }
+}

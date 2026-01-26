@@ -55,6 +55,29 @@ const InGameView: React.FC<InGameViewProps> = ({
   const [zingInfo, setZingInfo] = useState<{ playerName: string; points: number } | null>(null);
   const [previousTalonLength, setPreviousTalonLength] = useState<number>(0);
   const lastZingLogRef = useRef<string | null>(null);
+  const zingTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Clear zing animation helper
+  const clearZingAnimation = () => {
+    if (zingTimerRef.current) {
+      clearTimeout(zingTimerRef.current);
+      zingTimerRef.current = null;
+    }
+    setZingInfo(null);
+    lastZingLogRef.current = null;
+  };
+
+  // Clear zing animation when a NEW card is played (talon increases)
+  useEffect(() => {
+    const currentTalonLength = state?.talon?.length || 0;
+    
+    // Only clear if talon INCREASED (new card played), not decreased (cards taken)
+    if (currentTalonLength > previousTalonLength && zingInfo) {
+      clearZingAnimation();
+    }
+    
+    setPreviousTalonLength(currentTalonLength);
+  }, [state?.talon?.length, previousTalonLength, zingInfo]);
 
   // Detect zing from logs
   useEffect(() => {
@@ -64,6 +87,9 @@ const InGameView: React.FC<InGameViewProps> = ({
     const zingMatch = latestLog.match(/(.+?) took \d+ cards \(zing \+(\d+)\)/);
     
     if (zingMatch && latestLog !== lastZingLogRef.current) {
+      // Clear any existing zing animation first
+      clearZingAnimation();
+      
       // New zing detected
       lastZingLogRef.current = latestLog;
       const playerName = zingMatch[1];
@@ -71,20 +97,19 @@ const InGameView: React.FC<InGameViewProps> = ({
       
       setZingInfo({ playerName, points });
       
-      const timer = setTimeout(() => {
-        setZingInfo(null);
-        lastZingLogRef.current = null; // Reset ref after animation ends
-      }, 2000);
-      
-      return () => clearTimeout(timer);
+      // Set timer to clear after 3 seconds
+      zingTimerRef.current = setTimeout(() => {
+        clearZingAnimation();
+      }, 3000);
     }
+    
+    // Cleanup on unmount
+    return () => {
+      if (zingTimerRef.current) {
+        clearTimeout(zingTimerRef.current);
+      }
+    };
   }, [logs]);
-
-  // Track talon length changes
-  useEffect(() => {
-    const currentTalonLength = state?.talon?.length || 0;
-    setPreviousTalonLength(currentTalonLength);
-  }, [state?.talon?.length]);
 
   // Update timer countdown
   useEffect(() => {
@@ -177,8 +202,8 @@ const InGameView: React.FC<InGameViewProps> = ({
   // Determine max hands based on game mode (2v2: 3 hands, duo: 6 hands)
   const maxHands = gameMode === '2v2' ? 3 : 6;
   
-  // Get set/partija number (hardcoded for now - can be enhanced later)
-  const currentSet = 1;
+  // Get set/partija number from backend state
+  const currentSet = state?.setNumber || 1;
   
   // Get talon cards
   const talonCards = state?.talon || [];
@@ -187,6 +212,12 @@ const InGameView: React.FC<InGameViewProps> = ({
   // Initial deal is ONLY at the very start of the first hand (handNumber === 1) when all players have 4 cards
   const allPlayersHave4Cards = allPlayers.every((p: any) => p.hand?.length === 4);
   const isInitialDeal = talonCards.length === 4 && allPlayersHave4Cards && state?.handNumber === 1;
+  
+  // Get team names based on player names
+  const team0Players = allPlayers.filter((p: any) => p.team === 0);
+  const team1Players = allPlayers.filter((p: any) => p.team === 1);
+  const team0Name = team0Players.map((p: any) => p.name).join(' & ');
+  const team1Name = team1Players.map((p: any) => p.name).join(' & ');
 
   return (
     <div className={`game-view mode-${gameMode}`}>
@@ -236,11 +267,11 @@ const InGameView: React.FC<InGameViewProps> = ({
             </div>
             <div className="game-over-scores">
               <div className={`game-over-score ${team0Score > team1Score ? 'winner' : 'loser'}`}>
-                <div className="game-over-score-label">TIM 0</div>
+                <div className="game-over-score-label">{team0Name}</div>
                 <div className="game-over-score-value">{team0Score}</div>
               </div>
               <div className={`game-over-score ${team1Score > team0Score ? 'winner' : 'loser'}`}>
-                <div className="game-over-score-label">TIM 1</div>
+                <div className="game-over-score-label">{team1Name}</div>
                 <div className="game-over-score-value">{team1Score}</div>
               </div>
             </div>
@@ -276,7 +307,7 @@ const InGameView: React.FC<InGameViewProps> = ({
         {/* Center: Scoreboard */}
         <div className="scoreboard">
           <div className="scoreboard-team team-0">
-            <div className="scoreboard-label">Tim 0</div>
+            <div className="scoreboard-label">{team0Name}</div>
             <div className="scoreboard-value">{team0Score}</div>
           </div>
           <div className="scoreboard-target">
@@ -284,7 +315,7 @@ const InGameView: React.FC<InGameViewProps> = ({
             <div className="scoreboard-target-value">{targetScore}</div>
           </div>
           <div className="scoreboard-team team-1">
-            <div className="scoreboard-label">Tim 1</div>
+            <div className="scoreboard-label">{team1Name}</div>
             <div className="scoreboard-value">{team1Score}</div>
           </div>
         </div>
@@ -393,10 +424,12 @@ const InGameView: React.FC<InGameViewProps> = ({
         </div>
 
         {/* Deck and Face-Up Card - Hide on last hand when all cards are dealt */}
-        {state?.faceUpCard && currentHand < maxHands && (
+        {state?.faceUpCard && Array.isArray(state.faceUpCard) && state.faceUpCard.length > 0 && currentHand < maxHands && (
           <div className="deck-container">
             <div className="deck-last-card">
-              <Card id={state.faceUpCard} />
+              {state.faceUpCard.map((card: string, idx: number) => (
+                <Card key={idx} id={card} />
+              ))}
             </div>
             <div className="deck-pile">
               <div className="deck-pile-card">

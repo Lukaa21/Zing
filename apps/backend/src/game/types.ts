@@ -26,10 +26,11 @@ export type GameState = {
   players: PlayerState[];
   talon: Talon; // pile, top is last
   deck: string[]; // remaining deck top = last
-  faceUpCard?: string; // The card shown face-up at bottom of deck (dealer gets this last)
+  faceUpCard?: string[]; // The card(s) shown face-up at bottom of deck (dealer gets these last)
   currentTurnPlayerId?: string;
   dealerId?: string;
   handNumber?: number; // 1-based index of the current mini-hand
+  setNumber?: number; // 1-based index of the current set/partija
   // cumulative match scores (team0/team1)
   scores: Record<string, number>;
   // target score to win the match (default 101)
