@@ -387,6 +387,16 @@ setActiveUsers(activeUsers);
       room.ownerId = creatorId;
       socket.join(room.id);
       
+      // First emit room_created so frontend navigates to RoomScreen
+      socket.emit('room_created', { 
+        roomId: room.id, 
+        visibility: 'private', 
+        accessCode: room.accessCode, 
+        inviteToken: room.inviteToken,
+        timerEnabled: room.timerEnabled
+      });
+      
+      // Then emit room_update with player data so frontend receives it after navigation
       io.to(room.id).emit('room_update', { 
         roomId: room.id, 
         players: room.players.map((p) => ({ id: p.id, name: p.name ?? p.id, role: p.role, taken: p.taken })), 
@@ -394,13 +404,6 @@ setActiveUsers(activeUsers);
         timerEnabled: room.timerEnabled,
         accessCode: room.accessCode,
         inviteToken: room.inviteToken
-      });
-      socket.emit('room_created', { 
-        roomId: room.id, 
-        visibility: 'private', 
-        accessCode: room.accessCode, 
-        inviteToken: room.inviteToken,
-        timerEnabled: room.timerEnabled
       });
     });
 

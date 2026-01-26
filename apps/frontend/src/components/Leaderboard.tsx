@@ -84,9 +84,7 @@ export default function Leaderboard({ token, currentUserId, onClose }: Leaderboa
             <span className="leaderboard-icon">🏆</span>
             <h2 className="leaderboard-title">Rang Lista</h2>
           </div>
-          <button className="leaderboard-close-btn" onClick={onClose}>
-            Zatvori
-          </button>
+          <button className="leaderboard-close-btn" onClick={onClose}>×</button>
         </div>
 
         {/* Content */}

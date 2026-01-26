@@ -568,8 +568,8 @@
   margin-top: 20px;
 }
 
-/* Tablet (768px - 1024px) */
-@media (max-width: 1024px) {
+/* Tablet (768px - 1200px) */
+@media (max-width: 1200px) {
   .lobby-main-grid {
     grid-template-columns: 1fr;
     gap: 24px;
@@ -629,6 +629,9 @@
   .lobby-nav {
     padding: 6px;
     gap: 6px;
+    max-width: 100%;
+    justify-content: center;
+    box-sizing: border-box;
   }
 
   .lobby-nav-btn {
@@ -722,6 +725,21 @@
     font-size: 16px;
     padding: 15px 28px;
   }
+
+  .lobby-header-content {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 24px;
+  }
+
+  .lobby-header-left {
+    text-align: center;
+  }
+
+  .lobby-header-right {
+    width: 100%;
+  }
+
 }
 
 /* Small mobile (< 400px) */
@@ -806,28 +824,6 @@
   font-weight: 700;
   color: white;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-.rules-modal-close {
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  font-size: 32px;
-  color: white;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  line-height: 1;
-  padding: 0;
-}
-
-.rules-modal-close:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: scale(1.1);
 }
 
 .rules-modal-content {
@@ -938,12 +934,6 @@
 
   .rules-modal-header h2 {
     font-size: 22px;
-  }
-
-  .rules-modal-close {
-    width: 36px;
-    height: 36px;
-    font-size: 28px;
   }
 
   .rules-modal-content {

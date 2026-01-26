@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../db/prisma';
 
 // RoomInviteStatus enum values
 const RoomInviteStatus = {
@@ -8,8 +8,6 @@ const RoomInviteStatus = {
   CANCELLED: 'CANCELLED',
   EXPIRED: 'EXPIRED',
 } as const;
-
-const prisma = new PrismaClient();
 
 export interface CreateInviteParams {
   roomId: string;

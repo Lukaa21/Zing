@@ -91,8 +91,14 @@ export function useRoomState({ socket, currentUserId, guestId, initialRoomId, in
     console.log('useRoomState: Registering socket event listeners');
 
     // Room events
-    const handleRoomCreated = (data: { roomId: string; visibility: string; accessCode?: string }) => {
-      setRoomState(prev => ({ ...prev, roomId: data.roomId }));
+    const handleRoomCreated = (data: { roomId: string; visibility: string; accessCode?: string; inviteToken?: string }) => {
+      console.log('Room created, adding current user to members immediately');
+      setRoomState(prev => ({ 
+        ...prev, 
+        roomId: data.roomId,
+        accessCode: data.accessCode || prev.accessCode,
+        inviteToken: data.inviteToken || prev.inviteToken,
+      }));
       setError(null);
     };
 

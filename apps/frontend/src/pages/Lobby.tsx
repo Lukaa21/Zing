@@ -304,7 +304,7 @@ const Lobby: React.FC<LobbyProps> = ({
             <div className="lobby-header-left">
               <img src="/zing_logo.png" alt="Zing Logo" className="lobby-logo" />
               <p className="lobby-player-info">
-                Dobrodošao, <span className="lobby-player-name">{playerName}</span>
+                Dobrodošli, <span className="lobby-player-name">{playerName}</span>
               </p>
             </div>
             
@@ -504,7 +504,7 @@ const Lobby: React.FC<LobbyProps> = ({
             <div className="rules-modal" onClick={(e) => e.stopPropagation()}>
               <div className="rules-modal-header">
                 <h2>📖 Pravilnik Igre "Zing"</h2>
-                <button className="rules-modal-close" onClick={() => setShowRulesModal(false)}>×</button>
+                <button className="close-btn" onClick={() => setShowRulesModal(false)}>×</button>
               </div>
               <div className="rules-modal-content">
                 <p className="rules-intro">

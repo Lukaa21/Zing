@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../db/prisma';
 
 // Helper to get period boundaries
 function getPeriodBoundaries(period: 'WEEKLY' | 'MONTHLY' | 'YEARLY') {
