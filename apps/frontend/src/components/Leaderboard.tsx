@@ -81,7 +81,6 @@ export default function Leaderboard({ token, currentUserId, onClose }: Leaderboa
         {/* Header */}
         <div className="leaderboard-header">
           <div className="leaderboard-title-section">
-            <span className="leaderboard-icon">🏆</span>
             <h2 className="leaderboard-title">Rang Lista</h2>
           </div>
           <button className="leaderboard-close-btn" onClick={onClose}>×</button>

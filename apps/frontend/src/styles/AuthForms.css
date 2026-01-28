@@ -179,6 +179,12 @@
   cursor: not-allowed;
 }
 
+.password-toggle-icon {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
 .auth-footer {
   text-align: center;
   margin-top: 28px;

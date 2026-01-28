@@ -162,7 +162,6 @@ export default function Achievements({ userId, token, onClose }: AchievementsPro
         {/* Header */}
         <div className="achievements-header">
           <div className="achievements-title-section">
-            <span className="achievements-icon">🏆</span>
             <h2 className="achievements-title">Dostignuća</h2>
           </div>
           <button className="achievements-close-btn" onClick={onClose}>×</button>

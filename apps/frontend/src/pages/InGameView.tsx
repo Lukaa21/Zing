@@ -311,7 +311,6 @@ const InGameView: React.FC<InGameViewProps> = ({
             <div className="scoreboard-value">{team0Score}</div>
           </div>
           <div className="scoreboard-target">
-            <div className="scoreboard-target-icon">🏆</div>
             <div className="scoreboard-target-value">{targetScore}</div>
           </div>
           <div className="scoreboard-team team-1">
