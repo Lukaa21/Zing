@@ -399,8 +399,8 @@ export async function saveMatchHistory(
         winnerTeam,
         team0Score: finalScores.team0,
         team1Score: finalScores.team1,
-        team0Zings: team0ZingsPoints,
-        team1Zings: team1ZingsPoints,
+        team0Zings: team0ZingsCount,
+        team1Zings: team1ZingsCount,
         hostUserId: room.visibility === 'private' ? (room.hostId || null) : (room.originalHostIds?.[0] || null),
         team0Player1Id: team0Players[0] ? extractUserId(team0Players[0].id) : null,
         team0Player1Name: team0Players[0]?.name || 'Unknown',
@@ -1207,7 +1207,7 @@ export function startTurnTimer(
   roomId: string,
   playerId: string,
   onTimeout: () => void,
-  duration = 100
+  duration = 12000
 ): void {
   const room = rooms.get(roomId);
   if (!room || !room.timerEnabled) return;
