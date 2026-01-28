@@ -62,7 +62,11 @@ export function initialDeal(state: GameState, seed?: string, dealerSeat = 0): Ga
     if (topRank === 'J') {
       // Remove Jack from top of talon and add to faceUpCards
       const jack = state.talon.pop();
-      if (jack) faceUpCards.push(jack);
+      if (jack) {
+        faceUpCards.push(jack);
+        // Add Jack to beginning of deck (so dealer gets it at the end)
+        state.deck.unshift(jack);
+      }
       
       // Draw new card from deck for talon top
       const newCard = state.deck.pop();
@@ -95,33 +99,48 @@ export function dealNextHands(state: GameState, countPerPlayer = 4) {
     dealt[p.id] = [];
   }
   
-  // Check if this is the last deal (only faceUpCard(s) left in deck)
+  // Check if this is the last deal (only faceUpCard(s) will remain in deck after dealing)
+  // In last deal: dealer gets (countPerPlayer - numFaceUpCards) face-down cards + numFaceUpCards trump
+  // Other players get countPerPlayer face-down cards each
   const numFaceUpCards = state.faceUpCard?.length || 1;
-  const isLastDeal = state.deck.length === numFaceUpCards;
+  const cardsNeededForDeal = countPerPlayer * state.players.length - numFaceUpCards;
+  const isLastDeal = state.deck.length === cardsNeededForDeal + numFaceUpCards;
+  
+  // Find dealer index before dealing
+  const dealerIdx = state.players.findIndex((p) => p.id === state.dealerId);
   
   for (let i = 0; i < countPerPlayer; i++) {
     for (const p of state.players) {
       if (state.deck.length === 0) break;
+      
+      // In last deal, dealer gets fewer cards (because they'll get faceUpCards instead)
+      const playerIdx = state.players.indexOf(p);
+      if (isLastDeal && playerIdx === dealerIdx && i >= countPerPlayer - numFaceUpCards) {
+        continue; // Skip dealing to dealer for last numFaceUpCards iterations
+      }
+      
       const c = state.deck.pop() as string;
       p.hand.push(c);
       dealt[p.id].push(c);
     }
   }
   
-  // If this is the last deal, give dealer all faceUpCard(s)
+  // If this is the last deal, give dealer all faceUpCard(s) from beginning of deck
   if (isLastDeal && state.faceUpCard && state.faceUpCard.length > 0) {
-    const dealerIdx = state.players.findIndex((p) => p.id === state.dealerId);
     if (dealerIdx !== -1) {
       const dealer = state.players[dealerIdx];
-      for (const card of state.faceUpCard) {
-        dealer.hand.push(card);
-        dealt[dealer.id].push(card);
+      // FaceUpCards are at the beginning of deck array (deck[0], deck[1], ...)
+      for (let i = 0; i < numFaceUpCards; i++) {
+        const card = state.deck.shift(); // Remove from beginning
+        if (card) {
+          dealer.hand.push(card);
+          dealt[dealer.id].push(card);
+        }
       }
     }
   }
   
   // after dealing, set the next turn to player after dealer
-  const dealerIdx = state.players.findIndex((p) => p.id === state.dealerId);
   const dealerSeat = dealerIdx === -1 ? 0 : dealerIdx;
   state.currentTurnPlayerId = state.players[(dealerSeat + 1) % state.players.length]?.id;
   

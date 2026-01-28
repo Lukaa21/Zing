@@ -97,7 +97,11 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
                 onClick={() => setShowPassword(!showPassword)}
                 aria-label="Toggle password visibility"
               >
-                {showPassword ? '🙈' : '👁️'}
+                <img 
+                  src={showPassword ? '/hide.png' : '/view.png'} 
+                  alt={showPassword ? 'Hide password' : 'Show password'}
+                  className="password-toggle-icon"
+                />
               </button>
             </div>
             <span className="auth-input-hint">Minimum 8 karaktera</span>

@@ -327,7 +327,8 @@
 /* Responsive */
 @media (max-width: 768px) {
   .leaderboard-modal {
-    max-height: 95vh;
+    width: 95%;
+    max-height: 90vh;
   }
 
   .leaderboard-header {

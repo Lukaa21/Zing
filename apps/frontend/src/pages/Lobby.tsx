@@ -503,7 +503,7 @@ const Lobby: React.FC<LobbyProps> = ({
           <div className="rules-modal-overlay" onClick={() => setShowRulesModal(false)}>
             <div className="rules-modal" onClick={(e) => e.stopPropagation()}>
               <div className="rules-modal-header">
-                <h2>📖 Pravilnik Igre "Zing"</h2>
+                <h2>Pravilnik Igre "Zing"</h2>
                 <button className="close-btn" onClick={() => setShowRulesModal(false)}>×</button>
               </div>
               <div className="rules-modal-content">
