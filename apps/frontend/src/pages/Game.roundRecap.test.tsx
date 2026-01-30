@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import React from 'react';
 import { render, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -23,7 +24,7 @@ afterEach(() => {
 });
 
 describe('Round recap modal', () => {
-  it('shows recap modal for 8s and disables actions', async () => {
+  it('shows recap modal for 13s and disables actions', async () => {
     const roomId = 'room1';
     const { container } = render(<Game roomId={roomId} playerName="Me" />);
 
