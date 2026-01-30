@@ -94,6 +94,9 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
   const bufferedTimerRef = React.useRef<{ duration: number; expiresAt?: number } | null>(null);
   const [surrenderVotes, setSurrenderVotes] = useState<any>(null);
   const [rematchVotes, setRematchVotes] = useState<any>(null);
+  const [roundRecap, setRoundRecap] = useState<{ payload: any; expiresAt: number } | null>(null);
+  const roundRecapTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+
   const playersRef = React.useRef(players);
   React.useEffect(() => {
     playersRef.current = players;
@@ -210,6 +213,26 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
           }, 1500);
         } catch (err) {
           console.error('Error handling talon_taken pause:', err);
+        }
+      }
+
+      // Round recap handling (show recap modal for 8s)
+      if (ev.type === 'round_end') {
+        try {
+          const payload = ev.payload || {};
+          const recapDuration = 13000; // 13 seconds
+          const expiresAt = Date.now() + recapDuration;
+          setRoundRecap({ payload, expiresAt });
+          if (roundRecapTimerRef.current) {
+            clearTimeout(roundRecapTimerRef.current);
+            roundRecapTimerRef.current = null;
+          }
+          roundRecapTimerRef.current = setTimeout(() => {
+            setRoundRecap(null);
+            roundRecapTimerRef.current = null;
+          }, recapDuration);
+        } catch (err) {
+          console.error('Error handling round_end recap:', err);
         }
       }    });
     s.on('room_update', (u: any) => {
@@ -446,6 +469,10 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
       setLogs((l) => [`You are not recognized in the room (cannot play)`, ...l].slice(0, 200));
       return;
     }
+    if (roundRecap) {
+      setLogs((l) => [`Akcija onemogućena tokom rezimea runde`, ...l].slice(0, 200));
+      return;
+    }
     if (state?.currentTurnPlayerId !== me.id) {
       setLogs((l) => [`Not your turn`, ...l].slice(0, 200));
       return;
@@ -525,6 +552,9 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
             timerExpiresAt={timerExpiresAt}
             isTalonPause={isTalonPause}
             pausedTalonTopCard={pausedTalonTopCard}
+            roundRecap={roundRecap?.payload}
+            recapExpiresAt={roundRecap?.expiresAt}
+            recapActive={!!roundRecap}
             setDevMode={setDevMode}
             setControlAs={setControlAs}
             onPlay={handlePlay}

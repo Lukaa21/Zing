@@ -646,6 +646,100 @@
   cursor: not-allowed;
 }
 
+/* Round Recap Modal */
+.recap-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.35); /* slightly lighter backdrop */
+  z-index: 9999;
+}
+.recap-modal {
+  --team0: #7c3aed;
+  --team1: #0ea5e9;
+  background: linear-gradient(180deg, rgba(29,20,54,0.98) 0%, rgba(24,16,48,0.98) 100%); /* slightly lighter dark purple */
+  color: #f8f7ff;
+  padding: 20px;
+  border-radius: 12px;
+  width: 760px;
+  max-width: calc(100% - 40px);
+  box-shadow: 0 14px 40px rgba(19,7,44,0.7);
+  border: 1px solid rgba(124,58,237,0.18);
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+/* tablet: 20px side gaps */
+@media (max-width: 1024px) {
+  .recap-modal { max-width: calc(100% - 40px); padding-left: 20px; padding-right: 20px; margin-left: 20px; margin-right: 20px; }
+}
+
+/* mobile: 10px side gaps */
+@media (max-width: 480px) {
+  .recap-modal { max-width: calc(100% - 20px); padding-left: 10px; padding-right: 10px; margin-left: 10px; margin-right: 10px; }
+}
+
+/* Slightly lighter backdrop already set in .recap-overlay */
+.recap-grid {
+  display: flex;
+  gap: 20px;
+  margin-top: 14px;
+  align-items: flex-start;
+}
+.recap-grid-2v2 { flex-direction: column; }.recap-teams { flex: 1; display:flex; gap:12px; flex-direction:column; }
+.recap-team { padding: 12px; border-radius: 8px; background: rgba(255,255,255,0.02); }
+.recap-team.team-0 { border-left: 4px solid var(--team0); }
+.recap-team.team-1 { border-left: 4px solid var(--team1); }
+.recap-team-title { font-weight: 800; margin-bottom: 6px; color: #efe6ff; }
+.recap-team-line { margin-top:6px; }
+
+/* Players grid */
+.recap-players { flex: 2; display: grid; gap: 12px; }
+.recap-players-1v1 { grid-template-columns: repeat(2, 1fr); }
+.recap-players-2v2 { grid-template-columns: repeat(4, 1fr); }
+.recap-player { padding: 14px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 2px solid rgba(255,255,255,0.03); position: relative; }
+.recap-player.team-0 { border-color: rgba(124,58,237,0.9); box-shadow: 0 6px 16px rgba(124,58,237,0.06); }
+.recap-player.team-1 { border-color: rgba(14,165,233,0.9); box-shadow: 0 6px 16px rgba(14,165,233,0.06); }
+.recap-player-name { font-weight: 800; margin-bottom: 8px; font-size: 16px; }
+.recap-player-points { font-size: 16px; }
+.recap-player-zings { font-size: 15px; color: #e6dfff; }
+.recap-player-taken { font-size: 15px; color: #dcd6ff; }
+.recap-player-bonus { margin-top: 6px; color: #ffd6e8; font-weight: 700; }
+.recap-crown { position: absolute; top: -14px; right: -14px; transform: rotate(30deg); width: 40px; height: 40px; }
+
+/* adjust team/players widths to match and center */
+.recap-inner { max-width: 680px; margin: 0 auto; width: 100%; }
+.recap-team-row { display:flex; gap:16px; margin-bottom: 12px; justify-content: center; }
+.recap-players { justify-content: center; }
+
+/* mobile: 2x2 players grid for 2v2 */
+@media (max-width: 640px) {
+  .recap-players-2v2 { grid-template-columns: repeat(2, 1fr); }
+  .recap-team-row { flex-direction: column; }
+}
+
+/* Team row layout for 2v2 */
+.recap-team-row { display:flex; gap:16px; margin-bottom: 12px; }
+.recap-team { padding: 14px; border-radius: 10px; background: rgba(255,255,255,0.02); flex: 1; }
+.recap-team.team-0 { border-left: 4px solid var(--team0); }
+.recap-team.team-1 { border-left: 4px solid var(--team1); }
+.recap-team-bonus { margin-top: 8px; color: #ffd6e8; font-weight: 700; }
+
+/* Prominent countdown */
+.recap-countdown { margin-top: 18px; text-align: center; }
+.recap-count { display: inline-block; background: linear-gradient(90deg, rgba(124,58,237,1), rgba(99,102,241,1)); padding: 10px 18px; border-radius: 999px; font-size: 22px; font-weight: 900; color: white; box-shadow: 0 8px 24px rgba(99,102,241,0.18); animation: pulse 1.2s infinite; }
+@keyframes pulse {
+  0% { transform: scale(1); box-shadow: 0 8px 24px rgba(99,102,241,0.18); }
+  50% { transform: scale(1.04); box-shadow: 0 12px 36px rgba(99,102,241,0.26); }
+  100% { transform: scale(1); box-shadow: 0 8px 24px rgba(99,102,241,0.18); }
+}
+
+/* bonus */
+.recap-bonus { margin-top: 8px; font-weight: 700; color: #ffd6e8; }
+
+
 /* ========================================
    CONTROLS (Bottom Right)
    ======================================== */
