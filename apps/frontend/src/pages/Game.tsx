@@ -84,6 +84,14 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
   const [isMatchmakingTransition, setIsMatchmakingTransition] = useState<boolean>(false);
   const [timerDuration, setTimerDuration] = useState<number | undefined>(undefined);
   const [timerExpiresAt, setTimerExpiresAt] = useState<number | undefined>(undefined);
+  // Talon pause state (1.5s visual pause when talon is taken)
+  const [isTalonPause, setIsTalonPause] = useState<boolean>(false);
+  const [pausedTalonTopCard, setPausedTalonTopCard] = useState<string | null>(null);
+  const isTalonPauseRef = React.useRef<boolean>(false);
+  React.useEffect(() => { isTalonPauseRef.current = isTalonPause; }, [isTalonPause]);
+  const talonPauseTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  // Buffer for a turn_timer_started received during pause
+  const bufferedTimerRef = React.useRef<{ duration: number; expiresAt?: number } | null>(null);
   const [surrenderVotes, setSurrenderVotes] = useState<any>(null);
   const [rematchVotes, setRematchVotes] = useState<any>(null);
   const playersRef = React.useRef(players);
@@ -161,7 +169,49 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
       const msg = formatEvent(ev, actorName);
       setLogs((l: string[]) => [msg, ...l].slice(0, 200));
       console.log('event', ev);
-    });
+      // Talon taken pause handling (show last played card for 1.5s and disable plays)
+      if (ev.type === 'talon_taken') {
+        try {
+          const taken: string[] = ev.payload?.taken || [];
+          const lastPlayed = taken.length > 0 ? taken[taken.length - 1] : null;
+
+          // Buffer current timer (if any) and clear it to pause
+          if (timerDuration || timerExpiresAt) {
+            bufferedTimerRef.current = { duration: timerDuration || 0, expiresAt: timerExpiresAt };
+            setTimerDuration(undefined);
+            setTimerExpiresAt(undefined);
+          }
+
+          // Start talon pause
+          if (talonPauseTimerRef.current) {
+            clearTimeout(talonPauseTimerRef.current);
+            talonPauseTimerRef.current = null;
+          }
+
+          setIsTalonPause(true);
+          setPausedTalonTopCard(lastPlayed);
+
+          talonPauseTimerRef.current = setTimeout(() => {
+            setIsTalonPause(false);
+            setPausedTalonTopCard(null);
+
+            // Restore buffered timer (start it afresh from now)
+            const buffered = bufferedTimerRef.current;
+            if (buffered) {
+              setTimerDuration(buffered.duration);
+              setTimerExpiresAt(Date.now() + (buffered.duration || 0));
+              bufferedTimerRef.current = null;
+            }
+
+            if (talonPauseTimerRef.current) {
+              clearTimeout(talonPauseTimerRef.current);
+              talonPauseTimerRef.current = null;
+            }
+          }, 1500);
+        } catch (err) {
+          console.error('Error handling talon_taken pause:', err);
+        }
+      }    });
     s.on('room_update', (u: any) => {
       console.log('room_update', u);
       setPlayers(u.players || []);
@@ -200,8 +250,13 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
     });
 
     s.on('turn_timer_started', (data: { playerId: string; duration: number; expiresAt: number }) => {
-      setTimerDuration(data.duration);
-      setTimerExpiresAt(data.expiresAt);
+      // If we're in a talon pause, buffer the timer to apply after pause ends
+      if (isTalonPauseRef.current) {
+        bufferedTimerRef.current = { duration: data.duration, expiresAt: data.expiresAt };
+      } else {
+        setTimerDuration(data.duration);
+        setTimerExpiresAt(data.expiresAt);
+      }
     });
 
     s.on('match_found', (data: { roomId: string; mode: string; players: any[] }) => {
@@ -367,6 +422,13 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
       s.off('left_room');
       // keep socket alive (do not disconnect singleton)
       s.disconnect();
+
+      // Cleanup any talon pause timer if active
+      if (talonPauseTimerRef.current) {
+        clearTimeout(talonPauseTimerRef.current);
+        talonPauseTimerRef.current = null;
+      }
+      bufferedTimerRef.current = null;
     };
   }, []);
 
@@ -461,6 +523,8 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
             controlAs={controlAs}
             timerDuration={timerDuration}
             timerExpiresAt={timerExpiresAt}
+            isTalonPause={isTalonPause}
+            pausedTalonTopCard={pausedTalonTopCard}
             setDevMode={setDevMode}
             setControlAs={setControlAs}
             onPlay={handlePlay}
