@@ -184,9 +184,13 @@ const InGameView: React.FC<InGameViewProps> = ({
     }
   }
   
-  // Get scores
-  const team0Score = state?.scores?.team0 || 0;
-  const team1Score = state?.scores?.team1 || 0;
+  // Get scores (match score + current round score)
+  const team0MatchScore = state?.scores?.team0 || 0;
+  const team1MatchScore = state?.scores?.team1 || 0;
+  const team0RoundScore = state?.currentRoundScore?.team0 || 0;
+  const team1RoundScore = state?.currentRoundScore?.team1 || 0;
+  const team0Score = team0MatchScore + team0RoundScore;
+  const team1Score = team1MatchScore + team1RoundScore;
   const myTeamScore = myTeam === 0 ? team0Score : team1Score;
   const opponentTeamScore = myTeam === 0 ? team1Score : team0Score;
   

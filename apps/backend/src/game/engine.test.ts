@@ -69,6 +69,34 @@ it('handles Jack trump card correctly - multiple faceUpCards and last hand deali
       expect(state.faceUpCard.length).toBeGreaterThan(1);
       console.log(`✅ TEST 2 PASSED: faceUpCard has ${state.faceUpCard.length} cards`);
       
+      // TEST 2b: CRITICAL - Check order and content of faceUpCard array
+      console.log(`\n🔍 DETAILED faceUpCard VALIDATION:`);
+      const firstCard = state.faceUpCard[0];
+      const secondCard = state.faceUpCard[1];
+      const firstCardRank = firstCard.split('-')[1];
+      const secondCardRank = secondCard.split('-')[1];
+      
+      console.log(`  [0] = ${firstCard} (rank: ${firstCardRank})`);
+      console.log(`  [1] = ${secondCard} (rank: ${secondCardRank})`);
+      
+      // CRITICAL: First card should NOT be Jack (it should be original trump)
+      expect(firstCardRank).not.toBe('J');
+      console.log(`  ✅ First card is NOT Jack (original trump card)`);
+      
+      // CRITICAL: Second card should be Jack (from talon)
+      expect(secondCardRank).toBe('J');
+      console.log(`  ✅ Second card IS Jack (from talon)`);
+      
+      // CRITICAL: Both cards should be in deck at start (for dealer to receive)
+      const deckFirstTwo = state.deck.slice(0, 2);
+      expect(deckFirstTwo).toContain(secondCard); // Jack should be in deck
+      expect(deckFirstTwo).toContain(firstCard); // Original trump should be in deck
+      console.log(`  ✅ Both trump cards are at beginning of deck (dealer will receive them)`);
+      console.log(`  Deck[0] = ${state.deck[0]}, Deck[1] = ${state.deck[1]}`);
+      
+      expect(state.faceUpCard.length).toBe(2);
+      console.log(`✅ TEST 2b PASSED: faceUpCard array is CORRECT (original trump first, Jack second)`);
+      
       // Simulate playing all cards to reach last deal
       console.log(`\n🎮 SIMULATING GAME TO LAST HAND...`);
       

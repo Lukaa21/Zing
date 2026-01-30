@@ -85,6 +85,7 @@ export function initialDeal(state: GameState, seed?: string, dealerSeat = 0): Ga
   state.handNumber = 1;
   state.dealerId = state.players[dealerSeat]?.id;
   state.currentTurnPlayerId = state.players[(dealerSeat + 1) % state.players.length]?.id;
+  state.currentRoundScore = { team0: 0, team1: 0 };
   (state as any)._zingPending = null;
   (state as any)._roundZings = { team0: 0, team1: 0 };
   (state as any)._roundZingsCount = { team0: 0, team1: 0 }; // Track number of zings, not points
@@ -201,6 +202,12 @@ export function applyIntent(state: GameState, intent: Intent): Event | null {
       if (playedRank === 'J' || playedRank === prevRank) {
         captured = state.talon.splice(0, state.talon.length);
         player.taken.push(...captured);
+        // Update current round score in real-time
+        const teamKey = `team${player.team}` as 'team0' | 'team1';
+        if (!state.currentRoundScore) state.currentRoundScore = { team0: 0, team1: 0 };
+        for (const card of captured) {
+          state.currentRoundScore[teamKey] += cardBasePoints(card);
+        }
         if (prevTalonSize === 1 && (state as any)._zingPending) {
           const pending = (state as any)._zingPending as { cardId: string; playerId: string } | null;
           if (pending && pending.cardId) {
@@ -211,6 +218,7 @@ export function applyIntent(state: GameState, intent: Intent): Event | null {
               const teamKey = `team${player.team}` as 'team0' | 'team1';
               (state as any)._roundZings[teamKey] += points; // Points for scoring
               (state as any)._roundZingsCount[teamKey] += 1; // Count for achievements
+              if (state.currentRoundScore) state.currentRoundScore[teamKey] += points;
             }
           }
         }
