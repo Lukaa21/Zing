@@ -33,7 +33,7 @@ export type GameState = {
   setNumber?: number; // 1-based index of the current set/partija
   // cumulative match scores (team0/team1)
   scores: Record<string, number>;
-  // current round scores (reset each round)
+  // current round scores (reset each round, updated in real-time)
   currentRoundScore?: Record<string, number>;
   // target score to win the match (default 101)
   targetScore?: number;

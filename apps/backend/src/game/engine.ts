@@ -202,7 +202,7 @@ export function applyIntent(state: GameState, intent: Intent): Event | null {
       if (playedRank === 'J' || playedRank === prevRank) {
         captured = state.talon.splice(0, state.talon.length);
         player.taken.push(...captured);
-        // Update current round score immediately
+        // Update current round score in real-time
         const teamKey = `team${player.team}` as 'team0' | 'team1';
         if (!state.currentRoundScore) state.currentRoundScore = { team0: 0, team1: 0 };
         for (const card of captured) {

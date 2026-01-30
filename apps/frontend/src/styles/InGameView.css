@@ -630,7 +630,7 @@
 
 /* Hover effect - card lifts up (desktop only) */
 @media (hover: hover) and (pointer: fine) {
-  .player-area.position-bottom .player-hand .card:hover:not(.disabled) {
+  .player-area.position-bottom .player-hand .card:hover {
     transform: translateY(-20px) rotate(0deg) scale(1.26);
     z-index: 100;
     filter: brightness(1.1);
@@ -1022,7 +1022,7 @@
 
   /* Hover effect (desktop only) */
   @media (hover: hover) and (pointer: fine) {
-    .player-area.position-bottom .player-hand .card:hover:not(.disabled) {
+    .player-area.position-bottom .player-hand .card:hover {
       transform: translateY(-20px) rotate(0deg) scale(1.26);
     }
   }

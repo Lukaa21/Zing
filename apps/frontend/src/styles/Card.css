@@ -14,7 +14,6 @@
 .card-front.disabled {
   opacity: 0.45;
   cursor: not-allowed;
-  pointer-events: none;
 }
 
 .card-back {
@@ -23,7 +22,7 @@
 
 /* Hover effect (desktop only) */
 @media (hover: hover) and (pointer: fine) {
-  .card:hover:not(.disabled):not(.card-back) {
+  .card:hover:not(.card-back) {
     filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3)) brightness(1.05);
   }
 }
