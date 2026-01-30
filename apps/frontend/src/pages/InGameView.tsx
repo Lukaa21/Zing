@@ -20,6 +20,8 @@ interface InGameViewProps {
   controlAs: string | null;
   timerDuration?: number; // Total timer duration in ms
   timerExpiresAt?: number; // Timestamp when timer expires
+  isTalonPause?: boolean;
+  pausedTalonTopCard?: string | null;
   setDevMode: (v: boolean) => void;
   setControlAs: (id: string | null) => void;
   onPlay: (cardId: string, ownerId?: string) => void;
@@ -41,6 +43,8 @@ const InGameView: React.FC<InGameViewProps> = ({
   controlAs,
   timerDuration,
   timerExpiresAt,
+  isTalonPause = false,
+  pausedTalonTopCard = null,
   setDevMode,
   setControlAs,
   onPlay,
@@ -420,7 +424,7 @@ const InGameView: React.FC<InGameViewProps> = ({
               <Hand 
                 cards={myHand} 
                 onPlay={(id) => onPlay(id)} 
-                disabled={myPlayerId !== state?.currentTurnPlayerId} 
+                disabled={myPlayerId !== state?.currentTurnPlayerId || !!isTalonPause} 
               />
             )}
           </div>
@@ -478,7 +482,7 @@ const InGameView: React.FC<InGameViewProps> = ({
           ) : (
             // State B: Cards stacked during play - show all talon cards
             <div className="talon-stack">
-              {talonCards.map((cardId: string, idx: number) => (
+              {(isTalonPause && pausedTalonTopCard ? [...talonCards, pausedTalonTopCard] : talonCards).map((cardId: string, idx: number) => (
                 <div key={idx} className="card-wrapper played">
                   <Card id={cardId} />
                 </div>
