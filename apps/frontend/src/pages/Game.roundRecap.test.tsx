@@ -4,10 +4,10 @@ import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import Game from './Game';
 
 // Mock socket connect
-const handlers: Record<string, Function[]> = {};
+const handlers: Record<string, ((...args: unknown[]) => void)[]> = {};
 const mockSocket = {
-  on: (ev: string, cb: Function) => { handlers[ev] = (handlers[ev] || []).concat(cb); },
-  off: (ev: string, cb?: Function) => { if (!cb) { handlers[ev] = []; } else { handlers[ev] = (handlers[ev] || []).filter(f => f !== cb); } },
+  on: (ev: string, cb: (...args: unknown[]) => void) => { handlers[ev] = (handlers[ev] || []).concat(cb); },
+  off: (ev: string, cb?: (...args: unknown[]) => void) => { if (!cb) { handlers[ev] = []; } else { handlers[ev] = (handlers[ev] || []).filter(f => f !== cb); } },
   emit: vi.fn(),
   connected: true,
   disconnect: vi.fn()
