@@ -10,3 +10,5 @@ coverage/
 **/.pnp.*
 **/.yarn/*
 apps/**/node_modules
+*.test.ts
+*.spec.ts

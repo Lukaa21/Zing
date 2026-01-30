@@ -39,6 +39,14 @@ describe('room manager match progression', () => {
     const events = await finalizeRound(room as any);
     expect(events.map((e) => e.type)).toContain('round_end');
     expect(events.map((e) => e.type)).toContain('match_update');
+    // check round_end payload contains perPlayer breakdown
+    const roundEnd = events.find((e: any) => e.type === 'round_end');
+    expect(roundEnd).toBeTruthy();
+    const perPlayer = roundEnd && roundEnd.payload?.perPlayer ? roundEnd.payload.perPlayer : {};
+    expect(perPlayer['p1']).toBeTruthy();
+    // diamonds-10 is worth 2 points (special diamond 10 rule)
+    expect(perPlayer['p1'].points).toBe(2);
+
     // since target (101) not reached, a hands_dealt should be emitted to start next round
     expect(events.map((e) => e.type)).toContain('hands_dealt');
     expect(room.state!.scores.team0).toBeGreaterThan(0);

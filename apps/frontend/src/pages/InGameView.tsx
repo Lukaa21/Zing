@@ -22,6 +22,9 @@ interface InGameViewProps {
   timerExpiresAt?: number; // Timestamp when timer expires
   isTalonPause?: boolean;
   pausedTalonTopCard?: string | null;
+  roundRecap?: any;
+  recapExpiresAt?: number;
+  recapActive?: boolean;
   setDevMode: (v: boolean) => void;
   setControlAs: (id: string | null) => void;
   onPlay: (cardId: string, ownerId?: string) => void;
@@ -45,6 +48,9 @@ const InGameView: React.FC<InGameViewProps> = ({
   timerExpiresAt,
   isTalonPause = false,
   pausedTalonTopCard = null,
+  roundRecap,
+  recapExpiresAt,
+  recapActive,
   setDevMode,
   setControlAs,
   onPlay,
@@ -122,16 +128,31 @@ const InGameView: React.FC<InGameViewProps> = ({
       return;
     }
 
-    const updateTimer = () => {
-      const remaining = timerExpiresAt - Date.now();
-      setTimeRemaining(Math.max(0, remaining));
+    const update = () => {
+      const remaining = Math.max(0, timerExpiresAt - Date.now());
+      setTimeRemaining(remaining);
     };
 
-    updateTimer(); // Initial update
-    const interval = setInterval(updateTimer, 100); // Update every 100ms for smooth countdown
-
-    return () => clearInterval(interval);
+    update();
+    const id = setInterval(update, 250);
+    return () => clearInterval(id);
   }, [timerExpiresAt]);
+
+  // Round recap countdown
+  const [recapSecondsLeft, setRecapSecondsLeft] = useState<number | null>(null);
+  useEffect(() => {
+    if (!recapExpiresAt) {
+      setRecapSecondsLeft(null);
+      return;
+    }
+    const update = () => {
+      const s = Math.max(0, Math.ceil((recapExpiresAt - Date.now()) / 1000));
+      setRecapSecondsLeft(s);
+    };
+    update();
+    const id = setInterval(update, 250);
+    return () => clearInterval(id);
+  }, [recapExpiresAt]);
 
   // Format timer display: show decimals only when < 4 seconds
   const timerSeconds = timeRemaining !== null 
@@ -424,7 +445,7 @@ const InGameView: React.FC<InGameViewProps> = ({
               <Hand 
                 cards={myHand} 
                 onPlay={(id) => onPlay(id)} 
-                disabled={myPlayerId !== state?.currentTurnPlayerId || !!isTalonPause} 
+                disabled={myPlayerId !== state?.currentTurnPlayerId || !!isTalonPause || !!recapActive} 
               />
             )}
           </div>
@@ -491,6 +512,76 @@ const InGameView: React.FC<InGameViewProps> = ({
           )}
         </div>
       </div>
+
+      {/* Round Recap Modal */}
+      {recapActive && roundRecap && (
+        <div className="recap-overlay">
+          <div className="recap-modal">
+            <h3>Rezime runde</h3>
+            <div className={`recap-grid ${gameMode === '2v2' ? 'recap-grid-2v2' : ''}`}>
+              <div className="recap-inner">
+                {gameMode === '2v2' && (
+                  <div className="recap-team-row">
+                    <div className="recap-team team-0">
+                      <div className="recap-team-title">Tim 1</div>
+                      <div className="recap-team-line">Poeni: <strong>{roundRecap.scores?.team0 || 0}</strong></div>
+                      <div className="recap-team-line">Zingovi: <strong>{roundRecap.teams?.team0?.zingsCount || 0}</strong></div>
+                      <div className="recap-team-line">Poneo karata: <strong>{roundRecap.teams?.team0?.totalTaken || roundRecap.takenCounts?.team0 || 0}</strong></div>
+                      {roundRecap.bonus && roundRecap.bonus.awardedToTeam === 0 && (
+                        <div className="recap-team-bonus">Bonus: +3 poena</div>
+                      )}
+                    </div>
+                    <div className="recap-team team-1">
+                      <div className="recap-team-title">Tim 2</div>
+                      <div className="recap-team-line">Poeni: <strong>{roundRecap.scores?.team1 || 0}</strong></div>
+                      <div className="recap-team-line">Zingovi: <strong>{roundRecap.teams?.team1?.zingsCount || 0}</strong></div>
+                      <div className="recap-team-line">Ponio karata: <strong>{roundRecap.teams?.team1?.totalTaken || roundRecap.takenCounts?.team1 || 0}</strong></div>
+                      {roundRecap.bonus && roundRecap.bonus.awardedToTeam === 1 && (
+                        <div className="recap-team-bonus">Bonus: +3 poena</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className={`recap-players ${gameMode === '1v1' ? 'recap-players-1v1' : 'recap-players-2v2'}`}>
+                  {/* Precompute displayed points and find top player for crown */}
+                  {(() => {
+                    const playersForRender = (state?.players || []).map((pl: any) => {
+                      const p = (roundRecap.perPlayer && roundRecap.perPlayer[pl.id]) || { id: pl.id, name: pl.name, points: 0, takenCount: 0, zingsCount: 0, zings: 0, team: pl.team };
+                      let displayedPoints = p.points + (p.zings || 0);
+                      if (gameMode === '1v1' && roundRecap.bonus && roundRecap.bonus.awardedToTeam === p.team) {
+                        displayedPoints += 3;
+                      }
+                      return { ...p, displayedPoints };
+                    });
+                    const maxPoints = Math.max(...playersForRender.map((x: any) => x.displayedPoints));
+                    const topPlayerId = playersForRender.find((x: any) => x.displayedPoints === maxPoints)?.id;
+                    return playersForRender.map((p: any) => (
+                      <div key={p.id} className={`recap-player team-${p.team}`} style={{ position: 'relative' }}>
+                        {topPlayerId === p.id && (
+                          <div className="recap-crown" title="Najviše poena">
+                            <svg viewBox="0 0 24 24" width="36" height="36" fill="#FFD166" xmlns="http://www.w3.org/2000/svg"><path d="M12 4l2 4 4-2-1 4 4 1-3 3-3-2-3 2-3-3-3-1 4-1-1-4 4 2z"/></svg>
+                          </div>
+                        )}
+                        <div className="recap-player-name">{p.name}</div>
+                        <div className="recap-player-points">{gameMode === '1v1' ? 'Ukupno: ' : 'Poeni: '}<strong>{p.displayedPoints}</strong></div>
+                        <div className="recap-player-zings">Zingovi: <strong>{p.zingsCount || 0}</strong></div>
+                        <div className="recap-player-taken">Ponio karata: <strong>{p.takenCount}</strong>
+                          {gameMode === '1v1' && roundRecap.bonus && roundRecap.bonus.awardedToTeam === p.team && (
+                            <div className="recap-player-bonus">Bonus +3 poena</div>
+                          )}
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
+            </div>
+
+            <div className="recap-countdown">Nova runda počinje za <strong className="recap-count">{recapSecondsLeft ?? 13}s</strong></div>
+          </div>
+        </div>
+      )}
 
       {/* Controls (Bottom Right) */}
       {!state?.matchOver && !isSpectator && onSurrender && (

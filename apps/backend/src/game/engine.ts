@@ -218,6 +218,11 @@ export function applyIntent(state: GameState, intent: Intent): Event | null {
               const teamKey = `team${player.team}` as 'team0' | 'team1';
               (state as any)._roundZings[teamKey] += points; // Points for scoring
               (state as any)._roundZingsCount[teamKey] += 1; // Count for achievements
+              // Track per-player zing points and counts for round recap
+              (state as any)._playerZingsPoints = (state as any)._playerZingsPoints || {};
+              (state as any)._playerZingsPoints[player.id] = ((state as any)._playerZingsPoints[player.id] || 0) + points;
+              (state as any)._playerZingsCount = (state as any)._playerZingsCount || {};
+              (state as any)._playerZingsCount[player.id] = ((state as any)._playerZingsCount[player.id] || 0) + 1;
               if (state.currentRoundScore) state.currentRoundScore[teamKey] += points;
             }
           }
@@ -266,19 +271,37 @@ export function computeRoundScores(state: GameState) {
 
   let ownerOfTwoClubs: number | null = null;
 
+  const perPlayer: Record<string, any> = {};
+
   for (const p of state.players) {
     const teamKey = `team${p.team}` as 'team0' | 'team1';
     teams[teamKey].players.push(p.name);
+
+    // Per-player scoring
+    let playerPoints = 0;
+    const playerScoringCards: Array<{ card: string; pts: number }> = [];
     for (const c of p.taken) {
       const pts = cardBasePoints(c);
-      if (pts > 0) teams[teamKey].scoringCards.push({ card: c, pts });
+      if (pts > 0) playerScoringCards.push({ card: c, pts });
       teams[teamKey].totalTaken += 1;
       teams[teamKey].totalPoints += pts;
       teamPoints[teamKey] += pts;
       teamTakenCounts[teamKey] += 1;
+      playerPoints += pts;
       const [suit, rank] = c.split('-');
       if (suit === 'clubs' && rank === '2') ownerOfTwoClubs = p.team;
     }
+
+    perPlayer[p.id] = {
+      id: p.id,
+      name: p.name,
+      team: p.team,
+      scoringCards: playerScoringCards,
+      points: playerPoints,
+      takenCount: p.taken.length,
+      zings: ((state as any)._playerZingsPoints || {})[p.id] || 0,
+      zingsCount: ((state as any)._playerZingsCount || {})[p.id] || 0,
+    };
   }
 
   const z = (state as any)._roundZings || { team0: 0, team1: 0 };
@@ -310,6 +333,6 @@ export function computeRoundScores(state: GameState) {
     }
   }
 
-  const result = { scores: teamPoints, takenCounts: teamTakenCounts, teams, bonus };
+  const result = { scores: teamPoints, takenCounts: teamTakenCounts, teams, bonus, perPlayer };
   return result;
 }

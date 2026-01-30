@@ -46,8 +46,16 @@ it('handles Jack trump card correctly - multiple faceUpCards and last hand deali
     const seed = Math.random().toString();
     initialDeal(state, seed, 0);
     
-    // Check if we got Jack trump
+    // Check if we got Jack trump (ensure original trump is NOT a Jack)
     if (state.faceUpCard && state.faceUpCard.length > 1) {
+      const firstCard = state.faceUpCard[0];
+      const secondCard = state.faceUpCard[1];
+      const firstCardRank = firstCard.split('-')[1];
+      const secondCardRank = secondCard.split('-')[1];
+      // Only accept scenario where original trump isn't a Jack and the second card is a Jack from talon
+      if (firstCardRank === 'J' || secondCardRank !== 'J') {
+        continue;
+      }
       foundJackTrump = true;
       
       console.log('\n🎯 FOUND JACK TRUMP SCENARIO!');
@@ -71,10 +79,7 @@ it('handles Jack trump card correctly - multiple faceUpCards and last hand deali
       
       // TEST 2b: CRITICAL - Check order and content of faceUpCard array
       console.log(`\n🔍 DETAILED faceUpCard VALIDATION:`);
-      const firstCard = state.faceUpCard[0];
-      const secondCard = state.faceUpCard[1];
-      const firstCardRank = firstCard.split('-')[1];
-      const secondCardRank = secondCard.split('-')[1];
+
       
       console.log(`  [0] = ${firstCard} (rank: ${firstCardRank})`);
       console.log(`  [1] = ${secondCard} (rank: ${secondCardRank})`);

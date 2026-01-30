@@ -1,8 +1,10 @@
 import React from 'react';
 
+interface Player { id: string; name: string; seat?: number; role?: string; team?: number }
+
 interface WaitingRoomViewProps {
   roomId: string;
-  players: any[];
+  players: Player[];
   myId: string | null;
   ownerId: string | null;
   playerName: string;
@@ -30,7 +32,7 @@ const WaitingRoomView: React.FC<WaitingRoomViewProps> = ({
         <div style={{ minWidth: 240 }}>
           <h3>Players in Room</h3>
           <ul className="players-list">
-            {players.map((p) => (
+            {players.map((p: Player) => (
               <li key={p.id}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <div>
