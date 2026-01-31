@@ -223,9 +223,13 @@ const InGameView: React.FC<InGameViewProps> = ({
   const myTeamScore = myTeam === 0 ? team0Score : team1Score;
   const opponentTeamScore = myTeam === 0 ? team1Score : team0Score;
   
-  // Determine target score (101, 151, or 201)
-  const targetScore = Math.max(team0Score, team1Score) > 101 
-    ? (Math.max(team0Score, team1Score) > 151 ? 201 : 151)
+  // Determine target score (101, 151, or 201).
+  // IMPORTANT: use match-only scores (exclude currentRoundScore) so the
+  // threshold doesn't change in the middle of a hand when a team temporarily
+  // crosses 101. Threshold may only advance at the end of a hand (server-side).
+  const maxMatchScore = Math.max(team0MatchScore, team1MatchScore);
+  const targetScore = maxMatchScore > 101
+    ? (maxMatchScore > 151 ? 201 : 151)
     : 101;
   
   // Get game info
