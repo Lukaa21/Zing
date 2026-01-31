@@ -64,6 +64,10 @@ export type Room = {
     expiresAt: number; // timestamp when timer expires
     timeoutId: NodeJS.Timeout;
   };
+  // non-blocking recap pause: if set, server should delay starting new timers until this timestamp
+  recapPausedUntil?: number;
+  // internal deferred timer id used to schedule a timer start after recap pause
+  _deferredTurnTimer?: NodeJS.Timeout;
   // game mode and start time for match history
   mode?: '1v1' | '2v2';
   gameStartedAt?: Date;
@@ -494,6 +498,16 @@ export async function finalizeRound(room: Room) {
   room.seq++;
   await appendGameEvent(state.id, room.seq, matchUpdate.type, matchUpdate.actor, matchUpdate.payload);
   emitted.push(matchUpdate);
+
+  // Non-blocking recap pause: set a timestamp during which new timers should be deferred
+  try {
+    const recapMs = 13000; // 13 seconds recap window
+    room.recapPausedUntil = Date.now() + recapMs;
+    // Clear any active turn timer to avoid background timeouts during recap
+    clearTurnTimer(room.id);
+  } catch (err) {
+    console.warn('Failed to set recap pause on room:', err);
+  }
 
   // Now check if one team reached the (possibly updated) target while the other did not
   if ((t0 >= target && t1 < target) || (t1 >= target && t0 < target)) {
@@ -950,10 +964,6 @@ export function leaveMemberRoom(
   // Remove member
   room.members.splice(memberIndex, 1);
 
-  // Remove from players array if present
-  room.players = room.players.filter(p => p.id !== userId);
-
-  // Remove from owner if they were owner
   if (room.ownerId === userId) {
     room.ownerId = room.members[0]?.userId;
   }
@@ -1207,10 +1217,29 @@ export function startTurnTimer(
   roomId: string,
   playerId: string,
   onTimeout: () => void,
-  duration = 12000
+  duration = 12000,
+  onStarted?: (expiresAt: number) => void
 ): void {
   const room = rooms.get(roomId);
   if (!room || !room.timerEnabled) return;
+
+  // If a recap pause is active, schedule a deferred start after the pause expires
+  if (room.recapPausedUntil && room.recapPausedUntil > Date.now()) {
+    const remaining = Math.max(0, room.recapPausedUntil - Date.now());
+    // Clear any previously scheduled deferred attempt
+    if (room._deferredTurnTimer) {
+      clearTimeout(room._deferredTurnTimer);
+      room._deferredTurnTimer = undefined;
+    }
+    console.log(`[roomManager] deferring startTurnTimer for room ${roomId} for ${remaining}ms (recap)`);
+    room._deferredTurnTimer = setTimeout(() => {
+      room._deferredTurnTimer = undefined;
+      console.log(`[roomManager] deferred startTurnTimer firing for room ${roomId}`);
+      // Attempt to start the timer now (no recursion loop because recapPausedUntil should be expired)
+      startTurnTimer(roomId, playerId, onTimeout, duration, onStarted);
+    }, remaining + 10);
+    return;
+  }
 
   // Clear existing timer if any
   clearTurnTimer(roomId);
@@ -1230,6 +1259,11 @@ export function startTurnTimer(
     expiresAt,
     timeoutId,
   };
+
+  // notify caller that timer has started
+  if (onStarted) {
+    try { onStarted(expiresAt); } catch (err) { console.warn('onStarted callback failed', err); }
+  }
 }
 
 /**
@@ -1239,8 +1273,19 @@ export function clearTurnTimer(roomId: string): void {
   const room = rooms.get(roomId);
   if (!room || !room.turnTimer) return;
 
-  clearTimeout(room.turnTimer.timeoutId);
-  room.turnTimer = undefined;
+  try {
+    if (room.turnTimer) {
+      clearTimeout(room.turnTimer.timeoutId);
+      room.turnTimer = undefined;
+    }
+    // Also clear any deferred start scheduled due to recap pause
+    if (room._deferredTurnTimer) {
+      clearTimeout(room._deferredTurnTimer);
+      room._deferredTurnTimer = undefined;
+    }
+  } catch (err) {
+    console.warn('Error clearing turn timers for room', roomId, err);
+  }
 }
 
 /**

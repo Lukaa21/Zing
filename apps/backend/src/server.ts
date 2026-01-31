@@ -123,7 +123,8 @@ setActiveUsers(activeUsers);
       // Don't start timer if game is already over
       if (room.state.matchOver) return;
 
-      startTurnTimer(roomId, room.state.currentTurnPlayerId, async () => {
+      const playerId = room.state.currentTurnPlayerId;
+      startTurnTimer(roomId, playerId, async () => {
         // Timer expired - auto-play first card
         logger.info({ roomId, playerId: room.state?.currentTurnPlayerId }, 'Turn timer expired - auto-playing first card');
         
@@ -144,13 +145,12 @@ setActiveUsers(activeUsers);
             }
           }
         }
-      }, 12000); // 12 seconds
-
-      // Emit timer start event to all clients
-      io.to(roomId).emit('turn_timer_started', { 
-        playerId: room.state.currentTurnPlayerId,
-        duration: 12000,
-        expiresAt: Date.now() + 12000
+      }, 12000, (expiresAt) => {
+        io.to(roomId).emit('turn_timer_started', {
+          playerId,
+          duration: 12000,
+          expiresAt,
+        });
       });
     };
 

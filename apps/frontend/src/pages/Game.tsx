@@ -96,6 +96,10 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
   const [rematchVotes, setRematchVotes] = useState<any>(null);
   const [roundRecap, setRoundRecap] = useState<{ payload: any; expiresAt: number } | null>(null);
   const roundRecapTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const isRoundRecapRef = React.useRef<boolean>(false);
+  React.useEffect(() => { isRoundRecapRef.current = !!roundRecap; }, [roundRecap]);
+
+  // (no round-start client buffer; server controls recap pause)
 
   const playersRef = React.useRef(players);
   React.useEffect(() => {
@@ -172,6 +176,8 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
       const msg = formatEvent(ev, actorName);
       setLogs((l: string[]) => [msg, ...l].slice(0, 200));
       console.log('event', ev);
+      console.log('[Game] game_event raw:', ev);
+      console.log('[Game] game_event type=', ev.type);
       // Talon taken pause handling (show last played card for 1.5s and disable plays)
       if (ev.type === 'talon_taken') {
         try {
@@ -216,7 +222,17 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
         }
       }
 
-      // Round recap handling (show recap modal for 8s)
+      // When a card is played, reset the UI timer immediately so it doesn't stick at 0.0
+      if (ev.type === 'card_played') {
+        console.log('[Game] clearing frontend timer due to card_played event');
+        // clear displayed timer — server will emit the next turn_timer_started when appropriate
+        setTimerDuration(undefined);
+        setTimerExpiresAt(undefined);
+        // also clear any buffered timers to avoid stale values
+        bufferedTimerRef.current = null;
+      }
+
+      // Round recap handling (show recap modal for 13s)
       if (ev.type === 'round_end') {
         try {
           const payload = ev.payload || {};
@@ -227,14 +243,27 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
             clearTimeout(roundRecapTimerRef.current);
             roundRecapTimerRef.current = null;
           }
+          // ensure recap ref reflects state synchronously
+          isRoundRecapRef.current = true;
           roundRecapTimerRef.current = setTimeout(() => {
             setRoundRecap(null);
+            isRoundRecapRef.current = false;
             roundRecapTimerRef.current = null;
+            // If a timer was buffered during recap, restore it now
+            const buffered = bufferedTimerRef.current;
+            if (buffered) {
+              setTimerDuration(buffered.duration);
+              setTimerExpiresAt(Date.now() + (buffered.duration || 0));
+              bufferedTimerRef.current = null;
+            }
           }, recapDuration);
         } catch (err) {
           console.error('Error handling round_end recap:', err);
         }
-      }    });
+      }
+
+      // hands_dealt handled by server; no client-side round-start buffer
+    });
     s.on('room_update', (u: any) => {
       console.log('room_update', u);
       setPlayers(u.players || []);
@@ -273,10 +302,16 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
     });
 
     s.on('turn_timer_started', (data: { playerId: string; duration: number; expiresAt: number }) => {
-      // If we're in a talon pause, buffer the timer to apply after pause ends
+      console.log('[Game] turn_timer_started received', data, 'isTalonPause=', isTalonPauseRef.current, 'isRoundRecap=', isRoundRecapRef.current);
+      // Buffer timer if talon pause or recap is active; otherwise apply immediately
       if (isTalonPauseRef.current) {
         bufferedTimerRef.current = { duration: data.duration, expiresAt: data.expiresAt };
+        console.log('[Game] buffered due to talon pause', bufferedTimerRef.current);
+      } else if (isRoundRecapRef.current) {
+        bufferedTimerRef.current = { duration: data.duration, expiresAt: data.expiresAt };
+        console.log('[Game] buffered due to recap', bufferedTimerRef.current);
       } else {
+        console.log('[Game] applying timer to UI', { duration: data.duration, expiresAt: data.expiresAt });
         setTimerDuration(data.duration);
         setTimerExpiresAt(data.expiresAt);
       }
@@ -452,6 +487,13 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
         talonPauseTimerRef.current = null;
       }
       bufferedTimerRef.current = null;
+      // Ensure recap state cleared
+      // Cleanup recap timer
+      if (roundRecapTimerRef.current) {
+        clearTimeout(roundRecapTimerRef.current);
+        roundRecapTimerRef.current = null;
+      }
+      isRoundRecapRef.current = false;
     };
   }, []);
 

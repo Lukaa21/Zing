@@ -128,6 +128,8 @@ const InGameView: React.FC<InGameViewProps> = ({
       return;
     }
 
+    console.log('[InGameView] timerExpiresAt prop changed:', timerExpiresAt);
+
     const update = () => {
       const remaining = Math.max(0, timerExpiresAt - Date.now());
       setTimeRemaining(remaining);
