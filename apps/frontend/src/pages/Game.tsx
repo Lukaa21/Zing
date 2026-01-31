@@ -99,6 +99,10 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
   const isRoundRecapRef = React.useRef<boolean>(false);
   React.useEffect(() => { isRoundRecapRef.current = !!roundRecap; }, [roundRecap]);
 
+  // When match ends, suppress showing the round recap modal (we show match end instead)
+  const suppressRecapRef = React.useRef<boolean>(false);
+  const suppressRecapTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+
   // (no round-start client buffer; server controls recap pause)
 
   const playersRef = React.useRef(players);
@@ -232,33 +236,71 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
         bufferedTimerRef.current = null;
       }
 
-      // Round recap handling (show recap modal for 13s)
+      // Round recap handling (show recap modal for 9s) — but suppress if match ends
       if (ev.type === 'round_end') {
         try {
           const payload = ev.payload || {};
-          const recapDuration = 13000; // 13 seconds
+          const recapDuration = 9000; // 9 seconds
           const expiresAt = Date.now() + recapDuration;
-          setRoundRecap({ payload, expiresAt });
+
+          // Clear any existing recap timer
           if (roundRecapTimerRef.current) {
             clearTimeout(roundRecapTimerRef.current);
             roundRecapTimerRef.current = null;
           }
-          // ensure recap ref reflects state synchronously
-          isRoundRecapRef.current = true;
-          roundRecapTimerRef.current = setTimeout(() => {
-            setRoundRecap(null);
-            isRoundRecapRef.current = false;
-            roundRecapTimerRef.current = null;
-            // If a timer was buffered during recap, restore it now
-            const buffered = bufferedTimerRef.current;
-            if (buffered) {
-              setTimerDuration(buffered.duration);
-              setTimerExpiresAt(Date.now() + (buffered.duration || 0));
-              bufferedTimerRef.current = null;
-            }
-          }, recapDuration);
+
+          // Show recap after a short delay so a following `match_end` event
+          // can suppress it (end of whole game). This avoids briefly showing
+          // a round recap when the game actually ended.
+          const showRecap = () => {
+            if (suppressRecapRef.current) return;
+            setRoundRecap({ payload, expiresAt });
+            isRoundRecapRef.current = true;
+            roundRecapTimerRef.current = setTimeout(() => {
+              setRoundRecap(null);
+              isRoundRecapRef.current = false;
+              roundRecapTimerRef.current = null;
+              // If a timer was buffered during recap, restore it now
+              const buffered = bufferedTimerRef.current;
+              if (buffered) {
+                setTimerDuration(buffered.duration);
+                setTimerExpiresAt(Date.now() + (buffered.duration || 0));
+                bufferedTimerRef.current = null;
+              }
+            }, recapDuration);
+          };
+
+          setTimeout(showRecap, 120);
         } catch (err) {
           console.error('Error handling round_end recap:', err);
+        }
+      }
+
+      // If the whole match ended, suppress showing the round recap modal
+      if (ev.type === 'match_end') {
+        // Mark suppression so a delayed round recap won't show
+        suppressRecapRef.current = true;
+        if (suppressRecapTimerRef.current) {
+          clearTimeout(suppressRecapTimerRef.current);
+          suppressRecapTimerRef.current = null;
+        }
+        // Keep suppressed for a short window, then reset
+        suppressRecapTimerRef.current = setTimeout(() => {
+          suppressRecapRef.current = false;
+          if (suppressRecapTimerRef.current) {
+            clearTimeout(suppressRecapTimerRef.current);
+            suppressRecapTimerRef.current = null;
+          }
+        }, 3000);
+
+        // If recap is already visible, clear it immediately
+        if (roundRecapTimerRef.current) {
+          clearTimeout(roundRecapTimerRef.current);
+          roundRecapTimerRef.current = null;
+        }
+        if (isRoundRecapRef.current) {
+          setRoundRecap(null);
+          isRoundRecapRef.current = false;
         }
       }
 
@@ -494,6 +536,12 @@ const Game: React.FC<GameProps> = ({ roomId, playerName, inviteToken, code, onLe
         roundRecapTimerRef.current = null;
       }
       isRoundRecapRef.current = false;
+      // Cleanup suppression timer
+      if (suppressRecapTimerRef.current) {
+        clearTimeout(suppressRecapTimerRef.current);
+        suppressRecapTimerRef.current = null;
+      }
+      suppressRecapRef.current = false;
     };
   }, []);
 

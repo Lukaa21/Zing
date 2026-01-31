@@ -216,8 +216,10 @@ const InGameView: React.FC<InGameViewProps> = ({
   const team1MatchScore = state?.scores?.team1 || 0;
   const team0RoundScore = state?.currentRoundScore?.team0 || 0;
   const team1RoundScore = state?.currentRoundScore?.team1 || 0;
-  const team0Score = team0MatchScore + team0RoundScore;
-  const team1Score = team1MatchScore + team1RoundScore;
+  // If match is over, `state.scores` already contains the final cumulative score.
+  // Do not add `currentRoundScore` again or final score will be double-counted.
+  const team0Score = state?.matchOver ? team0MatchScore : team0MatchScore + team0RoundScore;
+  const team1Score = state?.matchOver ? team1MatchScore : team1MatchScore + team1RoundScore;
   const myTeamScore = myTeam === 0 ? team0Score : team1Score;
   const opponentTeamScore = myTeam === 0 ? team1Score : team0Score;
   

@@ -501,7 +501,7 @@ export async function finalizeRound(room: Room) {
 
   // Non-blocking recap pause: set a timestamp during which new timers should be deferred
   try {
-    const recapMs = 13000; // 13 seconds recap window
+    const recapMs = 9000; // 9 seconds recap window
     room.recapPausedUntil = Date.now() + recapMs;
     // Clear any active turn timer to avoid background timeouts during recap
     clearTurnTimer(room.id);
