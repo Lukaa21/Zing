@@ -89,6 +89,9 @@ export function initialDeal(state: GameState, seed?: string, dealerSeat = 0): Ga
   (state as any)._zingPending = null;
   (state as any)._roundZings = { team0: 0, team1: 0 };
   (state as any)._roundZingsCount = { team0: 0, team1: 0 }; // Track number of zings, not points
+  // Per-player zing tracking (reset each round)
+  (state as any)._playerZingsPoints = {};
+  (state as any)._playerZingsCount = {};
   (state as any)._lastTaker = undefined;
   return state;
 }
