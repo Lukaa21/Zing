@@ -986,7 +986,7 @@
 }
 
 .rematch-notification-text {
-  margin: 0;
+  margin: 0 !important;
   font-size: 13px;
   color: rgba(255, 255, 255, 0.9);
 }

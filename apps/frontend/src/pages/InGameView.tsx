@@ -294,7 +294,6 @@ const InGameView: React.FC<InGameViewProps> = ({
       {state?.matchOver && (
         <div className="game-modal-overlay">
           <div className="game-modal">
-            <h2>Igra Završena!</h2>
             <div className="game-over-result">
               {(() => {
                 const winnerTeam = team0Score > team1Score ? 0 : 1;
