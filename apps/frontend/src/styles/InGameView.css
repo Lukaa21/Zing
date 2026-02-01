@@ -411,14 +411,12 @@
 }
 
 .deck-last-card > * + * {
-  margin-left: -40px; /* 60% overlap for multiple face-up cards */
+  margin-left: -12px; /* 60% overlap for multiple face-up cards */
 }
 
 .deck-pile {
   position: absolute;
   bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
   z-index: 2;
   display: flex;
   flex-direction: column; /* Stack building upward */
@@ -1349,6 +1347,10 @@
   }
   .surrender-btn svg { display: none; }
   .surrender-btn span { display: none; }
+
+  .deck-last-card > * + * {
+  margin-left: -30px; /* 60% overlap for multiple face-up cards */
+}
 }
 
 /* Hide left/right in 1v1 */
@@ -1356,6 +1358,8 @@
 .game-view.mode-1v1 .player-area.position-right {
   display: none;
 }
+
+
 
 /* Adjust deck position for small height screens */
 @media (max-height: 880px) {
