@@ -168,8 +168,8 @@ setActiveUsers(activeUsers);
         if (room?.state?.currentTurnPlayerId && room.timerEnabled && !room.state.matchOver) {
           io.to(roomId).emit('turn_timer_started', { 
             playerId: room.state.currentTurnPlayerId,
-            duration: 100,
-            expiresAt: Date.now() + 100
+            duration: 12000,
+            expiresAt: Date.now() + 12000
           });
         }
       }, delay);
