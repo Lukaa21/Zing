@@ -298,16 +298,6 @@ body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-se
   gap: 0.5rem;
 }
 
-.credential-row input {
-  flex: 1;
-  padding: 0.75rem;
-  border: 2px solid #bae6fd;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  font-family: monospace;
-  background: #fff;
-}
-
 .btn-copy {
   padding: 0.75rem 1rem;
   background: #667eea;

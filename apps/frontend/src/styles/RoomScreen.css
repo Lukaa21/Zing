@@ -65,8 +65,8 @@
 
 /* Matchmaking Status */
 .room-screen__matchmaking {
-  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-  border: 2px solid #bfdbfe;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%);
+  border: 2px solid #667eea;
   border-radius: 16px;
   padding: 16px 20px;
   margin-bottom: 1.5rem;
@@ -79,7 +79,7 @@
 .room-screen__matchmaking p {
   margin: 0;
   font-weight: 700;
-  color: #1e40af;
+  color: #1e293b;
   font-size: 16px;
 }
 
@@ -118,27 +118,31 @@
   margin: 0;
   font-size: 28px;
   font-weight: 800;
-  background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #667eea;
+}
+
+.room-screen__player {
+  margin: 4px 0 0 0;
+  font-size: 15px;
+  color: #64748b;
+  font-weight: 500;
 }
 
 /* Room Credentials */
 .room-screen__credentials {
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-  border: 2px solid #bae6fd;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%);
+  border: 2px solid #667eea;
   border-radius: 20px;
   padding: 24px 32px;
   margin-bottom: 2rem;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 2px 8px rgba(147, 51, 234, 0.1);
 }
 
 .room-screen__credentials h3 {
   margin: 0 0 20px 0;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
-  color: #1e40af;
+  color: #1e293b;
 }
 
 .credential-item {
@@ -167,9 +171,9 @@
   flex: 1;
   padding: 12px 16px;
   font-size: 14px;
-  font-family: 'Monaco', 'Courier New', monospace;
+  font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-weight: 500;
   background: #ffffff;
-  border: 2px solid #667eea;
   border-radius: 12px;
   color: #1e293b;
   transition: all 0.2s ease;
@@ -177,8 +181,8 @@
 
 .credential-input:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border: 2px solid #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 .credential-copy-wrapper {
@@ -249,13 +253,6 @@
   letter-spacing: -0.5px;
 }
 
-.room-screen__header p {
-  margin: 8px 0 0 0;
-  font-size: 14px;
-  color: #64748b;
-  font-weight: 500;
-}
-
 .room-screen__invite-btn {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: #ffffff;
@@ -286,7 +283,7 @@
 
 .room-screen__members h3 {
   margin: 0 0 1.5rem 0;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
   color: #1e293b;
 }

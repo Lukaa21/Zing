@@ -112,7 +112,7 @@ const RoomScreen: React.FC<RoomScreenProps> = ({ roomId, myId, guestId, playerNa
       <div className="room-screen__header">
         <div>
           <h2>Room {roomId}</h2>
-          <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#666' }}>igraš kao: {playerName}</p>
+          <p className="room-screen__player">Igraš kao: {playerName}</p>
         </div>
         {authUser && (
           <button 

@@ -925,7 +925,7 @@
   }
 
   .rules-modal {
-    max-height: 95vh;
+    max-height: 90vh;
   }
 
   .rules-modal-header {
@@ -937,7 +937,7 @@
   }
 
   .rules-modal-content {
-    padding: 24px 20px;
+    padding: 16px;
   }
 
   .rules-intro {

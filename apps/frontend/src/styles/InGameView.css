@@ -707,7 +707,7 @@
 .recap-player-zings { font-size: 15px; color: #e6dfff; }
 .recap-player-taken { font-size: 15px; color: #dcd6ff; }
 .recap-player-bonus { margin-top: 6px; color: #ffd6e8; font-weight: 700; }
-.recap-crown { position: absolute; top: -14px; right: -14px; transform: rotate(30deg); width: 40px; height: 40px; }
+.recap-crown { position: absolute; top: -10px; right: -10px; transform: rotate(30deg); width: 30px; height: 30px; }
 
 /* adjust team/players widths to match and center */
 .recap-inner { max-width: 680px; margin: 0 auto; width: 100%; }
@@ -965,10 +965,17 @@
 }
 
 .game-over-result {
-  font-size: 1.3rem;
+  font-size: 26px;
   font-weight: bold;
   margin: 16px 0;
   color: #fbbf24;
+  text-align: center;
+}
+
+@media (max-width: 767px) {
+  .game-over-result {
+    margin: 10px 0;
+  }
 }
 
 .surrender-modal-note {

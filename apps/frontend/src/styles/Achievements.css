@@ -323,7 +323,7 @@
 /* Responsive */
 @media (max-width: 768px) {
   .achievements-modal {
-    max-height: 95vh;
+    max-height: 90vh;
   }
 
   .achievements-header {
@@ -386,7 +386,7 @@
   }
 
   .achievements-content {
-    padding: 20px;
+    padding: 16px;
   }
 
   .stats-grid {

@@ -566,9 +566,7 @@ const InGameView: React.FC<InGameViewProps> = ({
                     return playersForRender.map((p: any) => (
                       <div key={p.id} className={`recap-player team-${p.team}`} style={{ position: 'relative' }}>
                         {topPlayerId === p.id && (
-                          <div className="recap-crown" title="Najviše poena">
-                            <svg viewBox="0 0 24 24" width="36" height="36" fill="#FFD166" xmlns="http://www.w3.org/2000/svg"><path d="M12 4l2 4 4-2-1 4 4 1-3 3-3-2-3 2-3-3-3-1 4-1-1-4 4 2z"/></svg>
-                          </div>
+                          <img src="/crown.png" alt="Winner" className="recap-crown" title="Najviše poena" />
                         )}
                         <div className="recap-player-name">{p.name}</div>
                         <div className="recap-player-points">{gameMode === '1v1' ? 'Ukupno: ' : 'Poeni: '}<strong>{p.displayedPoints}</strong></div>

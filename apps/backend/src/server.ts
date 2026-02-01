@@ -354,9 +354,9 @@ setActiveUsers(activeUsers);
         }
         
         io.to(roomId).emit('queue_left', { 
-          message: 'Matchmaking cancelled by host' 
+          message: 'Matchmaking zaustavljen od strane domaćina' 
         });
-        logger.info({ roomId, hostId: userId }, 'Party matchmaking cancelled by host');
+        logger.info({ roomId, hostId: userId }, '');
       } else {
         socket.emit('room_error', { reason: 'NOT_IN_QUEUE', message: 'Party is not in matchmaking queue' });
       }
@@ -1509,7 +1509,7 @@ setActiveUsers(activeUsers);
           // Notify remaining members that matchmaking was cancelled
           io.to(roomId).emit('queue_cancelled', { 
             reason: 'MEMBER_KICKED',
-            message: 'Matchmaking cancelled - a member was kicked from the party'
+            message: 'Matchmaking zaustavljen - član je izbačen iz sobe'
           });
         }
 
@@ -1570,7 +1570,7 @@ setActiveUsers(activeUsers);
           // Notify remaining members that matchmaking was cancelled
           io.to(roomId).emit('queue_cancelled', { 
             reason: 'MEMBER_LEFT',
-            message: 'Matchmaking cancelled - a member left the party'
+            message: 'Matchmaking zaustavljen - član je napustio sobu'
           });
         }
 

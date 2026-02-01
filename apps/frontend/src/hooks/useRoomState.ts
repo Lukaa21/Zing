@@ -221,7 +221,7 @@ export function useRoomState({ socket, currentUserId, guestId, initialRoomId, in
 
     const handleQueueCancelled = (data: { reason: string; message: string }) => {
       setInMatchmaking(false);
-      setError(`Matchmaking cancelled: ${data.message}`);
+      setError(`Matchmaking zaustavljen: ${data.message}`);
     };
 
     const handleMatchFound = (data: { roomId: string }) => {
@@ -237,7 +237,7 @@ export function useRoomState({ socket, currentUserId, guestId, initialRoomId, in
     const handleInviteCancelled = (data: { inviteId: string; reason: string }) => {
       setPendingInvites(prev => prev.filter(inv => inv.inviteId !== data.inviteId));
       if (data.reason === 'ROOM_DELETED') {
-        setError('Invite cancelled: Room was deleted');
+        setError('Poziv otkazan: Soba je obrisana');
       }
     };
 
@@ -251,15 +251,15 @@ export function useRoomState({ socket, currentUserId, guestId, initialRoomId, in
     };
 
     const handleInviteError = (data: { reason: string; message: string }) => {
-      setError(`Invite error: ${data.message}`);
+      setError(`Greška pri pozivu: ${data.message}`);
     };
 
     const handleTeamError = (data: { reason: string; message: string }) => {
-      setError(`Team error: ${data.message}`);
+      setError(`Greška sa timom: ${data.message}`);
     };
 
     const handleStartError = (data: { reason: string; message: string }) => {
-      setError(`Start error: ${data.message}`);
+      setError(`Greška pri pokretanju: ${data.message}`);
     };
 
     // Register all listeners
