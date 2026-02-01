@@ -149,10 +149,10 @@ setActiveUsers(activeUsers);
             }
           }
         }
-      }, 100, (expiresAt) => {
+      }, 12000, (expiresAt) => {
         io.to(roomId).emit('turn_timer_started', {
           playerId,
-          duration: 100,
+          duration: 12000,
           expiresAt,
         });
       });

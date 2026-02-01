@@ -1270,13 +1270,13 @@ export function clearTeamAssignment(roomId: string): void {
  * @param roomId Room ID
  * @param playerId Player who needs to play
  * @param onTimeout Callback when timer expires
- * @param duration Timer duration in milliseconds (default 100ms = 0.1s)
+ * @param duration Timer duration in milliseconds (default 12000ms = 12s)
  */
 export function startTurnTimer(
   roomId: string,
   playerId: string,
   onTimeout: () => void,
-  duration = 100,
+  duration = 12000,
   onStarted?: (expiresAt: number) => void
 ): void {
   const room = rooms.get(roomId);
