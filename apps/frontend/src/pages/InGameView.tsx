@@ -335,7 +335,7 @@ const InGameView: React.FC<InGameViewProps> = ({
                         const p = (state.matchStats.perPlayer && state.matchStats.perPlayer[pl.id]) || { 
                           id: pl.id, name: pl.name, points: 0, takenCount: 0, zingsCount: 0, zings: 0, team: pl.team 
                         };
-                        let displayedPoints = (p.points || 0) + (p.zings || 0);
+                        const displayedPoints = (p.points || 0) + (p.zings || 0);
                         return { ...p, displayedPoints, name: pl.name, team: pl.team, id: pl.id };
                       });
                       const maxPoints = Math.max(...playersForRender.map((x: any) => x.displayedPoints));
