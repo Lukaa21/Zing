@@ -31,7 +31,7 @@ body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-se
 }
 
 .landing-logo {
-  max-width: 400px;
+  max-width: 250px;
   width: 90%;
   height: auto;
   margin: 0 auto;
