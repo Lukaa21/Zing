@@ -301,16 +301,80 @@ const InGameView: React.FC<InGameViewProps> = ({
                 return didIWin ? 'Pobijedili Ste!' : 'Izgubili Ste';
               })()}
             </div>
-            <div className="game-over-scores">
-              <div className={`game-over-score ${team0Score > team1Score ? 'winner' : 'loser'}`}>
-                <div className="game-over-score-label">{team0Name}</div>
-                <div className="game-over-score-value">{team0Score}</div>
+
+            {state?.matchStats && (
+              <div className={`recap-grid final-recap ${gameMode === '2v2' ? 'recap-grid-2v2' : ''}`} style={{ margin: '10px auto 20px', maxWidth: '680px' }}>
+                <div className="recap-inner">
+                  {gameMode === '2v2' && (
+                    <div className="recap-team-row">
+                      {(() => {
+                        const winnerTeam = team0Score > team1Score ? 0 : 1;
+                        return (
+                          <>
+                            <div className={`recap-team team-0 ${winnerTeam === 0 ? 'winner-team' : 'loser-team'}`}>
+                              <div className="recap-team-title">Tim 1</div>
+                              <div className={`recap-team-line ${winnerTeam === 0 ? 'large-score' : ''}`}>Poeni: <strong>{state.matchStats.scores?.team0 || 0}</strong></div>
+                              <div className="recap-team-line">Zingovi: <strong>{state.matchStats.teams?.team0?.zingsCount || 0}</strong></div>
+                              <div className="recap-team-line">Ponijete karte: <strong>{state.matchStats.teams?.team0?.totalTaken || 0}</strong></div>
+                            </div>
+                            <div className={`recap-team team-1 ${winnerTeam === 1 ? 'winner-team' : 'loser-team'}`}>
+                              <div className="recap-team-title">Tim 2</div>
+                              <div className={`recap-team-line ${winnerTeam === 1 ? 'large-score' : ''}`}>Poeni: <strong>{state.matchStats.scores?.team1 || 0}</strong></div>
+                              <div className="recap-team-line">Zingovi: <strong>{state.matchStats.teams?.team1?.zingsCount || 0}</strong></div>
+                              <div className="recap-team-line">Ponijete karte: <strong>{state.matchStats.teams?.team1?.totalTaken || 0}</strong></div>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  <div className={`recap-players ${gameMode === '1v1' ? 'recap-players-1v1' : 'recap-players-2v2'}`}>
+                    {(() => {
+                      const playersForRender = (state?.players || []).map((pl: any) => {
+                        const p = (state.matchStats.perPlayer && state.matchStats.perPlayer[pl.id]) || { 
+                          id: pl.id, name: pl.name, points: 0, takenCount: 0, zingsCount: 0, zings: 0, team: pl.team 
+                        };
+                        let displayedPoints = (p.points || 0) + (p.zings || 0);
+                        return { ...p, displayedPoints, name: pl.name, team: pl.team, id: pl.id };
+                      });
+                      const maxPoints = Math.max(...playersForRender.map((x: any) => x.displayedPoints));
+                      
+                      // For 1v1, winner is top points. For 2v2, winner is team.
+                      const winnerTeam = team0Score > team1Score ? 0 : 1;
+                      // Calculate MVP for both modes
+                      const topPlayerId = playersForRender.find((x: any) => x.displayedPoints === maxPoints && x.displayedPoints > 0)?.id;
+
+                      return playersForRender.map((p: any) => {
+                        // 1v1 winner logic or 2v2 team winner logic
+                        const isWinner = gameMode === '1v1' ? (topPlayerId === p.id) : (p.team === winnerTeam);
+                        const isMvp = topPlayerId === p.id;
+                        const pointsLabel = gameMode === '1v1' ? 'Ukupno: ' : 'Poeni: ';
+
+                        return (
+                          <div 
+                            key={p.id} 
+                            className={`recap-player team-${p.team} ${isWinner ? 'winner-card' : ''}`} 
+                            style={{ position: 'relative' }}
+                          >
+                            {isMvp && (
+                              <img src="/crown.png" alt="Winner" className="recap-crown" title="Najviše poena" />
+                            )}
+                            <div className="recap-player-name">{p.name}</div>
+                            <div className={`recap-player-points ${isWinner ? 'large-score' : ''}`}>
+                              {pointsLabel}
+                              <strong>{p.displayedPoints}</strong>
+                            </div>
+                            <div className="recap-player-zings">Zingovi: <strong>{p.zingsCount || 0}</strong></div>
+                            <div className="recap-player-taken">Ponijete karte: <strong>{p.takenCount}</strong></div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
               </div>
-              <div className={`game-over-score ${team1Score > team0Score ? 'winner' : 'loser'}`}>
-                <div className="game-over-score-label">{team1Name}</div>
-                <div className="game-over-score-value">{team1Score}</div>
-              </div>
-            </div>
+            )}
             
             {rematchVotes && (
               <div className="rematch-notification">
@@ -533,7 +597,7 @@ const InGameView: React.FC<InGameViewProps> = ({
                       <div className="recap-team-title">Tim 1</div>
                       <div className="recap-team-line">Poeni: <strong>{roundRecap.scores?.team0 || 0}</strong></div>
                       <div className="recap-team-line">Zingovi: <strong>{roundRecap.teams?.team0?.zingsCount || 0}</strong></div>
-                      <div className="recap-team-line">Poneo karata: <strong>{roundRecap.teams?.team0?.totalTaken || roundRecap.takenCounts?.team0 || 0}</strong></div>
+                      <div className="recap-team-line">Ponijete karte: <strong>{roundRecap.teams?.team0?.totalTaken || roundRecap.takenCounts?.team0 || 0}</strong></div>
                       {roundRecap.bonus && roundRecap.bonus.awardedToTeam === 0 && (
                         <div className="recap-team-bonus">Bonus: +3 poena</div>
                       )}
@@ -542,7 +606,7 @@ const InGameView: React.FC<InGameViewProps> = ({
                       <div className="recap-team-title">Tim 2</div>
                       <div className="recap-team-line">Poeni: <strong>{roundRecap.scores?.team1 || 0}</strong></div>
                       <div className="recap-team-line">Zingovi: <strong>{roundRecap.teams?.team1?.zingsCount || 0}</strong></div>
-                      <div className="recap-team-line">Ponio karata: <strong>{roundRecap.teams?.team1?.totalTaken || roundRecap.takenCounts?.team1 || 0}</strong></div>
+                      <div className="recap-team-line">Ponijete karte: <strong>{roundRecap.teams?.team1?.totalTaken || roundRecap.takenCounts?.team1 || 0}</strong></div>
                       {roundRecap.bonus && roundRecap.bonus.awardedToTeam === 1 && (
                         <div className="recap-team-bonus">Bonus: +3 poena</div>
                       )}
@@ -571,7 +635,7 @@ const InGameView: React.FC<InGameViewProps> = ({
                         <div className="recap-player-name">{p.name}</div>
                         <div className="recap-player-points">{gameMode === '1v1' ? 'Ukupno: ' : 'Poeni: '}<strong>{p.displayedPoints}</strong></div>
                         <div className="recap-player-zings">Zingovi: <strong>{p.zingsCount || 0}</strong></div>
-                        <div className="recap-player-taken">Ponio karata: <strong>{p.takenCount}</strong>
+                        <div className="recap-player-taken">Ponijete karte: <strong>{p.takenCount}</strong>
                           {gameMode === '1v1' && roundRecap.bonus && roundRecap.bonus.awardedToTeam === p.team && (
                             <div className="recap-player-bonus">Bonus +3 poena</div>
                           )}

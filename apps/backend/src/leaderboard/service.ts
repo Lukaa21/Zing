@@ -121,19 +121,33 @@ export async function updateAllLeaderboards() {
   console.log('[Leaderboard] Full update completed');
 }
 
+// Track next update time
+let nextUpdateAt = Date.now() + 10000;
+
+export function getNextUpdateAt() {
+  return nextUpdateAt;
+}
+
 // Schedule leaderboard updates
 export function scheduleLeaderboardUpdates() {
   // Update every hour
   const HOUR = 60 * 60 * 1000;
+  const STARTUP_DELAY = 10000;
   
+  const startTime = Date.now();
+  nextUpdateAt = startTime + STARTUP_DELAY;
+
   // Initial update after 10 seconds
   setTimeout(() => {
     updateAllLeaderboards().catch(console.error);
-  }, 10000);
+    // The interval below was started at startTime, so next tick is startTime + HOUR
+    nextUpdateAt = startTime + HOUR;
+  }, STARTUP_DELAY);
 
   // Then update every hour
   setInterval(() => {
     updateAllLeaderboards().catch(console.error);
+    nextUpdateAt = Date.now() + HOUR;
   }, HOUR);
 
   console.log('[Leaderboard] Scheduled hourly updates');

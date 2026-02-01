@@ -462,6 +462,39 @@ export async function finalizeRound(room: Room) {
   (room as any)._matchZingsCount.team0 += result.teams.team0.zingsCount || 0;
   (room as any)._matchZingsCount.team1 += result.teams.team1.zingsCount || 0;
 
+  // Track cumulative per-player stats for match recap
+  if (!(room as any)._matchPlayerStats) {
+    (room as any)._matchPlayerStats = {};
+  }
+  const mps = (room as any)._matchPlayerStats;
+  if (result.perPlayer) {
+    for (const pid in result.perPlayer) {
+      if (!mps[pid]) {
+        mps[pid] = { points: 0, zings: 0, takenCount: 0, zingsCount: 0, team: result.perPlayer[pid].team, name: result.perPlayer[pid].name };
+      }
+      const roundP = result.perPlayer[pid];
+      mps[pid].points += roundP.points || 0;
+      mps[pid].zings += roundP.zings || 0;
+      mps[pid].takenCount += roundP.takenCount || 0;
+      mps[pid].zingsCount += roundP.zingsCount || 0;
+    }
+  }
+
+  // Handle bonus points (e.g. +3 for Last Trick) in player stats
+  if ((result as any).bonus && (result as any).bonus.awardedToTeam !== undefined) {
+    const bonusTeam = (result as any).bonus.awardedToTeam;
+    const bonusPoints = 3;
+    // Add bonus points to all players in that team
+    state.players.forEach(p => {
+      if (p.team === bonusTeam) {
+        if (!mps[p.id]) {
+           mps[p.id] = { points: 0, zings: 0, takenCount: 0, zingsCount: 0, team: p.team, name: p.name };
+        }
+        mps[p.id].points += bonusPoints;
+      }
+    });
+  }
+
   // persist round scores for both teams (best-effort)
   const pts0 = result.scores.team0 || 0;
   const pts1 = result.scores.team1 || 0;
@@ -515,6 +548,32 @@ export async function finalizeRound(room: Room) {
     
     // Stop any active turn timer since game is over
     clearTurnTimer(room.id);
+
+    // Populate matchStats for frontend
+    const mps = (room as any)._matchPlayerStats || {};
+    let t0Taken = 0;
+    let t1Taken = 0;
+    Object.values(mps).forEach((p: any) => {
+        if (p.team === 0) t0Taken += p.takenCount;
+        if (p.team === 1) t1Taken += p.takenCount;
+    });
+
+    state.matchStats = {
+        scores: { team0: t0, team1: t1 },
+        teams: {
+            team0: {
+                zings: (room as any)._matchZings?.team0 || 0,
+                zingsCount: (room as any)._matchZingsCount?.team0 || 0,
+                totalTaken: t0Taken
+            },
+            team1: {
+                zings: (room as any)._matchZings?.team1 || 0,
+                zingsCount: (room as any)._matchZingsCount?.team1 || 0,
+                totalTaken: t1Taken
+            }
+        },
+        perPlayer: mps
+    };
     
     const winner = t0 > t1 ? 0 : 1;
     const matchEnd = { type: 'match_end', actor: undefined, payload: { winnerTeam: winner, finalScores: { team0: t0, team1: t1 } } } as Event;
@@ -1217,7 +1276,7 @@ export function startTurnTimer(
   roomId: string,
   playerId: string,
   onTimeout: () => void,
-  duration = 12000,
+  duration = 100,
   onStarted?: (expiresAt: number) => void
 ): void {
   const room = rooms.get(roomId);

@@ -37,10 +37,32 @@ export default function Leaderboard({ token, currentUserId, onClose }: Leaderboa
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nextUpdate, setNextUpdate] = useState<number | null>(null);
+  const [timeLeft, setTimeLeft] = useState<string>('');
 
   useEffect(() => {
     fetchLeaderboard();
   }, [category, period, showPrevious]);
+
+  useEffect(() => {
+    if (!nextUpdate || period === 'ALL_TIME' || showPrevious) {
+      setTimeLeft('');
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const diff = nextUpdate - now;
+      if (diff <= 0) {
+        setTimeLeft('Uskoro...');
+      } else {
+        const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const secs = Math.floor((diff % (1000 * 60)) / 1000);
+        setTimeLeft(`${mins}m ${secs}s`);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [nextUpdate, period, showPrevious]);
 
   const fetchLeaderboard = async () => {
     try {
@@ -60,6 +82,7 @@ export default function Leaderboard({ token, currentUserId, onClose }: Leaderboa
       
       const data = await res.json();
       setLeaderboard(data.leaderboard || []);
+      setNextUpdate(data.nextUpdate || null);
       setLoading(false);
     } catch (err) {
       console.error('Error fetching leaderboard:', err);
@@ -88,6 +111,11 @@ export default function Leaderboard({ token, currentUserId, onClose }: Leaderboa
 
         {/* Content */}
         <div className="leaderboard-content">
+          {timeLeft && (
+            <div style={{color: '#818cf8', marginBottom: '16px', textAlign: 'center', background: 'rgba(99, 102, 241, 0.1)', padding: '8px', borderRadius: '6px' }}>
+              Sljedeći presjek za: <strong>{timeLeft}</strong>
+            </div>
+          )}
           {/* Filters */}
           <div className="leaderboard-filters">
             {/* Category Selection */}

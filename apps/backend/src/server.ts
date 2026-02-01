@@ -14,6 +14,7 @@ import matchRoutes from './matches/routes';
 import achievementRoutes from './achievements/routes';
 import leaderboardRoutes from './leaderboard/routes';
 import { scheduleLeaderboardUpdates } from './leaderboard/service';
+import { scheduleGameCleanup } from './game/cleanupService';
 import { verifyToken } from './auth/jwt';
 import { prisma } from './db/prisma';
 
@@ -79,6 +80,9 @@ setActiveUsers(activeUsers);
   // Schedule leaderboard updates
   scheduleLeaderboardUpdates();
   
+  // Schedule game data cleanup (events/snapshots for old games)
+  scheduleGameCleanup();
+
   // Schedule periodic cleanup of inactive private rooms (every 10 minutes)
   setInterval(() => {
     const deletedCount = cleanupInactiveRooms();
@@ -145,10 +149,10 @@ setActiveUsers(activeUsers);
             }
           }
         }
-      }, 12000, (expiresAt) => {
+      }, 100, (expiresAt) => {
         io.to(roomId).emit('turn_timer_started', {
           playerId,
-          duration: 12000,
+          duration: 100,
           expiresAt,
         });
       });
@@ -164,8 +168,8 @@ setActiveUsers(activeUsers);
         if (room?.state?.currentTurnPlayerId && room.timerEnabled && !room.state.matchOver) {
           io.to(roomId).emit('turn_timer_started', { 
             playerId: room.state.currentTurnPlayerId,
-            duration: 12000,
-            expiresAt: Date.now() + 12000
+            duration: 100,
+            expiresAt: Date.now() + 100
           });
         }
       }, delay);
@@ -744,6 +748,32 @@ setActiveUsers(activeUsers);
           
           room.state.scores = finalScores;
           room.state.matchOver = true;
+
+          // Populate matchStats for frontend (using available stats from completed rounds)
+          const mps = (room as any)._matchPlayerStats || {};
+          let t0Taken = 0;
+          let t1Taken = 0;
+          Object.values(mps).forEach((p: any) => {
+              if (p.team === 0) t0Taken += p.takenCount;
+              if (p.team === 1) t1Taken += p.takenCount;
+          });
+
+          room.state.matchStats = {
+              scores: finalScores,
+              teams: {
+                  team0: {
+                      zings: (room as any)._matchZings?.team0 || 0,
+                      zingsCount: (room as any)._matchZingsCount?.team0 || 0,
+                      totalTaken: t0Taken
+                  },
+                  team1: {
+                      zings: (room as any)._matchZings?.team1 || 0,
+                      zingsCount: (room as any)._matchZingsCount?.team1 || 0,
+                      totalTaken: t1Taken
+                  }
+              },
+              perPlayer: mps
+          };
           
           // Stop any active turn timer
           clearTurnTimer(roomId);

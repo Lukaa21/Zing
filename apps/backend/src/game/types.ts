@@ -39,6 +39,8 @@ export type GameState = {
   targetScore?: number;
   // mark if match is finished
   matchOver?: boolean;
+  // Cumulative match stats for game over screen
+  matchStats?: any; 
 };
 
 export type Intent =

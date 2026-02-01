@@ -1,5 +1,6 @@
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
+import { getNextUpdateAt } from './service';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -132,7 +133,12 @@ router.get('/:category/:period', async (req, res) => {
       }));
     }
 
-    res.json({ category, period, leaderboard });
+    res.json({ 
+      category, 
+      period, 
+      leaderboard,
+      nextUpdate: period !== 'ALL_TIME' ? getNextUpdateAt() : null
+    });
   } catch (error) {
     console.error('Error fetching leaderboard:', error);
     res.status(500).json({ error: 'Failed to fetch leaderboard' });
