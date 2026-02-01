@@ -287,4 +287,59 @@ it('handles Jack trump card correctly in 2v2 - multiple faceUpCards and last han
   
   expect(foundJackTrump).toBe(true);
 });
-});
+
+  it('handles natural Jack trump (bottom of deck) correctly', () => {
+    let foundNaturalJack = false;
+    let attempts = 0;
+    const maxAttempts = 10000;
+    
+    while (!foundNaturalJack && attempts < maxAttempts) {
+      attempts++;
+      
+      const players = [
+        { id: 'p1', name: 'Player1', seat: 0, role: 'player' as const, team: 0, hand: [], taken: [] },
+        { id: 'p2', name: 'Player2', seat: 1, role: 'player' as const, team: 1, hand: [], taken: [] }
+      ];
+      
+      const state: GameState = {
+        id: `g_nat_j_${attempts}`,
+        players,
+        talon: [],
+        deck: [],
+        scores: { team0: 0, team1: 0 },
+        handNumber: 0,
+        setNumber: 1
+      };
+      
+      const seed = Math.random().toString();
+      initialDeal(state, seed, 0);
+      
+      if (state.faceUpCard && state.faceUpCard.length > 0) {
+        const firstCard = state.faceUpCard[0];
+        const firstCardRank = firstCard.split('-')[1];
+        
+        // We are looking for the case where the naturally drawn card is a Jack
+        if (firstCardRank === 'J') {
+            foundNaturalJack = true;
+            console.log(`\nFound Natural Jack scenario on attempt ${attempts} with seed ${seed}`);
+            console.log(`FaceUpCards: ${state.faceUpCard.join(', ')}`);
+            
+            // The logic should have pulled another card
+            expect(state.faceUpCard.length).toBeGreaterThan(1);
+            
+            // Verify structure
+            // If the first was J, the second should be the next card from the bottom of deck
+            // Note: In initialDeal, we push to faceUpCards. 
+            // The first one was deck[0]. The loop pushes deck[length].
+            
+            // We expect at least 2 cards
+            const secondCard = state.faceUpCard[1];
+            expect(secondCard).toBeDefined();
+            console.log(`Verified: J is followed by ${secondCard}`);
+        }
+      }
+    }
+    
+      expect(foundNaturalJack).toBe(true);
+    });
+  });

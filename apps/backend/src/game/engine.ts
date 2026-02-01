@@ -53,6 +53,15 @@ export function initialDeal(state: GameState, seed?: string, dealerSeat = 0): Ga
   
   // Set face-up card (the bottom/first card in deck array, which dealer gets last)
   const faceUpCards: string[] = [state.deck[0]];
+
+  // If the naturally drawn face-up card is a Jack, keep drawing until we find a non-Jack
+  while (
+    faceUpCards.length > 0 &&
+    state.deck.length > faceUpCards.length &&
+    parseCard(faceUpCards[faceUpCards.length - 1]).rank === 'J'
+  ) {
+    faceUpCards.push(state.deck[faceUpCards.length]);
+  }
   
   // Check if top of talon is Jack - if so, add Jack to faceUpCards and draw new card for talon
   while (state.talon.length > 0 && state.deck.length > 0) {
