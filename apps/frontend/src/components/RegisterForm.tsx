@@ -56,10 +56,12 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
               className="auth-input"
               placeholder="vas@email.com"
               autoComplete="email"
             />
+            <span className="auth-input-hint">Unesite validnu email adresu (npr. ime@gmail.com)</span>
           </div>
 
           <div className="auth-form-group">

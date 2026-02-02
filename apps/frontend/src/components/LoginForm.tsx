@@ -19,6 +19,13 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Basic email validation if user entered an email
+    if (emailOrUsername.includes('@') && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailOrUsername)) {
+      setError('Neispravan format email adrese.');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
