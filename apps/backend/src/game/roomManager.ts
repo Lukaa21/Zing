@@ -1363,3 +1363,121 @@ export function getTurnTimeRemaining(roomId: string): number | null {
   return Math.max(0, remaining);
 }
 
+/**
+ * Handle game forfeit/surrender logic.
+ * Calculates current partial scores, updates history, and ends the match.
+ */
+export async function handleForfeit(room: Room, forfeitingPlayerId: string) {
+  if (!room.state || room.state.matchOver) return null;
+
+  const state = room.state;
+  // Find player to know team
+  const player = state.players.find(p => p.id === forfeitingPlayerId);
+  if (!player) return null;
+  
+  const forfeitingTeam = player.team;
+  const winnerTeam = forfeitingTeam === 0 ? 1 : 0;
+  
+  // Compute stats for current incomplete round
+  const result = computeRoundScores(state);
+  
+  // Accumulate stats into totals
+  // 1. Zings
+  if (!(room as any)._matchZings) (room as any)._matchZings = { team0: 0, team1: 0 };
+  (room as any)._matchZings.team0 += result.teams.team0.zings || 0;
+  (room as any)._matchZings.team1 += result.teams.team1.zings || 0;
+  
+  // 2. Scores - Accumulate pending round scores into match score
+  state.scores.team0 = (state.scores.team0 || 0) + (result.scores.team0 || 0);
+  state.scores.team1 = (state.scores.team1 || 0) + (result.scores.team1 || 0);
+  
+  // 3. Zing Counts (for achievements)
+  if (!(room as any)._matchZingsCount) (room as any)._matchZingsCount = { team0: 0, team1: 0 };
+  (room as any)._matchZingsCount.team0 += result.teams.team0.zingsCount || 0;
+  (room as any)._matchZingsCount.team1 += result.teams.team1.zingsCount || 0;
+
+  // 4. Player detailed stats
+  if (!(room as any)._matchPlayerStats) (room as any)._matchPlayerStats = {};
+  const mps = (room as any)._matchPlayerStats;
+  if (result.perPlayer) {
+      for (const pid in result.perPlayer) {
+          if (!mps[pid]) {
+              mps[pid] = { points: 0, zings: 0, takenCount: 0, zingsCount: 0, team: result.perPlayer[pid].team, name: result.perPlayer[pid].name };
+          }
+          mps[pid].points += result.perPlayer[pid].points || 0;
+          mps[pid].zings += result.perPlayer[pid].zings || 0;
+          mps[pid].takenCount += result.perPlayer[pid].takenCount || 0;
+          mps[pid].zingsCount += result.perPlayer[pid].zingsCount || 0;
+      }
+  }
+  
+  // Handle bonus points (+3) from partial round
+   if ((result as any).bonus && (result as any).bonus.awardedToTeam !== undefined) {
+      const bonusTeam = (result as any).bonus.awardedToTeam;
+      const bonusPoints = 3;
+      state.players.forEach(p => {
+        if (p.team === bonusTeam) {
+          if (!mps[p.id]) {
+             mps[p.id] = { points: 0, zings: 0, takenCount: 0, zingsCount: 0, team: p.team, name: p.name };
+          }
+          mps[p.id].points += bonusPoints;
+        }
+      });
+    }
+
+  // Set match over
+  state.matchOver = true;
+  room.inGame = false;
+  clearTurnTimer(room.id);
+
+  // Populate matchStats for frontend
+  let t0Taken = 0;
+  let t1Taken = 0;
+  Object.values(mps).forEach((p: any) => {
+      if (p.team === 0) t0Taken += p.takenCount;
+      if (p.team === 1) t1Taken += p.takenCount;
+  });
+
+  state.matchStats = {
+      scores: { team0: state.scores.team0, team1: state.scores.team1 },
+      teams: {
+          team0: {
+              zings: (room as any)._matchZings.team0,
+              zingsCount: (room as any)._matchZingsCount.team0,
+              totalTaken: t0Taken
+          },
+          team1: {
+              zings: (room as any)._matchZings.team1,
+              zingsCount: (room as any)._matchZingsCount.team1,
+              totalTaken: t1Taken
+          }
+      },
+      perPlayer: mps
+  };
+
+  // Save to DB
+  const matchZings = (room as any)._matchZings;
+  const matchZingsCount = (room as any)._matchZingsCount;
+  await saveMatchHistory(room, winnerTeam, state.scores as { team0: number; team1: number }, matchZings, matchZingsCount);
+
+  // Update DB game status
+  if (process.env.DATABASE_URL) {
+    try {
+      await prisma.game.update({ where: { id: state.id }, data: { status: 'abandoned' } });
+    } catch (e) {
+      console.warn('Failed to update game status:', e);
+    }
+  }
+
+  // Return the event to emit
+  return {
+      type: 'match_end',
+      payload: {
+          winnerTeam,
+          finalScores: state.scores,
+          reason: 'surrender',
+          surrenderedBy: forfeitingPlayerId
+      }
+  };
+}
+

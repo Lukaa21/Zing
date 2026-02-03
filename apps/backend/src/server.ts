@@ -3,7 +3,7 @@ import express, { type Request, type Response } from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import pino from 'pino';
-import { createRoom, joinRoom, startGame, getRoom, handleIntent, leaveRoom, removePlayerFromAllRooms, getRoomByAccessCode, validateRoomAccess, generateAndStoreReconnectToken, validateReconnectToken, getAllRooms, addMemberToRoom, setMemberRole, kickMember, leaveMemberRoom, countPlayers, canStart1v1, canStart2v2, getUserCurrentRoom, isHost, RoomRole, deleteRoom, setTeamAssignment, getTeamAssignment, getPlayersInRoom, startTurnTimer, clearTurnTimer, getTurnTimeRemaining, saveMatchHistory, cleanupInactiveRooms, Room } from './game/roomManager';
+import { createRoom, joinRoom, startGame, getRoom, handleIntent, leaveRoom, removePlayerFromAllRooms, getRoomByAccessCode, validateRoomAccess, generateAndStoreReconnectToken, validateReconnectToken, getAllRooms, addMemberToRoom, setMemberRole, kickMember, leaveMemberRoom, countPlayers, canStart1v1, canStart2v2, getUserCurrentRoom, isHost, RoomRole, deleteRoom, setTeamAssignment, getTeamAssignment, getPlayersInRoom, startTurnTimer, clearTurnTimer, getTurnTimeRemaining, saveMatchHistory, cleanupInactiveRooms, handleForfeit, Room } from './game/roomManager';
 import { matchmakingManager } from './game/matchmakingManager';
 import { InviteService } from './services/InviteService';
 import * as inviteRepo from './services/inviteRepository';
@@ -635,13 +635,46 @@ setActiveUsers(activeUsers);
       }
     });
 
-    socket.on('leave_room', ({ roomId }) => {
+    socket.on('leave_room', async ({ roomId }) => {
       const room = getRoom(roomId);
       if (!room) return;
       const playerId = socket.data.identity?.id ?? socket.id;
+
+      // Check for active game forfeit
+      if (room.inGame && room.state && !room.state.matchOver) {
+        // Only if this user is a player in the game
+        const isPlayer = room.state.players.some(p => p.id === playerId);
+        if (isPlayer) {
+          logger.info({ roomId, playerId }, 'Player leaving active game - auto-forfeit triggered');
+          const forfeitEv = await handleForfeit(room, playerId);
+          if (forfeitEv) {
+            io.to(roomId).emit('game_event', forfeitEv as any);
+            io.to(roomId).emit('game_state', room.state);
+          }
+        }
+      }
+
       leaveRoom(room, playerId);
       socket.leave(roomId);
       io.to(roomId).emit('room_update', { roomId, players: room.players.map((p) => ({ id: p.id, name: p.name, role: p.role, taken: p.taken })), ownerId: room.ownerId, accessCode: room.accessCode, inviteToken: room.inviteToken, timerEnabled: room.timerEnabled });
+    });
+
+    socket.on('surrender_game', async ({ roomId }) => {
+      const room = getRoom(roomId);
+      if (!room) return;
+      const playerId = socket.data.identity?.id ?? socket.id;
+      
+      if (room.inGame && room.state && !room.state.matchOver) {
+        const isPlayer = room.state.players.some(p => p.id === playerId);
+        if (isPlayer) {
+             logger.info({ roomId, playerId }, 'Player explicitly surrendered');
+             const forfeitEv = await handleForfeit(room, playerId);
+             if (forfeitEv) {
+                 io.to(roomId).emit('game_event', forfeitEv as any);
+                 io.to(roomId).emit('game_state', room.state);
+             }
+        }
+      }
     });
 
     socket.on('intent_play_card', async ({ roomId, cardId, playerId }) => {
