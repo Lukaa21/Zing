@@ -20,6 +20,14 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    
+    // Explicit email validation
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(email)) {
+      setError('Molimo unesite validnu email adresu (npr. ime@primer.com)');
+      return;
+    }
+
     setIsLoading(true);
 
     try {

@@ -19,6 +19,12 @@ router.post('/register', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'lozinka mora imati najmanje 8 karaktera' });
     }
 
+    // Validate email format
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: 'Neispravan format email adrese' });
+    }
+
     // Validate username format (alphanumeric + underscore, max 15 chars)
     const usernameRegex = /^[a-zA-Z0-9_]{1,15}$/;
     if (!usernameRegex.test(username)) {
