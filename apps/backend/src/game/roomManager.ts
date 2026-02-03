@@ -125,6 +125,11 @@ export function createRoom(visibility?: 'public' | 'private', creatorId?: string
 }
 
 export async function startGame(room: Room, options?: { customTeams?: { team0: string[], team1: string[] } }) {
+  // Clear match accumulators from previous games to prevent double counting in rematches
+  (room as any)._matchZings = undefined;
+  (room as any)._matchZingsCount = undefined;
+  (room as any)._matchPlayerStats = undefined;
+
   // require 2 or 4 players to start (filter only PLAYER roles, not spectators)
   const activePlayers = room.players.filter(p => p.role === 'player');
   if (activePlayers.length !== 2 && activePlayers.length !== 4) {
