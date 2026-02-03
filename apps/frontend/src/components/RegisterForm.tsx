@@ -24,7 +24,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
     // Explicit email validation
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     if (!emailRegex.test(email)) {
-      setError('Molimo unesite validnu email adresu (npr. ime@primer.com)');
+      setError('Molimo unesite validnu email adresu.');
       return;
     }
 
@@ -69,7 +69,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
               placeholder="vas@email.com"
               autoComplete="email"
             />
-            <span className="auth-input-hint">Unesite validnu email adresu (npr. ime@gmail.com)</span>
+            <span className="auth-input-hint">Unesite validnu email adresu</span>
           </div>
 
           <div className="auth-form-group">
