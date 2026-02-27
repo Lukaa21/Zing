@@ -1,5 +1,5 @@
 import '../env';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../../generated/prisma-client';
 
 // Singleton Prisma instance - created only once per server lifetime
 // Connection pool limited to prevent MaxClientsInSessionMode error

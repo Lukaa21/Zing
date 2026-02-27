@@ -21,32 +21,29 @@ import { prisma } from './db/prisma';
 const logger = pino();
 
 const app = express();
+
+const allowedOrigins: (string | RegExp)[] = [
+  /^http:\/\/localhost(:\d+)?$/,   // localhost development
+  'https://igrajzing.me',           // production domain
+  'https://www.igrajzing.me',       // production domain (www)
+  'https://api.igrajzing.me',       // API subdomain
+];
+
 app.use(cors({
   origin: (origin, callback) => {
-    const allowedOrigins = [
-      /^http:\/\/localhost(:\d+)?$/,           // localhost development
-      'https://www.igrajzing.me',               // production domain
-      'https://igrajzing.me',                   // production domain (www-less)
-      'https://zing-frontend.vercel.app',       // Vercel preview/production
-    ];
-    
-    if (!origin) {
-      // Allow requests with no origin (mobile apps, curl, etc.)
-      callback(null, true);
-    } else if (allowedOrigins.some(allowed => 
+    if (!origin) return callback(null, true); // mobile apps, curl, etc.
+    if (allowedOrigins.some(allowed =>
       typeof allowed === 'string' ? allowed === origin : allowed.test(origin)
-    )) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
+    )) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
   },
   credentials: true
 }));
 app.use(express.json());
 const server = http.createServer(app);
 
-const PORT = process.env.BACKEND_PORT || 4000;
+// Supports Passenger (cPanel) which may pass a Unix socket path as PORT
+const PORT: string | number = process.env.PORT || process.env.BACKEND_PORT || 4000;
 
 // Simple health endpoint
 app.get('/health', (_req: Request, res: Response) => res.status(200).json({ ok: true }));
@@ -73,7 +70,7 @@ const activeUsers = new Set<string>();
 setActiveUsers(activeUsers);
 
 (async function bootstrap() {
-  server.listen(PORT, () => {
+  server.listen(PORT as any, () => {
     logger.info({ port: PORT }, 'Backend server started');
   });
   
@@ -92,7 +89,11 @@ setActiveUsers(activeUsers);
   }, 10 * 60 * 1000); // 10 minutes
 
   const io = new Server(server, {
-    cors: { origin: '*' }
+    cors: {
+      origin: allowedOrigins,
+      credentials: true,
+    },
+    transports: ['websocket', 'polling'],
   });
 
   // Initialize InviteService with dependencies

@@ -1,0 +1,257 @@
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../generated/prisma-client"
+  binaryTargets = ["native", "debian-openssl-1.0.x", "debian-openssl-3.0.x", "rhel-openssl-1.0.x", "rhel-openssl-3.0.x", "linux-musl", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  // directUrl = env("DIRECT_URL")
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum RoomInviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+  EXPIRED
+}
+
+enum AchievementType {
+  GAMES_PLAYED
+  SOLO_WINS
+  DUO_WINS
+  POINTS_TAKEN
+  ZINGS_MADE
+  GAMES_HOSTED
+  FRIENDS_ADDED
+}
+
+enum LeaderboardCategory {
+  WINS
+  ZINGS
+  POINTS
+}
+
+enum LeaderboardPeriod {
+  WEEKLY
+  MONTHLY
+  YEARLY
+  ALL_TIME
+}
+
+model User {
+  id                     String                @id @default(uuid())
+  username               String                @unique
+  email                  String                @unique
+  passwordHash           String
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  friendRequestsSent     Friendship[]          @relation("FriendRequester")
+  friendRequestsReceived Friendship[]          @relation("FriendAddressee")
+  invitesSent            RoomInvite[]          @relation("InviteSender")
+  invitesReceived        RoomInvite[]          @relation("InviteReceiver")
+  stats                  UserStats?
+  achievements           UserAchievement[]
+  leaderboardEntries     LeaderboardSnapshot[]
+}
+
+model Friendship {
+  id          String           @id @default(uuid())
+  requesterId String
+  addresseeId String
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  requester   User             @relation("FriendRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee   User             @relation("FriendAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
+  @@index([requesterId])
+  @@index([addresseeId])
+}
+
+model RoomInvite {
+  id        String           @id @default(uuid())
+  roomId    String
+  inviterId String
+  inviteeId String
+  status    RoomInviteStatus @default(PENDING)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  expiresAt DateTime
+  metadata  Json?
+
+  inviter User @relation("InviteSender", fields: [inviterId], references: [id], onDelete: Cascade)
+  invitee User @relation("InviteReceiver", fields: [inviteeId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+  @@index([inviteeId])
+  @@index([inviterId])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([roomId, inviteeId, status])
+}
+
+model Game {
+  id              String      @id @default(uuid())
+  status          String      @default("waiting")
+  deckSeed        String
+  dealerId        String?
+  surrenderVotes  String[]    @default([]) // Array of userIds who voted to surrender
+  rematchVotes    String[]    @default([]) // Array of userIds who voted for rematch
+  originalRoomIds Json? // Map of userId -> roomId for returning players to rooms
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  events          GameEvent[]
+}
+
+model Player {
+  id      String @id @default(uuid())
+  userId  String
+  gameId  String
+  name    String
+  seatIdx Int
+  role    String
+}
+
+model GameEvent {
+  id        String   @id @default(uuid())
+  gameId    String
+  seq       Int
+  type      String
+  actor     String?
+  payload   Json
+  createdAt DateTime @default(now())
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+}
+
+model GameSnapshot {
+  id        String   @id @default(uuid())
+  gameId    String
+  seq       Int
+  snapshot  Json
+  createdAt DateTime @default(now())
+}
+
+model RoundScore {
+  id        String   @id @default(uuid())
+  gameId    String
+  team      Int
+  points    Int
+  createdAt DateTime @default(now())
+}
+
+model MatchHistory {
+  id         String  @id @default(uuid())
+  mode       String // "1v1" or "2v2"
+  winnerTeam Int // 0 or 1
+  team0Score Int
+  team1Score Int
+  team0Zings Int     @default(0) // Number of zings scored by team 0
+  team1Zings Int     @default(0) // Number of zings scored by team 1
+  hostUserId String? // The user who hosted/created the game
+
+  // Team 0 Players
+  team0Player1Id   String? // NULL for guest players
+  team0Player1Name String
+  team0Player2Id   String? // NULL for 1v1 or guest
+  team0Player2Name String? // NULL for 1v1
+
+  // Team 1 Players
+  team1Player1Id   String?
+  team1Player1Name String
+  team1Player2Id   String?
+  team1Player2Name String?
+
+  duration  Int? // duration in seconds
+  createdAt DateTime @default(now())
+
+  @@index([team0Player1Id, createdAt])
+  @@index([team0Player2Id, createdAt])
+  @@index([team1Player1Id, createdAt])
+  @@index([team1Player2Id, createdAt])
+}
+
+model UserStats {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Game statistics
+  gamesPlayed  Int @default(0)
+  soloWins     Int @default(0)
+  duoWins      Int @default(0)
+  pointsTaken  Int @default(0)
+  zingsMade    Int @default(0)
+  gamesHosted  Int @default(0)
+  friendsAdded Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([gamesPlayed])
+  @@index([soloWins])
+  @@index([duoWins])
+}
+
+model Achievement {
+  id        String          @id @default(uuid())
+  type      AchievementType
+  tier      Int // 1, 2, or 3 (bronze, silver, gold)
+  threshold Int // The count needed to unlock this achievement
+
+  name        String // e.g., "Beginner Player"
+  description String // e.g., "Play 10 games"
+
+  unlockedBy UserAchievement[]
+
+  @@unique([type, tier])
+}
+
+model UserAchievement {
+  id            String @id @default(uuid())
+  userId        String
+  achievementId String
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  unlockedAt DateTime @default(now())
+
+  @@unique([userId, achievementId])
+  @@index([userId, unlockedAt])
+}
+
+model LeaderboardSnapshot {
+  id       String              @id @default(uuid())
+  userId   String
+  username String // Denormalized for faster queries
+  category LeaderboardCategory
+  period   LeaderboardPeriod
+  value    Int // The score (wins/zings/points)
+
+  // Period identifiers
+  weekStart  DateTime? // Start of week (Monday 00:00)
+  monthStart DateTime? // Start of month (1st 00:00)
+  yearStart  DateTime? // Start of year (Jan 1st 00:00)
+
+  rank      Int? // Computed rank within period/category
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, category, period, weekStart, monthStart, yearStart])
+  @@index([category, period, weekStart, value])
+  @@index([category, period, monthStart, value])
+  @@index([category, period, yearStart, value])
+  @@index([category, period, value])
+}
